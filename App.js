@@ -261,6 +261,9 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [arabicSize, setArabicSize] = useState(29);
+  const [showArabic, setShowArabic] = useState(true);
+  const [showTranslation, setShowTranslation] = useState(true);
   useEffect(() => {
     setVerses([]);
     setPage(1);
@@ -288,6 +291,22 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
       <Text style={styles.chapterArabicLarge}>{chapter.name_arabic || ""}</Text>
       <Text style={styles.reference}>{chapter.translated_name?.name || ""} · {chapter.verses_count} ayahs · {chapter.revelation_place || ""}</Text>
       <Button title="Back to surah list" secondary onPress={onBack} />
+      <View style={styles.readerTools}>
+        <Text style={styles.sectionTitle}>Reading preferences</Text>
+        <View style={styles.readerToolRow}>
+          <Text style={styles.readerToolLabel}>Arabic text</Text>
+          <View style={styles.readerSizeControls}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Decrease Arabic text size" onPress={() => setArabicSize(size => Math.max(22, size - 2))} style={styles.readerSizeButton}><Text style={styles.readerSizeButtonText}>A−</Text></Pressable>
+            <Text style={styles.readerSizeValue}>{arabicSize}</Text>
+            <Pressable accessibilityRole="button" accessibilityLabel="Increase Arabic text size" onPress={() => setArabicSize(size => Math.min(44, size + 2))} style={styles.readerSizeButton}><Text style={styles.readerSizeButtonText}>A+</Text></Pressable>
+          </View>
+        </View>
+        <View style={styles.readerToggleRow}>
+          <Pressable accessibilityRole="button" onPress={() => setShowArabic(value => !value)} style={[styles.readerToggle, showArabic && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showArabic && styles.readerToggleTextActive]}>{showArabic ? "✓ Arabic shown" : "Show Arabic"}</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setShowTranslation(value => !value)} style={[styles.readerToggle, showTranslation && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showTranslation && styles.readerToggleTextActive]}>{showTranslation ? "✓ Translation shown" : "Show translation"}</Text></Pressable>
+        </View>
+        <Text style={styles.tinyNote}>These display controls affect this reading session. Your text preferences are not saved between app launches yet.</Text>
+      </View>
       {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the verified Qur’an content backend to read this surah.</Text> : null}
       {verses.map((verse, index) => {
         const key = verse.verse_key || (chapter.id + ":" + (index + 1));
@@ -295,8 +314,8 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
         const plainTranslation = translation.replace(/<[^>]*>/g, "");
         return <View key={key} style={styles.verseCard}>
           <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
-          <Text style={styles.verseArabic} writingDirection="rtl">{verse.text_uthmani || ""}</Text>
-          <Text style={styles.translation}>{plainTranslation}</Text>
+          {showArabic ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2) }]} writingDirection="rtl">{verse.text_uthmani || ""}</Text> : null}
+          {showTranslation ? <Text style={styles.translation}>{plainTranslation}</Text> : null}
         </View>;
       })}
       {loading ? <ActivityIndicator color={GOLD} size="small" /> : null}
@@ -653,6 +672,18 @@ const createStyles = (p) => StyleSheet.create({
   exampleBox:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14,alignItems:"center"},exampleArabic:{color:p.text,fontSize:24,lineHeight:42,textAlign:"center"},
   navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:p.bg},
   savedAyah:{backgroundColor:p.surface,borderRadius:15,padding:13,marginTop:12},
+  readerTools:{backgroundColor:p.surface,borderRadius:15,padding:14,marginTop:15,marginBottom:4},
+  readerToolRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},
+  readerToolLabel:{color:p.text,fontSize:13,fontWeight:"700"},
+  readerSizeControls:{flexDirection:"row",alignItems:"center",gap:12},
+  readerSizeButton:{backgroundColor:p.panel,borderRadius:9,paddingVertical:8,paddingHorizontal:12,borderWidth:1,borderColor:p.border},
+  readerSizeButtonText:{color:p.accent,fontWeight:"800",fontSize:14},
+  readerSizeValue:{color:p.text,fontSize:12,minWidth:20,textAlign:"center"},
+  readerToggleRow:{flexDirection:"row",gap:8,marginTop:12},
+  readerToggle:{flex:1,backgroundColor:p.panel,borderRadius:10,paddingVertical:10,paddingHorizontal:7,alignItems:"center",borderWidth:1,borderColor:p.border},
+  readerToggleActive:{borderColor:p.accent},
+  readerToggleText:{color:p.muted,fontSize:10,fontWeight:"600",textAlign:"center"},
+  readerToggleTextActive:{color:p.accent},
   apiNotice:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14},chapterRow:{flexDirection:"row",alignItems:"center",paddingVertical:13,borderBottomWidth:1,borderBottomColor:p.border,gap:11},chapterNumber:{width:34,height:34,borderRadius:10,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"},chapterNumberText:{color:p.accent,fontWeight:"800"},chapterDetails:{flex:1},chapterArabic:{color:p.text,fontSize:19},chapterArabicLarge:{color:p.text,fontSize:34,textAlign:"center",marginVertical:12},verseCard:{backgroundColor:p.surface,borderRadius:15,padding:14,marginTop:14},verseMeta:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},verseNumber:{color:p.accent,fontWeight:"800"},verseBookmark:{color:p.accent,fontSize:12,fontWeight:"700"},verseArabic:{color:p.text,fontSize:27,lineHeight:54,textAlign:"right",marginTop:13},
   navIcon:{color:p.muted,fontSize:19,marginBottom:3},navLabel:{color:p.muted,fontSize:10},navSelected:{color:p.accent,fontWeight:"700"},
   stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
