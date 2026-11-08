@@ -885,6 +885,8 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
   const chapterAudioStatus = useAudioPlayerStatus(chapterPlayer);
   const [chapterAudioLoading,setChapterAudioLoading] = useState(false);
   const [chapterAudioError,setChapterAudioError] = useState("");
+  const [verseTimestamps,setVerseTimestamps] = useState([]);
+  const [activeSyncedVerseKey,setActiveSyncedVerseKey] = useState("");
   const [chapterList,setChapterList] = useState([]);
   const [lastAudioPosition,setLastAudioPosition] = usePersistentState("lastAudioPosition_"+String(chapter?.id||""),0);
   const [autoAdvance,setAutoAdvance] = useState(true);
@@ -900,6 +902,8 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
       const data=await response.json();
       if (!response.ok) throw new Error(data.error || "This recording is unavailable.");
       if (!data.audio?.url) throw new Error("The provider did not return an audio file.");
+      setVerseTimestamps(Array.isArray(data.audio.timestamps)?data.audio.timestamps:[]);
+      setActiveSyncedVerseKey("");
       chapterPlayer.replace(data.audio.url);
       if (Number(lastAudioPosition)>3) setResumeAfterLoad(true); else chapterPlayer.play();
     } catch(error) {
@@ -907,6 +911,8 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
     } finally { setChapterAudioLoading(false); }
   };
   useEffect(()=>{if(chapterAudioStatus?.currentTime!=null&&chapterAudioStatus.playing)setLastAudioPosition(chapterAudioStatus.currentTime);},[chapterAudioStatus?.currentTime,chapterAudioStatus?.playing]);
+  useEffect(()=>{if(!chapterAudioStatus?.playing||!verseTimestamps.length)return;const now=Number(chapterAudioStatus.currentTime||0)*1000;const match=verseTimestamps.find(item=>{const start=Number(item.timestamp_from??item.start??item.from??item.start_time);const end=Number(item.timestamp_to??item.end??item.to??item.end_time);return Number.isFinite(start)&&Number.isFinite(end)&&now>=start&&now<=end;});if(match){const key=String(match.verse_key||match.verseKey||match.key||"");if(key)setActiveSyncedVerseKey(key);}},[chapterAudioStatus?.currentTime,chapterAudioStatus?.playing,verseTimestamps]);
+  const seekToVerse=key=>{const timing=verseTimestamps.find(item=>String(item.verse_key||item.verseKey||item.key||"")===String(key));const start=Number(timing?.timestamp_from??timing?.start??timing?.from??timing?.start_time);if(Number.isFinite(start)){chapterPlayer.seekTo(Math.max(0,start/1000));chapterPlayer.play();setActiveSyncedVerseKey(String(key));}else Alert.alert("Ayah timing unavailable","This recording does not provide a timestamp for that ayah. You can still use its individual Play ayah button.");};
   useEffect(()=>{if(resumeAfterLoad&&chapterAudioStatus?.isLoaded){chapterPlayer.seekTo(Number(lastAudioPosition)||0);chapterPlayer.play();setResumeAfterLoad(false);}},[resumeAfterLoad,chapterAudioStatus?.isLoaded]);
   useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||!autoAdvance)return;const next=chapterList.find(item=>Number(item.id)===Number(chapter.id)+1);if(!next||!preferredReciterId||!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;fetch(base+"/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+next.id).then(r=>{if(!r.ok)throw new Error("Next surah audio unavailable");return r.json();}).then(data=>{if(!active||!data.audio?.url)return;onChangeChapter?.(next);chapterPlayer.replace(data.audio.url);chapterPlayer.play();}).catch(()=>{if(active)setChapterAudioError("The next surah could not be loaded. You can continue manually.");});return()=>{active=false;};},[chapterAudioStatus?.didJustFinish,autoAdvance,chapterList,chapter.id,preferredReciterId]);
   const navigateSurah=direction=>{const target=chapterList.find(item=>Number(item.id)===Number(chapter.id)+direction);if(target){chapterPlayer.pause();onChangeChapter?.(target);}};
@@ -1037,6 +1043,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
         <View style={styles.readerToggleRow}><Pressable onPress={()=>chapterPlayer.seekTo(Math.max(0,Number(chapterAudioStatus?.currentTime||0)-10))} style={styles.readerToggle}><Text style={styles.readerToggleText}>−10 sec</Text></Pressable><Pressable onPress={()=>chapterPlayer.seekTo(Number(chapterAudioStatus?.currentTime||0)+10)} style={styles.readerToggle}><Text style={styles.readerToggleText}>+10 sec</Text></Pressable><Pressable onPress={()=>setAutoAdvance(value=>!value)} style={[styles.readerToggle,autoAdvance&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,autoAdvance&&styles.readerToggleTextActive]}>{autoAdvance?"Auto-next on":"Auto-next off"}</Text></Pressable></View>
       </View>
       {chapterAudioError?<Text style={styles.tinyNote}>{chapterAudioError}</Text>:null}
+      <Text style={styles.tinyNote}>{verseTimestamps.length?"Ayah highlighting uses timestamps supplied with this recording.":"Ayah highlighting is available when this recording includes ayah timestamps."}</Text>
       <Text style={styles.reference}>{chapter.translated_name?.name || ""} · {chapter.verses_count} ayahs · {chapter.revelation_place || ""}</Text>
       <Button title="Back to surah list" secondary onPress={onBack} />
       <View style={styles.readerTools}>
@@ -1115,11 +1122,13 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
         const key = verse.verse_key || (chapter.id + ":" + (index + 1));
         const translation = verse.translations?.[0]?.text || "";
         const plainTranslation = translation.replace(/<[^>]*>/g, "");
-        return <View key={key} style={styles.verseCard}>
-          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
+        const isSyncedVerse=activeSyncedVerseKey===key;
+        return <View key={key} style={[styles.verseCard,isSyncedVerse&&{borderWidth:2,borderColor:GOLD,backgroundColor:PANEL}]}>
+          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{isSyncedVerse?"▶ "+key:key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
           {showArabic ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
           <View style={styles.verseAudioControls}>
+            <Pressable accessibilityRole="button" onPress={()=>seekToVerse(key)} style={[styles.readerToggle,isSyncedVerse&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,isSyncedVerse&&styles.readerToggleTextActive]}>{isSyncedVerse?"▶ Following audio":"Jump to ayah in audio"}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => playVerseAudio(verse,key)} style={[styles.readerToggle,activeAudioKey===key&&styles.readerToggleActive]}>
               <Text style={[styles.readerToggleText,activeAudioKey===key&&styles.readerToggleTextActive]}>{activeAudioKey===key&&audioStatus?.playing?"Ⅱ Playing":"▶ Play ayah"}</Text>
             </Pressable>
