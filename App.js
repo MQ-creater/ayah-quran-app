@@ -264,6 +264,9 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
   const [arabicSize, setArabicSize] = useState(29);
   const [showArabic, setShowArabic] = useState(true);
   const [showTranslation, setShowTranslation] = useState(true);
+  const [arabicScript, setArabicScript] = useState("Uthmani");
+  const [translationFont, setTranslationFont] = useState("Sans");
+  const translationFontFamily = translationFont === "Serif" ? "serif" : translationFont === "Monospace" ? "monospace" : undefined;
   useEffect(() => {
     setVerses([]);
     setPage(1);
@@ -305,7 +308,16 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
           <Pressable accessibilityRole="button" onPress={() => setShowArabic(value => !value)} style={[styles.readerToggle, showArabic && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showArabic && styles.readerToggleTextActive]}>{showArabic ? "✓ Arabic shown" : "Show Arabic"}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setShowTranslation(value => !value)} style={[styles.readerToggle, showTranslation && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showTranslation && styles.readerToggleTextActive]}>{showTranslation ? "✓ Translation shown" : "Show translation"}</Text></Pressable>
         </View>
-        <Text style={styles.tinyNote}>These display controls affect this reading session. Your text preferences are not saved between app launches yet.</Text>
+        <Text style={styles.readerToolLabel}>Arabic script edition</Text>
+        <View style={styles.readerToggleRow}>
+          {["Uthmani", "IndoPak", "Imla’i"].map(option => <Pressable key={option} accessibilityRole="button" onPress={() => setArabicScript(option)} style={[styles.readerToggle, arabicScript === option && styles.readerToggleActive]}><Text style={[styles.readerToggleText, arabicScript === option && styles.readerToggleTextActive]}>{option}</Text></Pressable>)}
+        </View>
+        {arabicScript !== "Uthmani" ? <Text style={styles.tinyNote}>Your {arabicScript} preference is selected. This content connection currently supplies Uthmani text only, so the displayed ayahs remain Uthmani until the matching verified text edition is connected.</Text> : null}
+        <Text style={styles.readerToolLabel}>Translation font</Text>
+        <View style={styles.readerToggleRow}>
+          {["Sans", "Serif", "Monospace"].map(option => <Pressable key={option} accessibilityRole="button" onPress={() => setTranslationFont(option)} style={[styles.readerToggle, translationFont === option && styles.readerToggleActive]}><Text style={[styles.readerToggleText, translationFont === option && styles.readerToggleTextActive]}>{option}</Text></Pressable>)}
+        </View>
+        <Text style={styles.tinyNote}>Font and display choices apply to this reading session. Preferences are not saved between app launches yet.</Text>
       </View>
       {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the verified Qur’an content backend to read this surah.</Text> : null}
       {verses.map((verse, index) => {
@@ -315,7 +327,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
         return <View key={key} style={styles.verseCard}>
           <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
           {showArabic ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2) }]} writingDirection="rtl">{verse.text_uthmani || ""}</Text> : null}
-          {showTranslation ? <Text style={styles.translation}>{plainTranslation}</Text> : null}
+          {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
         </View>;
       })}
       {loading ? <ActivityIndicator color={GOLD} size="small" /> : null}
