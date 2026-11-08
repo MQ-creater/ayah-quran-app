@@ -258,35 +258,50 @@ function QuranLibraryScreen({ onOpenChapter }) {
 }
 function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
   const [verses, setVerses] = useState([]);
+  const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   useEffect(() => {
+    setVerses([]);
+    setPage(1);
+    setError("");
+  }, [chapter?.id]);
+  useEffect(() => {
     if (!AYAH_API_BASE || !chapter?.id) return;
     let active = true;
-    setLoading(true); setError(""); setVerses([]);
-    fetch(`${(AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE)}/chapters/${chapter.id}/verses?page=1&per_page=50&translation_id=131`)
-      .then(response => { if (!response.ok) throw new Error(`Server returned ${response.status}`); return response.json(); })
-      .then(data => { if (active) setVerses(Array.isArray(data.verses) ? data.verses : []); })
+    setLoading(true); setError("");
+    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
+    fetch(base + "/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=131")
+      .then(response => { if (!response.ok) throw new Error("Server returned " + response.status); return response.json(); })
+      .then(data => {
+        if (!active) return;
+        const incoming = Array.isArray(data.verses) ? data.verses : [];
+        setVerses(current => page === 1 ? incoming : [...current, ...incoming]);
+      })
       .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [chapter?.id]);
+  }, [chapter?.id, page]);
   return <>
-    <Header eyebrow={`SURAH ${chapter.id}`} title={chapter.name_simple} />
+    <Header eyebrow={"SURAH " + chapter.id} title={chapter.name_simple} />
     <View style={styles.infoCard}>
       <Text style={styles.chapterArabicLarge}>{chapter.name_arabic || ""}</Text>
       <Text style={styles.reference}>{chapter.translated_name?.name || ""} · {chapter.verses_count} ayahs · {chapter.revelation_place || ""}</Text>
       <Button title="Back to surah list" secondary onPress={onBack} />
-      {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the verified Qur’an content backend to read this surah.</Text> : loading ? <ActivityIndicator color={GOLD} size="large" /> : error ? <Text style={styles.progressHint}>{error}</Text> : verses.map((verse, index) => {
-        const key = verse.verse_key || `${chapter.id}:${index + 1}`;
+      {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the verified Qur’an content backend to read this surah.</Text> : null}
+      {verses.map((verse, index) => {
+        const key = verse.verse_key || (chapter.id + ":" + (index + 1));
         const translation = verse.translations?.[0]?.text || "";
         const plainTranslation = translation.replace(/<[^>]*>/g, "");
         return <View key={key} style={styles.verseCard}>
-          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: `${chapter.name_simple} · ${key}` })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
+          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
           <Text style={styles.verseArabic} writingDirection="rtl">{verse.text_uthmani || ""}</Text>
           <Text style={styles.translation}>{plainTranslation}</Text>
         </View>;
       })}
+      {loading ? <ActivityIndicator color={GOLD} size="small" /> : null}
+      {error ? <Text style={styles.progressHint}>{error}</Text> : null}
+      {AYAH_API_BASE && verses.length < Number(chapter.verses_count || 0) ? <Button title="Load next ayahs" secondary disabled={loading} onPress={() => setPage(current => current + 1)} /> : null}
     </View>
   </>;
 }
