@@ -731,7 +731,73 @@ function SettingsScreen({ themeName, onSelectTheme, language, onSelectLanguage, 
   </>;
 }
 
-function ProgressScreen({ practiceCount, dailyGoal, language, onLearn, onSettings, reviewRecords, onRevision }) {
+function FullMemorizationTrackingScreen({ progress, onSetStatus, onBack }) {
+  const [chapters, setChapters] = useState([]);
+  const [chapterId, setChapterId] = useState("1");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!AYAH_API_BASE) return;
+    let active = true;
+    setLoading(true);
+    fetch((AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE) + "/chapters")
+      .then(response => { if (!response.ok) throw new Error("Unable to load surahs"); return response.json(); })
+      .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
+      .catch(() => { if (active) setError("Connect the verified Ayah content server to load all 114 surahs."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+  const chapter = chapters.find(item => String(item.id) === String(chapterId));
+  const total = Number(chapter?.verses_count || 0);
+  const statuses = progress?.[chapterId] || {};
+  const counts = { learning: 0, memorized: 0, revision: 0 };
+  Object.values(statuses).forEach(value => { if (counts[value] !== undefined) counts[value] += 1; });
+  const completed = counts.memorized;
+  const percent = total ? Math.round(completed / total * 100) : 0;
+  const cycle = { none: "learning", learning: "memorized", memorized: "revision", revision: "none" };
+  const labels = { none: "Not started", learning: "Learning", memorized: "Memorized", revision: "Needs revision" };
+  const colors = { none: MUTED, learning: "#D9B96E", memorized: "#78B88A", revision: "#D68B78" };
+  const update = verse => onSetStatus(chapterId, String(verse), cycle[statuses[String(verse)] || "none"]);
+  return <>
+    <Header eyebrow="HIFDH TRACKER" title="Full Qur’an memorization" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Choose a surah</Text>
+      {loading ? <ActivityIndicator color={GOLD} /> : null}
+      {error ? <Text style={styles.progressHint}>{error}</Text> : null}
+      {!AYAH_API_BASE ? <Text style={styles.progressHint}>The tracker supports all 114 surahs once the verified Qur’an content server is connected. No Qur’an text is generated here.</Text> : null}
+      {chapters.length > 0 ? <View style={styles.languageGrid}>{chapters.map(item => <Pressable key={item.id} onPress={() => setChapterId(String(item.id))} style={[styles.goalChoice, String(item.id) === String(chapterId) && styles.choiceSelected]}><Text style={[styles.choiceText, String(item.id) === String(chapterId) && styles.choiceTextSelected]}>{item.id}. {item.name_simple}</Text></Pressable>)}</View> : null}
+    </View>
+    {chapter ? <>
+      <View style={styles.lessonCard}>
+        <Text style={styles.cardEyebrow}>SURAH {chapter.id}</Text>
+        <Text style={styles.sectionTitle}>{chapter.name_simple}</Text>
+        <Text style={styles.progressHint}>{completed} of {total} ayahs marked memorized · {percent}%</Text>
+        <View style={styles.progressTrack}><View style={[styles.progressFill,{width:percent + "%"}]} /></View>
+        <View style={styles.languageGrid}>
+          <View style={styles.goalChoice}><Text style={styles.choiceText}>Learning: {counts.learning}</Text></View>
+          <View style={styles.goalChoice}><Text style={styles.choiceText}>Memorized: {counts.memorized}</Text></View>
+          <View style={styles.goalChoice}><Text style={styles.choiceText}>Revision: {counts.revision}</Text></View>
+        </View>
+      </View>
+      <View style={styles.infoCard}>
+        <Text style={styles.sectionTitle}>Ayah-by-ayah tracker</Text>
+        <Text style={styles.progressHint}>Tap an ayah to cycle through Learning → Memorized → Needs revision → Not started. These are your own progress labels, not an automatic recitation assessment.</Text>
+        <View style={styles.alphabetGrid}>{Array.from({length:total},(_,index)=>index+1).map(verse => {
+          const status = statuses[String(verse)] || "none";
+          return <Pressable key={verse} accessibilityRole="button" accessibilityLabel={"Ayah " + verse + ", " + labels[status] + ". Change status."} onPress={() => update(verse)} style={[styles.alphabetTile,{borderWidth:1,borderColor:status === "none" ? BORDER : colors[status]}]}>
+            <Text style={[styles.choiceText,{color:colors[status],fontWeight:"800"}]}>{verse}</Text>
+            <Text style={styles.alphabetTileName}>{status === "none" ? "—" : labels[status]}</Text>
+          </Pressable>;
+        })}</View>
+      </View>
+    </> : null}
+    <View style={styles.infoCard}>
+      <Text style={styles.tinyNote}>Your status changes are saved on this device. Account sync and detailed history will be added after secure sign-in is implemented. Please use a trusted mushaf and teacher to verify memorization.</Text>
+      <Button title="Back to progress" secondary onPress={onBack} />
+    </View>
+  </>;
+}
+function ProgressScreen({ practiceCount, dailyGoal, language, onLearn, onSettings, reviewRecords, onRevision, onTracking }) {
   const records = reviewRecords || {};
   const practiced = PRACTICE_PASSAGES.filter(item => records[item.id]);
   const dueCount = practiced.filter(item => new Date(records[item.id].dueAt || 0).getTime() <= Date.now()).length;
@@ -772,6 +838,7 @@ function ProgressScreen({ practiceCount, dailyGoal, language, onLearn, onSetting
         <View style={[styles.goalChoice,{flexGrow:1}]}><Text style={styles.choiceText}>Needs practice: {needsPracticeCount}</Text></View>
       </View>
       <Button title={"Open Smart Revision · " + dueCount + " due"} onPress={onRevision} />
+      <Button title="Track all 114 surahs" secondary onPress={onTracking} />
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Your daily learning goal</Text>
@@ -796,6 +863,7 @@ export default function App() {
   const [practiceCount, setPracticeCount] = usePersistentState("practiceCount", 0);
   const [memorizationPlan, setMemorizationPlan] = usePersistentState("memorizationPlan", { dailyTarget: 1, daysPerWeek: 5, focus: "balanced" });
   const [reviewRecords, setReviewRecords] = usePersistentState("reviewRecords", {});
+  const [memorizationProgress, setMemorizationProgress] = usePersistentState("memorizationProgress", {});
   const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; const previous = reviewRecords[id] || {}; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (previous.attempts || 0) + 1 } })); };
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
@@ -826,6 +894,7 @@ export default function App() {
   let screen;
   if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} savedIds={savedIds} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
+  else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} onRateReview={saveReviewRating} onStartPractice={() => setTab("memorize")} />;
   else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} practiceCount={practiceCount} />;
   else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
@@ -835,7 +904,7 @@ export default function App() {
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
-  else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
+  else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
   const tabs = [["home", "⌂", "Home"], ["library", "📖", "Qur’an"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
