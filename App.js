@@ -135,28 +135,36 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <Text style={styles.progressHint}>Start with one ayah, review what you know, and grow at your own pace.</Text>
         <Button title="Start memorizing" onPress={onPractice} />
       </View>
-      <Text style={styles.sectionTitle}>Your tools</Text>
+      <Text style={styles.settingLabel}>MEMORIZE & REVIEW</Text>
       <View style={styles.actionGrid}>
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
         <ActionTile icon="▤" title="Memorization plan" subtitle="Build your hifdh routine" onPress={() => onNavigate("plan")} />
         <ActionTile icon="↻" title="Smart revision" subtitle="Review ayahs when due" onPress={() => onNavigate("revision")} />
-        <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
-        <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
         <ActionTile icon="🔥" title="Daily goals & streaks" subtitle="Your routine and weekly report" onPress={() => onNavigate("goals")} />
         <ActionTile icon="✦" title="For you" subtitle="Personalized learning recommendations" onPress={() => onNavigate("recommendations")} />
-        <ActionTile icon="◷" title="Learning insights" subtitle="Sessions, practice and progress" onPress={() => onNavigate("insights")} />
-        <ActionTile icon="▣" title="Backup & privacy" subtitle="Export or clear this device’s data" onPress={() => onNavigate("data")} />
-        <ActionTile icon="⌁" title="Connection status" subtitle="Check the Qur’an content service" onPress={() => onNavigate("backend")} />
         <ActionTile icon="▦" title="Learning calendar" subtitle="Monthly reading and hifdh schedule" onPress={() => onNavigate("calendar")} />
-        <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
-        <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
+        <ActionTile icon="◷" title="Learning insights" subtitle="Sessions, practice and progress" onPress={() => onNavigate("insights")} />
+      </View>
+      <Text style={styles.settingLabel}>READ & STUDY QUR’AN</Text>
+      <View style={styles.actionGrid}>
         <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
         <ActionTile icon="⌕" title="Search ayahs" subtitle="Find words and passages" onPress={() => onNavigate("search")} />
-        <ActionTile icon="↻" title="Smart revision" subtitle="Review ayahs when due" onPress={() => onNavigate("revision")} />
+        <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
+        <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="Browse and preview reciters" onPress={() => onNavigate("reciters")} />
-        <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="۞" title="Tafsir library" subtitle="Verse explanations · Plus" locked onPress={() => onNavigate("premium")} />
+      </View>
+      <Text style={styles.settingLabel}>ARABIC & LEARNING</Text>
+      <View style={styles.actionGrid}>
+        <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
+        <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
+        <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
+      </View>
+      <Text style={styles.settingLabel}>APP & DATA</Text>
+      <View style={styles.actionGrid}>
+        <ActionTile icon="▣" title="Backup & privacy" subtitle="Export or clear this device’s data" onPress={() => onNavigate("data")} />
+        <ActionTile icon="⌁" title="Connection status" subtitle="Check the Qur’an content service" onPress={() => onNavigate("backend")} />
       </View>
       <View style={styles.premiumBanner}>
         <Text style={styles.premiumTitle}>Go deeper with Ayah Plus</Text>
