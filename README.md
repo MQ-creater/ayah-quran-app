@@ -31,6 +31,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Daily targets can be changed from the Goals screen.
 - Backup and privacy tools explain what is stored locally and allow the user to export or clear local learning data.
 - The backend includes a status endpoint, bounded upstream request timeouts, and a production CORS allowlist requirement.
+- The in-app connection screen checks the configured backend status and reports whether server credentials are configured without revealing the credentials.
 
 ## Product direction
 
@@ -60,6 +61,27 @@ npx expo install react-dom react-native-web @expo/metro-runtime
 ```
 
 Then open the forwarded port shown by Codespaces (usually port 8081) in the browser.
+
+## Project quality checks
+
+Run these from the repository root in Codespaces after installing dependencies:
+
+```bash
+npm install
+npm run check
+npx expo export --platform web
+```
+
+The source regression check verifies important app wiring, storage and reader behavior, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+
+Check the backend separately with:
+
+```bash
+node --check server/index.js
+npm install --prefix server
+```
+
+These checks do not replace device testing, live Quran Foundation credential approval, Qur’an text/audio validation, or testing on Android and iPad browsers.
 
 ## Qur’an font rendering
 
