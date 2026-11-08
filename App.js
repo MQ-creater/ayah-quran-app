@@ -282,7 +282,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
         const translation = verse.translations?.[0]?.text || "";
         const plainTranslation = translation.replace(/<[^>]*>/g, "");
         return <View key={key} style={styles.verseCard}>
-          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key)}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
+          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: `${chapter.name_simple} · ${key}` })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
           <Text style={styles.verseArabic} writingDirection="rtl">{verse.text_uthmani || ""}</Text>
           <Text style={styles.translation}>{plainTranslation}</Text>
         </View>;
@@ -290,19 +290,21 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
     </View>
   </>;
 }
-function SavedAyahsScreen({ savedIds, onToggleSave, onLearn }) {
+function SavedAyahsScreen({ savedIds, savedVerseDetails, onToggleSave, onLearn }) {
   const saved = PRACTICE_PASSAGES.filter(item => savedIds.includes(item.id));
+  const savedVerses = Object.entries(savedVerseDetails || {}).filter(([key]) => savedIds.includes(key));
   return <>
     <Header eyebrow="YOUR COLLECTION" title="Saved ayahs" />
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Your bookmarks</Text>
       <Text style={styles.progressHint}>Keep ayahs you want to revisit. Bookmarks currently last only while this app session stays open.</Text>
-      {saved.length === 0 ? <><Text style={styles.progressHint}>No saved ayahs yet. Open memorization practice and tap “Save this ayah”.</Text><Button title="Go to memorization" onPress={onLearn} /></> : saved.map(item => <View key={item.id} style={styles.savedAyah}>
-        <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic}</Text>
-        <Text style={styles.translation}>{item.translation}</Text>
-        <Text style={styles.reference}>{item.reference}</Text>
+      {saved.length === 0 && savedVerses.length === 0 ? <><Text style={styles.progressHint}>No saved ayahs yet. Save one during memorization practice or from the Qur’an reader.</Text><Button title="Go to memorization" onPress={onLearn} /></> : <>{saved.map(item => <View key={item.id} style={styles.savedAyah}>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic}</Text><Text style={styles.translation}>{item.translation}</Text><Text style={styles.reference}>{item.reference}</Text>
         <Button title="Remove bookmark" secondary onPress={() => onToggleSave(item.id)} />
-      </View>)}
+      </View>)}{savedVerses.map(([key, item]) => <View key={key} style={styles.savedAyah}>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic}</Text><Text style={styles.translation}>{item.translation}</Text><Text style={styles.reference}>{item.reference}</Text>
+        <Button title="Remove bookmark" secondary onPress={() => onToggleSave(key)} />
+      </View>)}</> }
     </View>
     <Button title="Back to learning" onPress={onLearn} />
   </>;
@@ -556,6 +558,7 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = useState(0);
   const [savedIds, setSavedIds] = useState([]);
+  const [savedVerseDetails, setSavedVerseDetails] = useState({});
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [themeName, setThemeName] = useState("auto");
   const [learningLanguage, setLearningLanguage] = useState("English");
@@ -581,10 +584,10 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} savedIds={savedIds} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} />;
-  else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.filter(x => x !== id))} onLearn={() => setTab("memorize")} />;
+  else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
