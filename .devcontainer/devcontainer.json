@@ -1,0 +1,13 @@
+{
+  "name": "Ayah Expo development",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bookworm",
+  "postCreateCommand": "npm install",
+  "postStartCommand": "npm run web -- --host 0.0.0.0",
+  "forwardPorts": [8081],
+  "portsAttributes": {
+    "8081": {
+      "label": "Ayah web preview",
+      "onAutoForward": "openBrowser"
+    }
+  }
+}
