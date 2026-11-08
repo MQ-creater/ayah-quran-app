@@ -628,7 +628,7 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
   </>;
 }
-function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
+function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafsir }) {
   const wordPlayer = useAudioPlayer(null);
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(1);
@@ -763,7 +763,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
         const translation = verse.translations?.[0]?.text || "";
         const plainTranslation = translation.replace(/<[^>]*>/g, "");
         return <View key={key} style={styles.verseCard}>
-          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
+          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
           {showArabic ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
           {showWordByWord ? <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 12 }}>
@@ -929,11 +929,11 @@ function ArabicAlphabetScreen({ onPremium }) {
 }
 
 
-function TafsirLibraryScreen({ onBack }) {
+function TafsirLibraryScreen({ onBack, initialTarget }) {
   const [sources, setSources] = useState([]);
   const [resourceId, setResourceId] = useState("");
-  const [surah, setSurah] = useState("1");
-  const [ayah, setAyah] = useState("1");
+  const [surah, setSurah] = useState(String(initialTarget?.surah || "1"));
+  const [ayah, setAyah] = useState(String(initialTarget?.ayah || "1"));
   const [commentary, setCommentary] = useState(null);
   const [loadingSources, setLoadingSources] = useState(false);
   const [loadingText, setLoadingText] = useState(false);
@@ -1257,6 +1257,8 @@ export default function App() {
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
   const [selectedChapter, setSelectedChapter] = useState(null);
+  const [tafsirTarget, setTafsirTarget] = useState({ surah:"1", ayah:"1" });
+  const [tafsirReturnTab, setTafsirReturnTab] = useState("premium");
   const [themeName, setThemeName] = usePersistentState("themeName", "auto");
   const [learningLanguage, setLearningLanguage] = usePersistentState("learningLanguage", "English");
   const [dailyGoal, setDailyGoal] = usePersistentState("dailyGoal", 10);
@@ -1281,7 +1283,7 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} savedIds={savedIds} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} progress={memorizationProgress} onRateReview={saveReviewRating} onSyncRating={(surahId, verse, rating) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } }))} onStartVerse={(chapterId, verse) => { setActiveAssignment({ chapterId, startVerse:Number(verse), endVerse:Number(verse), revision:true }); setTab("buildSession"); }} onStartPractice={() => setTab("memorize")} />;
@@ -1292,11 +1294,11 @@ export default function App() {
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("premium")} onPremium={() => setTab("premium")} />;
-  else if (tab === "tafsir") screen = <TafsirLibraryScreen onBack={() => setTab("premium")} />;
+  else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
-  else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
+  else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => { setTafsirTarget({ surah:"1", ayah:"1" }); setTafsirReturnTab("premium"); setTab("tafsir"); }} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
   const tabs = [["home", "⌂", "Home"], ["library", "📖", "Qur’an"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
   return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
