@@ -177,6 +177,31 @@ app.get("/api/tafsirs/:resourceId/ayah/:surah/:ayah", async (req, res) => {
   }
 });
 
+
+app.get("/api/search", async (req, res) => {
+  const query = String(req.query.q || "").trim();
+  const language = String(req.query.language || "en").toLowerCase();
+  const size = Math.min(30, Math.max(1, Number(req.query.size) || 20));
+  if (query.length < 2 || query.length > 100) return res.status(400).json({ error: "Search text must be between 2 and 100 characters." });
+  if (!/^[a-z]{2}$/.test(language)) return res.status(400).json({ error: "Language must be a two-letter language code." });
+  try {
+    const params = new URLSearchParams({ q: query, size: String(size), page: "1", language });
+    const data = await qfGet("/search?" + params.toString());
+    const raw = data.search?.results || data.results || [];
+    const results = raw.map(item => ({
+      verse_key: String(item.verse_key || item.verse?.verse_key || ""),
+      chapter_id: Number(item.chapter_id || item.verse?.chapter_id || String(item.verse_key || "").split(":")[0]),
+      verse_number: Number(item.verse_number || item.verse?.verse_number || String(item.verse_key || "").split(":")[1]),
+      arabic: item.text || item.text_uthmani || item.verse?.text_uthmani || "",
+      translation: item.translations?.[0]?.text || item.translation?.text || item.translation || ""
+    })).filter(item => item.chapter_id >= 1 && item.chapter_id <= 114 && item.verse_number >= 1);
+    res.json({ query, total_results: data.search?.total_results ?? data.total_results ?? results.length, results });
+  } catch (error) {
+    console.error("Qur’an search request failed:", error.message);
+    res.status(error.status || 503).json({ error: "Search is temporarily unavailable." });
+  }
+});
+
 app.get("/api/chapters", async (_req, res) => {
   try {
     const data = await qfGet("/chapters?language=en");
