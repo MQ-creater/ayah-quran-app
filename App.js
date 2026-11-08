@@ -259,6 +259,7 @@ function QuranLibraryScreen({ onOpenChapter }) {
   </>;
 }
 function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
+  const wordPlayer = useAudioPlayer(null);
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -406,6 +407,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
                   <Text style={{ color: TEXT, fontSize: 22, textAlign: "center", writingDirection: "rtl", fontFamily: arabicFontReady ? (arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs") : undefined }}>{wordArabic}</Text>
                   <Text style={{ color: GOLD, fontSize: 12, textAlign: "center", marginTop: 5 }}>{wordPronunciation || "Pronunciation unavailable"}</Text>
                   <Text style={{ color: TEXT, fontSize: 13, textAlign: "center", marginTop: 4 }}>{wordMeaning || "Meaning unavailable"}</Text>
+                  {word.audio_url ? <Pressable accessibilityRole="button" accessibilityLabel={"Play pronunciation for " + (wordPronunciation || "this word")} onPress={() => { const path = String(word.audio_url).replace(/^\\/+/, ""); wordPlayer.replace("https://audio.qurancdn.com/" + path); wordPlayer.play(); }} style={[styles.readerToggle, { marginTop: 8, paddingVertical: 6 }]}><Text style={styles.readerToggleText}>▶ Hear word</Text></Pressable> : null}
                 </View>;
               })}
             </View>
