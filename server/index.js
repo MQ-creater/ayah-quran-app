@@ -134,9 +134,15 @@ app.get("/api/chapters/:id/verses", async (req, res) => {
     return res.status(400).json({ error: "Invalid Arabic script selection." });
   }
   try {
+    const requestedLanguage = String(req.query.language || "en").toLowerCase();
+    if (!/^[a-z]{2}$/.test(requestedLanguage)) {
+      return res.status(400).json({ error: "Invalid word-by-word language selection." });
+    }
+    const arabicField = requestedScript === "indopak" ? "text_indopak_nastaleeq" : "text_qpc_hafs";
     const params = new URLSearchParams({
-      language: "en",
-      words: "false",
+      language: requestedLanguage,
+      words: "true",
+      word_fields: [arabicField, "text_uthmani", "transliteration", "translation", "audio_url", "position", "char_type_name"].join(","),
       translations: requestedTranslation,
       fields: requestedScript === "indopak" ? "text_indopak_nastaleeq" : "text_qpc_hafs",
       page: String(page),
