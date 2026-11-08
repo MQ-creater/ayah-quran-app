@@ -65,7 +65,7 @@ async function getAccessToken() {
     },
     body: new URLSearchParams({
       grant_type: "client_credentials",
-      scope: "content.quran.read"
+      scope: "content.quran.read content.translations.read"
     })
   });
   if (!response.ok) throw new Error("Quran Foundation authentication failed.");
@@ -93,6 +93,20 @@ async function qfGet(path) {
 }
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "ayah-content-api" }));
+
+app.get("/api/translations", async (req, res) => {
+  const language = String(req.query.language || "en").toLowerCase();
+  if (!/^[a-z]{2}$/.test(language)) {
+    return res.status(400).json({ error: "Language must be a two-letter language code." });
+  }
+  try {
+    const data = await qfGet("/resources/translations?language=" + encodeURIComponent(language));
+    res.json({ translations: data.translations || [] });
+  } catch (error) {
+    console.error("Translation resources request failed:", error.message);
+    res.status(error.status || 503).json({ error: "Translation choices are temporarily unavailable." });
+  }
+});
 
 app.get("/api/chapters", async (_req, res) => {
   try {
