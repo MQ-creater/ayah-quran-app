@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import * as Font from "expo-font";
+import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
   Pressable, TextInput, ImageBackground, Alert, ActivityIndicator
@@ -630,8 +631,88 @@ function ReviewScreen() {
   return <><Header eyebrow="REVIEW" title="Strengthen your recall" /><View style={styles.infoCard}><Text style={styles.cardEyebrow}>REVIEW CARD</Text><Text style={styles.dailyArabic} writingDirection="rtl">{PRACTICE.arabic}</Text>{show && <Text style={styles.translation}>{PRACTICE.translation}</Text>}<Text style={styles.reference}>{PRACTICE.reference}</Text><Button title={show ? "Hide translation" : "Show translation"} secondary onPress={() => setShow(!show)} /></View><Text style={styles.progressHint}>A personal review schedule and saved memorization history will be added in a later milestone.</Text></>;
 }
 function ListenScreen() {
-  const [choice, setChoice] = useState("Mishary Rashid Alafasy");
-  return <><Header eyebrow="RECITATION" title="Listen and follow" /><View style={styles.infoCard}><Text style={styles.sectionTitle}>Choose a reciter</Text>{["Mishary Rashid Alafasy", "Saad Al-Ghamdi", "Abdul Rahman Al-Sudais"].map(n => <Pressable key={n} onPress={() => setChoice(n)} style={[styles.choice, choice === n && styles.choiceSelected]}><Text style={[styles.choiceText, choice === n && styles.choiceTextSelected]}>{n}</Text><Text style={styles.choiceMark}>{choice === n ? "✓" : "○"}</Text></Pressable>)}<Text style={styles.progressHint}>Selected: {choice}. Audio will use authorized recordings from a verified source.</Text></View></>;
+  const player = useAudioPlayer(null);
+  const status = useAudioPlayerStatus(player);
+  const [reciters, setReciters] = useState([]);
+  const [chapters, setChapters] = useState([]);
+  const [reciterId, setReciterId] = useState("");
+  const [chapterId, setChapterId] = useState(1);
+  const [audioUrl, setAudioUrl] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [repeat, setRepeat] = useState(false);
+  const selectedReciter = reciters.find(item => String(item.id) === String(reciterId));
+  const selectedChapter = chapters.find(item => Number(item.id) === Number(chapterId));
+  useEffect(() => {
+    if (!AYAH_API_BASE) return;
+    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
+    let active = true;
+    Promise.all([
+      fetch(base + "/audio/reciters?language=en").then(response => { if (!response.ok) throw new Error("Reciters unavailable"); return response.json(); }),
+      fetch(base + "/chapters").then(response => { if (!response.ok) throw new Error("Chapters unavailable"); return response.json(); })
+    ]).then(([reciterData, chapterData]) => {
+      if (!active) return;
+      const availableReciters = Array.isArray(reciterData.reciters) ? reciterData.reciters : [];
+      const availableChapters = Array.isArray(chapterData.chapters) ? chapterData.chapters : [];
+      setReciters(availableReciters);
+      setChapters(availableChapters);
+      if (availableReciters.length) setReciterId(String(availableReciters[0].id));
+    }).catch(() => { if (active) setError("Connect the Ayah backend to load verified reciters and surahs."); });
+    return () => { active = false; player.pause(); };
+  }, []);
+  useEffect(() => { player.loop = repeat; }, [repeat, player]);
+  useEffect(() => {
+    if (!AYAH_API_BASE || !reciterId || !chapterId) return;
+    let active = true;
+    setLoading(true);
+    setError("");
+    setAudioUrl("");
+    player.pause();
+    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
+    fetch(base + "/audio/chapters/" + encodeURIComponent(reciterId) + "/" + encodeURIComponent(chapterId))
+      .then(response => { if (!response.ok) throw new Error("Audio unavailable"); return response.json(); })
+      .then(data => {
+        if (!active) return;
+        if (!data.audio?.url) throw new Error("No audio file");
+        setAudioUrl(data.audio.url);
+        player.replace(data.audio.url);
+      })
+      .catch(() => { if (active) setError("Audio for this reciter and surah is not available right now."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; player.pause(); };
+  }, [reciterId, chapterId]);
+  const changeChapter = direction => {
+    const next = Math.min(114, Math.max(1, Number(chapterId) + direction));
+    setChapterId(next);
+  };
+  return <><Header eyebrow="RECITATION" title="Listen and follow" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Choose a reciter</Text>
+      {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the secure Ayah backend to load the reciter catalogue and audio.</Text> : null}
+      {reciters.map(item => <Pressable key={item.id} onPress={() => setReciterId(String(item.id))} style={[styles.choice, String(reciterId) === String(item.id) && styles.choiceSelected]}>
+        <View style={{ flex: 1 }}><Text style={[styles.choiceText, String(reciterId) === String(item.id) && styles.choiceTextSelected]}>{item.name}</Text><Text style={styles.reference}>{item.style?.name || "Recitation"} · {item.qirat?.name || "Qira’at"}</Text></View>
+        <Text style={styles.choiceMark}>{String(reciterId) === String(item.id) ? "✓" : "○"}</Text>
+      </Pressable>)}
+      <Text style={styles.sectionTitle}>Choose a surah</Text>
+      <View style={styles.readerToggleRow}>
+        <Pressable style={styles.readerToggle} onPress={() => changeChapter(-1)} disabled={chapterId <= 1}><Text style={styles.readerToggleText}>Previous</Text></Pressable>
+        <View style={{ flex: 1, alignItems: "center" }}><Text style={styles.choiceText}>{selectedChapter?.name_simple || ("Surah " + chapterId)}</Text><Text style={styles.reference}>{chapterId} / 114</Text></View>
+        <Pressable style={styles.readerToggle} onPress={() => changeChapter(1)} disabled={chapterId >= 114}><Text style={styles.readerToggleText}>Next</Text></Pressable>
+      </View>
+      <Text style={styles.progressHint}>{selectedReciter ? "Reciter: " + selectedReciter.name : "Loading reciters…"}</Text>
+      {loading ? <ActivityIndicator color={GOLD} /> : null}
+      {error ? <Text style={styles.progressHint}>{error}</Text> : null}
+      <View style={styles.readerToggleRow}>
+        <Pressable accessibilityRole="button" disabled={!audioUrl || loading} onPress={() => status.playing ? player.pause() : player.play()} style={[styles.readerToggle, styles.readerToggleActive]}>
+          <Text style={[styles.readerToggleText, styles.readerToggleTextActive]}>{loading ? "Loading…" : status.playing ? "Ⅱ Pause" : "▶ Play surah"}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" disabled={!audioUrl} onPress={() => { player.pause(); player.seekTo(0); player.play(); }} style={styles.readerToggle}><Text style={styles.readerToggleText}>↺ Restart</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={() => setRepeat(value => !value)} style={[styles.readerToggle, repeat && styles.readerToggleActive]}><Text style={[styles.readerToggleText, repeat && styles.readerToggleTextActive]}>{repeat ? "✓ Repeat on" : "Repeat off"}</Text></Pressable>
+      </View>
+      {status.duration > 0 ? <Text style={styles.reference}>{Math.floor(status.currentTime / 60)}:{String(Math.floor(status.currentTime % 60)).padStart(2,"0")} / {Math.floor(status.duration / 60)}:{String(Math.floor(status.duration % 60)).padStart(2,"0")}</Text> : null}
+      <Text style={styles.tinyNote}>Audio is streamed from Quran Foundation’s recitation catalogue. Internet access is required; offline downloads are not enabled.</Text>
+    </View>
+  </>;
 }
 function TeacherScreen({ onPremium }) {
   const [assistant, setAssistant] = useState("Hamza");
