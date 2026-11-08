@@ -880,6 +880,7 @@ function QuranLibraryScreen({ onOpenChapter }) {
   </>;
 }
 function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, onChangeChapter }) {
+  const wordPlayer = useAudioPlayer(null);
   const audioStatus = useAudioPlayerStatus(wordPlayer);
   const chapterPlayer = useAudioPlayer(null);
   const chapterAudioStatus = useAudioPlayerStatus(chapterPlayer);
@@ -920,26 +921,37 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
   const [activeAudioKey,setActiveAudioKey] = useState(null);
   const [repeatCount,setRepeatCount] = usePersistentState("recitationRepeatCount",3);
   const [repeatsRemaining,setRepeatsRemaining] = useState(0);
-  const playVerseAudio = (verse,key) => {
+  const [audioQueueKeys,setAudioQueueKeys] = useState([]);
+  const [audioQueueIndex,setAudioQueueIndex] = useState(0);
+  const [selectedAudioKeys,setSelectedAudioKeys] = useState([]);
+  const [recallMode,setRecallMode] = useState(false);
+  const playVerseAudio = (verse,key,keepQueue=false) => {
     const audioUrl = verse.audio?.url || verse.audio_url || verse.audio?.audio_url;
     if (!audioUrl) { Alert.alert("Audio unavailable","A recitation recording is not available for this ayah in the current content response."); return; }
     const url = /^https?:\\/\\//i.test(audioUrl) ? audioUrl : "https://audio.qurancdn.com/" + String(audioUrl).replace(/^\\/+/, "");
+    if(!keepQueue){setAudioQueueKeys([key]);setAudioQueueIndex(0);}
     setActiveAudioKey(key);
     setRepeatsRemaining(Math.max(0,Number(repeatCount)-1));
     wordPlayer.replace(url);
     wordPlayer.play();
   };
+  const playSelectedAudioRange=()=>{
+    const keys=verses.map((verse,index)=>verse.verse_key||(chapter.id+":"+(index+1))).filter(key=>selectedAudioKeys.includes(key));
+    if(!keys.length){Alert.alert("Select ayahs first","Choose at least one ayah using Select for range.");return;}
+    const first=verses.find((verse,index)=>(verse.verse_key||(chapter.id+":"+(index+1)))===keys[0]);
+    setAudioQueueKeys(keys);setAudioQueueIndex(0);setSelectedAudioKeys([]);
+    if(first)playVerseAudio(first,keys[0],true);
+  };
+  const toggleAudioRangeKey=key=>setSelectedAudioKeys(current=>current.includes(key)?current.filter(item=>item!==key):[...current,key]);
   useEffect(() => {
-    if (audioStatus?.didJustFinish && repeatsRemaining > 0) {
-      setRepeatsRemaining(value=>Math.max(0,value-1));
-      wordPlayer.seekTo(0);
-      wordPlayer.play();
-    } else if (audioStatus?.didJustFinish) {
-      setActiveAudioKey(null);
-    }
-  }, [audioStatus?.didJustFinish,repeatsRemaining]);
+    if(!audioStatus?.didJustFinish)return;
+    if(repeatsRemaining>0){setRepeatsRemaining(value=>Math.max(0,value-1));wordPlayer.seekTo(0);wordPlayer.play();return;}
+    const nextIndex=audioQueueIndex+1;
+    const nextKey=audioQueueKeys[nextIndex];
+    if(nextKey){const nextVerse=verses.find((verse,index)=>(verse.verse_key||(chapter.id+":"+(index+1)))===nextKey);if(nextVerse){setAudioQueueIndex(nextIndex);playVerseAudio(nextVerse,nextKey,true);return;}}
+    setActiveAudioKey(null);setAudioQueueKeys([]);setAudioQueueIndex(0);
+  }, [audioStatus?.didJustFinish,repeatsRemaining,audioQueueIndex,audioQueueKeys,verses,chapter.id]);
 
-  const wordPlayer = useAudioPlayer(null);
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : Math.floor((Number(initialAyah || 1) - 1) / 50) + 1);
   const [jumpAyah, setJumpAyah] = useState("");
@@ -1115,6 +1127,15 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
         <Text style={styles.tinyNote}>Font and display choices apply to this reading session. Preferences are not saved between app launches yet.</Text>
       </View>
       {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the verified Qur’an content backend to read this surah.</Text> : null}
+      <View style={{marginTop:14,padding:12,backgroundColor:PANEL,borderRadius:14,borderWidth:1,borderColor:BORDER}}>
+        <Text style={styles.readerToolLabel}>AYAH MEMORIZATION AUDIO</Text>
+        <View style={styles.readerToggleRow}>
+          <Pressable accessibilityRole="button" onPress={playSelectedAudioRange} style={[styles.readerToggle,styles.readerToggleActive]}><Text style={[styles.readerToggleText,styles.readerToggleTextActive]}>▶ Play selected range ({selectedAudioKeys.length})</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={()=>setSelectedAudioKeys([])} style={styles.readerToggle}><Text style={styles.readerToggleText}>Clear selection</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={()=>setRecallMode(value=>!value)} style={[styles.readerToggle,recallMode&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,recallMode&&styles.readerToggleTextActive]}>{recallMode?"Reveal Arabic":"Hide Arabic · Recall"}</Text></Pressable>
+        </View>
+        <Text style={styles.tinyNote}>Select individual ayahs below to build a sequential practice queue. Each ayah repeats according to your repeat setting before the next begins.</Text>
+      </View>
       {verses.filter((verse,index) => {
         const key = verse.verse_key || (chapter.id + ":" + (index + 1));
         return !noteFilter || Boolean(notes?.[key]);
@@ -1125,9 +1146,10 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
         const isSyncedVerse=activeSyncedVerseKey===key;
         return <View key={key} style={[styles.verseCard,isSyncedVerse&&{borderWidth:2,borderColor:GOLD,backgroundColor:PANEL}]}>
           <View style={styles.verseMeta}><Text style={styles.verseNumber}>{isSyncedVerse?"▶ "+key:key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
-          {showArabic ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
+          {showArabic && !recallMode ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
           <View style={styles.verseAudioControls}>
+            <Pressable accessibilityRole="button" onPress={()=>toggleAudioRangeKey(key)} style={[styles.readerToggle,selectedAudioKeys.includes(key)&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,selectedAudioKeys.includes(key)&&styles.readerToggleTextActive]}>{selectedAudioKeys.includes(key)?"✓ Selected":"Select for range"}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={()=>seekToVerse(key)} style={[styles.readerToggle,isSyncedVerse&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,isSyncedVerse&&styles.readerToggleTextActive]}>{isSyncedVerse?"▶ Following audio":"Jump to ayah in audio"}</Text></Pressable>
             <Pressable accessibilityRole="button" onPress={() => playVerseAudio(verse,key)} style={[styles.readerToggle,activeAudioKey===key&&styles.readerToggleActive]}>
               <Text style={[styles.readerToggleText,activeAudioKey===key&&styles.readerToggleTextActive]}>{activeAudioKey===key&&audioStatus?.playing?"Ⅱ Playing":"▶ Play ayah"}</Text>
