@@ -219,11 +219,11 @@ function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, onBuil
     </>
   );
 }
-function BuildMemorizationSessionScreen({ onBack, onProgressUpdate }) {
+function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, initialAssignment, onFinishAssignment }) {
   const [chapters, setChapters] = useState([]);
-  const [chapterId, setChapterId] = useState("1");
-  const [startVerse, setStartVerse] = useState("1");
-  const [endVerse, setEndVerse] = useState("5");
+  const [chapterId, setChapterId] = useState(String(initialAssignment?.chapterId || "1"));
+  const [startVerse, setStartVerse] = useState(String(initialAssignment?.startVerse || "1"));
+  const [endVerse, setEndVerse] = useState(String(initialAssignment?.endVerse || "5"));
   const [verses, setVerses] = useState([]);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [stage, setStage] = useState(0);
@@ -288,13 +288,14 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate }) {
   };
   const finishVerse = () => {
     markCurrent("learning");
-    if (currentIndex >= verses.length - 1) setCompleted(true);
+    if (currentIndex >= verses.length - 1) { setCompleted(true); if (initialAssignment) onFinishAssignment?.(initialAssignment); }
     else { setCurrentIndex(index => index + 1); setStage(0); setShowAyah(false); }
   };
   return <>
     <Header eyebrow="GUIDED HIDHFH" title="Build a memorization session" />
     <View style={styles.infoCard}>
-      <Text style={styles.sectionTitle}>Choose your surah and ayah range</Text>
+      <Text style={styles.sectionTitle}>{initialAssignment ? "Today’s assigned ayahs" : "Choose your surah and ayah range"}</Text>
+      {initialAssignment ? <Text style={styles.progressHint}>This session was opened from your memorization schedule. Your assigned range is pre-filled below.</Text> : null}
       <Text style={styles.progressHint}>Choose a surah, then enter the first and last ayah. Ayah loads the Arabic and translation from the connected verified content service.</Text>
       {chapterLoading ? <ActivityIndicator color={GOLD} /> : null}
       <Text style={styles.reference}>Surah</Text>
@@ -381,7 +382,7 @@ function SmartRevisionScreen({ records, onRateReview, onStartPractice }) {
     </View>
   </>;
 }
-function MemorizationPlanScreen({ plan, onSavePlan, onStartPractice, onBuildSession, practiceCount }) {
+function MemorizationPlanScreen({ plan, onSavePlan, onStartPractice, onBuildSession, onStartAssignment, practiceCount }) {
   const [dailyTarget, setDailyTarget] = useState(plan?.dailyTarget || 1);
   const [daysPerWeek, setDaysPerWeek] = useState(plan?.daysPerWeek || 5);
   const [focus, setFocus] = useState(plan?.focus || "balanced");
@@ -446,6 +447,12 @@ function MemorizationPlanScreen({ plan, onSavePlan, onStartPractice, onBuildSess
   const completedDays = assignments.filter(item => item.completed).length;
   const completion = assignments.length ? Math.round(completedDays / assignments.length * 100) : 0;
   const selectedName = selectedChapter?.name_simple || plan?.chapterName || "Selected surah";
+  const localToday = (() => { const now = new Date(); return [now.getFullYear(),String(now.getMonth()+1).padStart(2,"0"),String(now.getDate()).padStart(2,"0")].join("-"); })();
+  const todayAssignment = assignments.find(item => item.date === localToday && !item.completed);
+  const nextAssignment = assignments.find(item => item.date > localToday && !item.completed);
+  const assignmentToShow = todayAssignment || nextAssignment;
+  const assignmentLabel = todayAssignment ? "Today's assignment" : nextAssignment ? "Next scheduled assignment" : "No upcoming assignment";
+
   return <>
     <Header eyebrow="YOUR HIDHFH JOURNEY" title="Memorization plan" />
     <View style={styles.infoCard}>
@@ -483,6 +490,12 @@ function MemorizationPlanScreen({ plan, onSavePlan, onStartPractice, onBuildSess
       <Button title="Start a practice session" onPress={onStartPractice}/>
       <Button title="Practice a selected ayah range" secondary onPress={onBuildSession}/>
     </View>
+    {assignmentToShow ? <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>{assignmentLabel.toUpperCase()}</Text>
+      <Text style={styles.sectionTitle}>{selectedName}</Text>
+      <Text style={styles.progressHint}>{dateLabel(assignmentToShow.date)} · Ayahs {assignmentToShow.startVerse}–{assignmentToShow.endVerse}</Text>
+      <Button title="Start this assignment" onPress={() => onStartAssignment?.({ chapterId: String(plan.chapterId), date: assignmentToShow.date, startVerse: assignmentToShow.startVerse, endVerse: assignmentToShow.endVerse })}/>
+    </View> : assignments.length ? <View style={styles.infoCard}><Text style={styles.sectionTitle}>Schedule complete</Text><Text style={styles.progressHint}>All scheduled assignments have been checked off. You can create another plan whenever you're ready.</Text></View> : null}
     {assignments.length ? <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Your daily assignments</Text>
       <Text style={styles.progressHint}>{selectedName} · {assignments.length} study days · {completedDays} completed</Text>
@@ -1055,6 +1068,7 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = usePersistentState("practiceCount", 0);
   const [memorizationPlan, setMemorizationPlan] = usePersistentState("memorizationPlan", { dailyTarget: 1, daysPerWeek: 5, focus: "balanced" });
+  const [activeAssignment, setActiveAssignment] = useState(null);
   const [reviewRecords, setReviewRecords] = usePersistentState("reviewRecords", {});
   const [memorizationProgress, setMemorizationProgress] = usePersistentState("memorizationProgress", {});
   const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; const previous = reviewRecords[id] || {}; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (previous.attempts || 0) + 1 } })); };
@@ -1089,8 +1103,8 @@ export default function App() {
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} onRateReview={saveReviewRating} onStartPractice={() => setTab("memorize")} />;
-  else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} onBuildSession={() => setTab("buildSession")} practiceCount={practiceCount} />;
-  else if (tab === "buildSession") screen = <BuildMemorizationSessionScreen onBack={() => setTab("memorize")} onProgressUpdate={(surahId, verse, status) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: status } }))} />;
+  else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} onBuildSession={() => { setActiveAssignment(null); setTab("buildSession"); }} onStartAssignment={assignment => { setActiveAssignment(assignment); setTab("buildSession"); }} practiceCount={practiceCount} />;
+  else if (tab === "buildSession") screen = <BuildMemorizationSessionScreen onBack={() => setTab("memorize")} initialAssignment={activeAssignment} onFinishAssignment={assignment => { setMemorizationPlan(current => ({ ...current, schedule: (current.schedule || []).map(item => item.date === assignment.date && item.startVerse === assignment.startVerse && item.endVerse === assignment.endVerse ? { ...item, completed: true, completedAt: new Date().toISOString() } : item) })); setActiveAssignment(null); }} onProgressUpdate={(surahId, verse, status) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: status } }))} />;
   else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onBuildSession={() => setTab("buildSession")} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
