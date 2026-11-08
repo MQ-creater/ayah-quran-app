@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Ayah",
+    "slug": "ayah-quran-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "android": {
+      "package": "com.mqcreater.ayah"
+    }
+  }
+}
