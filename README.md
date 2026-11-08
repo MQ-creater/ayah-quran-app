@@ -2,17 +2,21 @@
 
 A Qur'an memorization companion app, beginning with Android.
 
-## First milestone
+## Current features
 
 - Navy-and-gold home screen
-- Daily ayah card
-- Memorization progress overview
-- Entry points for Memorize, Review, Listen, and My Plan
+- Daily reflection ayah
+- Interactive memorization practice card with reveal/hide translation
+- Practice-session counter for the current app session
+- Review card with reveal/hide translation
+- Reciter preference selector (audio playback is not connected yet)
+- Simple daily memorization target selector
+- Bottom navigation between Home, Learn, Review, and Plan
 
 ## Technology
 
 - React Native
-- Expo
+- Expo SDK 54
 - JavaScript
 
 ## Run in GitHub Codespaces
@@ -21,11 +25,27 @@ Open this repository in a Codespace, then run:
 
 ```bash
 npm install
-npx expo start
+npx expo start --web --host 0.0.0.0
 ```
 
-To preview in a browser, use the Expo web option if web dependencies are installed. To test on an Android device, use Expo Go or an Android emulator.
+If Expo reports that web support is missing, run:
 
-## Important notes
+```bash
+npx expo install react-dom react-native-web @expo/metro-runtime
+```
 
-The current screen is a visual starting point. Progress tracking, Qur'an data, audio playback, accounts, and cloud synchronization still need to be implemented and tested. Verify Qur'an text and translations against trusted sources before publishing.
+Then open the forwarded port shown by Codespaces (usually port 8081) in the browser.
+
+## Android
+
+This is an Expo React Native project. Android testing can be done with Expo Go on an Android device or an Android emulator. A distributable Android build will be configured after the core app flow is tested.
+
+## Still to build
+
+- Persistent accounts and progress storage
+- Verified Qur'an text/translation data source
+- Verified recitation audio and playback controls
+- Recitation/repetition tools
+- Daily reminders and user settings
+
+Qur'an text, translations, and audio must be checked against trusted sources before release. The current practice counter and plan selection are temporary in-memory state and reset when the app restarts.
