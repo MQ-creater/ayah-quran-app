@@ -129,6 +129,7 @@ function HomeScreen({ onNavigate, onPractice }) {
       <Text style={styles.sectionTitle}>Your tools</Text>
       <View style={styles.actionGrid}>
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
+        <ActionTile icon="▤" title="Memorization plan" subtitle="Build your hifdh routine" onPress={() => onNavigate("plan")} />
         <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
@@ -206,6 +207,50 @@ function MemorizeScreen({ onPracticed, savedIds, onToggleSave, onSaved }) {
       <Text style={styles.tinyNote}>This guided practice is interactive, but audio playback and automatic recitation checking are not connected yet. Please check Qur’an text and pronunciation with a trusted mushaf or qualified teacher.</Text>
     </>
   );
+}
+function MemorizationPlanScreen({ plan, onSavePlan, onStartPractice, practiceCount }) {
+  const [dailyTarget, setDailyTarget] = useState(plan?.dailyTarget || 1);
+  const [daysPerWeek, setDaysPerWeek] = useState(plan?.daysPerWeek || 5);
+  const [focus, setFocus] = useState(plan?.focus || "balanced");
+  const [saved, setSaved] = useState(false);
+  const estimatedWeekly = dailyTarget * daysPerWeek;
+  const save = () => {
+    onSavePlan({ dailyTarget, daysPerWeek, focus, updatedAt: new Date().toISOString() });
+    setSaved(true);
+  };
+  return <>
+    <Header eyebrow="YOUR HIFDH JOURNEY" title="Memorization plan" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Build a realistic routine</Text>
+      <Text style={styles.progressHint}>Choose a gentle starting target. You can change it whenever your schedule changes. Consistency matters more than rushing.</Text>
+      <Text style={styles.settingLabel}>New ayahs per study day</Text>
+      <View style={styles.languageGrid}>
+        {[1, 2, 3].map(n => <Pressable key={n} onPress={() => {setDailyTarget(n);setSaved(false);}} style={[styles.goalChoice, dailyTarget === n && styles.choiceSelected]}><Text style={[styles.choiceText, dailyTarget === n && styles.choiceTextSelected]}>{n} {n === 1 ? "ayah" : "ayahs"}</Text></Pressable>)}
+      </View>
+      <Text style={styles.settingLabel}>Study days per week</Text>
+      <View style={styles.languageGrid}>
+        {[3, 5, 6, 7].map(n => <Pressable key={n} onPress={() => {setDaysPerWeek(n);setSaved(false);}} style={[styles.goalChoice, daysPerWeek === n && styles.choiceSelected]}><Text style={[styles.choiceText, daysPerWeek === n && styles.choiceTextSelected]}>{n} days</Text></Pressable>)}
+      </View>
+      <Text style={styles.settingLabel}>Your learning focus</Text>
+      {[{id:"new",label:"Learn new ayahs"},{id:"revision",label:"Strengthen what I know"},{id:"balanced",label:"Balance new learning and revision"}].map(item => <Pressable key={item.id} onPress={() => {setFocus(item.id);setSaved(false);}} style={[styles.choice, focus === item.id && styles.choiceSelected]}><Text style={[styles.choiceText, focus === item.id && styles.choiceTextSelected]}>{item.label}</Text><Text style={styles.choiceMark}>{focus === item.id ? "✓" : "○"}</Text></Pressable>)}
+    </View>
+    <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>YOUR WEEKLY STARTER TARGET</Text>
+      <Text style={styles.quizScore}>{estimatedWeekly}</Text>
+      <Text style={styles.sectionTitle}>New ayahs per week</Text>
+      <Text style={styles.progressHint}>At {dailyTarget} {dailyTarget === 1 ? "ayah" : "ayahs"} per study day across {daysPerWeek} days, your suggested weekly target is {estimatedWeekly} {estimatedWeekly === 1 ? "ayah" : "ayahs"}. This is a planning estimate, not a prediction of how quickly you will memorize.</Text>
+      <Text style={styles.reference}>Completed practice sessions in this preview: {practiceCount}</Text>
+      <Button title={saved ? "Plan saved on this device" : "Save my plan"} onPress={save} />
+      <Button title="Start a practice session" secondary onPress={onStartPractice} />
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>How revision will work</Text>
+      <Text style={styles.stepText}>1. Learn a small amount of verified Qur’an text.</Text>
+      <Text style={styles.stepText}>2. Review recently learned ayahs in later sessions.</Text>
+      <Text style={styles.stepText}>3. Revisit ayahs that need more practice.</Text>
+      <Text style={styles.tinyNote}>This is the first planner version. Automatic spaced-repetition scheduling, verified full-surah selection, and recitation-based progress will be added in later steps. Use a trusted mushaf and qualified teacher to check memorization.</Text>
+    </View>
+  </>;
 }
 const ARABIC_LESSON = [
   { word: "كِتَابٌ", transliteration: "kitābun", meaning: "a book", example: "هَذَا كِتَابٌ", exampleMeaning: "This is a book." },
@@ -796,6 +841,7 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = usePersistentState("practiceCount", 0);
+  const [memorizationPlan, setMemorizationPlan] = usePersistentState("memorizationPlan", { dailyTarget: 1, daysPerWeek: 5, focus: "balanced" });
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
   const [selectedChapter, setSelectedChapter] = useState(null);
@@ -825,6 +871,7 @@ export default function App() {
   let screen;
   if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} savedIds={savedIds} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
+  else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} practiceCount={practiceCount} />;
   else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
