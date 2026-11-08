@@ -130,6 +130,7 @@ function HomeScreen({ onNavigate, onPractice }) {
       <View style={styles.actionGrid}>
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
         <ActionTile icon="▤" title="Memorization plan" subtitle="Build your hifdh routine" onPress={() => onNavigate("plan")} />
+        <ActionTile icon="↻" title="Smart revision" subtitle="Review ayahs when due" onPress={() => onNavigate("revision")} />
         <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
@@ -160,7 +161,7 @@ const PRACTICE_PASSAGES = [
   { id: "ikhlas1", surah: "Al-Ikhlas", verse: "1", arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ", translation: "Say, He is Allah, the One.", reference: "Surah Al-Ikhlas · 112:1" },
   { id: "asr1", surah: "Al-Asr", verse: "1", arabic: "وَالْعَصْرِ", translation: "By time.", reference: "Surah Al-Asr · 103:1" }
 ];
-function MemorizeScreen({ onPracticed, savedIds, onToggleSave, onSaved }) {
+function MemorizeScreen({ onPracticed, savedIds, onToggleSave, onSaved, onRateReview, reviewRecords }) {
   const [selectedId, setSelectedId] = useState("fatiha2");
   const [stage, setStage] = useState(0);
   const [done, setDone] = useState(false);
@@ -203,10 +204,66 @@ function MemorizeScreen({ onPracticed, savedIds, onToggleSave, onSaved }) {
         <View style={styles.rowButtonCell}><Button title={stage === 2 ? "Start again" : "Next step"} onPress={() => { if (stage === 2) { setStage(0); setShowMeaning(false); setDone(false); } else { setStage(n => n + 1); setShowMeaning(false); } }} /></View>
       </View>
       <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); } }} disabled={done} />
+      {done && <View style={styles.infoCard}>
+        <Text style={styles.cardEyebrow}>REVISION CHECK-IN</Text>
+        <Text style={styles.sectionTitle}>How did this ayah feel?</Text>
+        <Text style={styles.progressHint}>Your answer helps Ayah suggest when to revisit it. Choose honestly; this is a planning aid, not a recitation score.</Text>
+        <View style={styles.languageGrid}>
+          {[{id:"difficult",label:"Difficult · review tomorrow"},{id:"medium",label:"Getting there · in 3 days"},{id:"easy",label:"Comfortable · in 7 days"}].map(option => <Pressable key={option.id} onPress={() => onRateReview(passage.id, option.id)} style={[styles.choice, reviewRecords?.[passage.id]?.rating === option.id && styles.choiceSelected, {flexGrow:1}]}><Text style={styles.choiceText}>{option.label}</Text><Text style={styles.choiceMark}>{reviewRecords?.[passage.id]?.rating === option.id ? "✓" : "○"}</Text></Pressable>)}
+        </View>
+        {reviewRecords?.[passage.id]?.dueAt ? <Text style={styles.reference}>Next suggested review: {new Date(reviewRecords[passage.id].dueAt).toLocaleDateString()}</Text> : null}
+      </View>}
       <Button title="View saved ayahs" secondary onPress={onSaved} />
       <Text style={styles.tinyNote}>This guided practice is interactive, but audio playback and automatic recitation checking are not connected yet. Please check Qur’an text and pronunciation with a trusted mushaf or qualified teacher.</Text>
     </>
   );
+}
+function SmartRevisionScreen({ records, onRateReview, onStartPractice }) {
+  const now = Date.now();
+  const items = PRACTICE_PASSAGES.map(passage => ({ ...passage, record: records?.[passage.id] || null }))
+    .filter(item => item.record)
+    .sort((a,b) => new Date(a.record.dueAt || 0).getTime() - new Date(b.record.dueAt || 0).getTime());
+  const due = items.filter(item => new Date(item.record.dueAt || 0).getTime() <= now);
+  const upcoming = items.filter(item => new Date(item.record.dueAt || 0).getTime() > now);
+  const labels = { difficult: "Needs more practice", medium: "Building confidence", easy: "Comfortable" };
+  const rate = (id, rating) => onRateReview(id, rating);
+  return <>
+    <Header eyebrow="SMART REVISION" title="Your review queue" />
+    <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>REVISION OVERVIEW</Text>
+      <Text style={styles.quizScore}>{due.length}</Text>
+      <Text style={styles.sectionTitle}>Ayahs suggested for review</Text>
+      <Text style={styles.progressHint}>Ayah schedules a suggested review using your self-rating: difficult in 1 day, getting there in 3 days, and comfortable in 7 days. These intervals are a simple starter system and can be adjusted as we learn more.</Text>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Due now</Text>
+      {due.length === 0 ? <Text style={styles.progressHint}>Nothing is due right now. You can still review any ayah you have practiced.</Text> : due.map(item => <View key={item.id} style={styles.savedAyah}>
+        <Text style={styles.choiceText}>{item.surah} · {item.reference}</Text>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic}</Text>
+        <Text style={styles.translation}>{item.translation}</Text>
+        <Text style={styles.reference}>Last rating: {labels[item.record.rating] || "Not rated"}</Text>
+        <View style={styles.languageGrid}>
+          {[{id:"difficult",label:"Difficult"},{id:"medium",label:"Getting there"},{id:"easy",label:"Comfortable"}].map(option => <Pressable key={option.id} onPress={() => rate(item.id, option.id)} style={[styles.goalChoice, item.record.rating === option.id && styles.choiceSelected]}><Text style={styles.choiceText}>{option.label}</Text></Pressable>)}
+        </View>
+      </View>)}
+      <Button title="Practice an ayah" onPress={onStartPractice} />
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Coming up</Text>
+      {upcoming.length === 0 ? <Text style={styles.progressHint}>No upcoming reviews have been scheduled yet.</Text> : upcoming.map(item => <View key={item.id} style={styles.choice}>
+        <View style={{flex:1}}><Text style={styles.choiceText}>{item.surah}</Text><Text style={styles.reference}>Review on {new Date(item.record.dueAt).toLocaleDateString()}</Text></View>
+        <Text style={styles.choiceMark}>{item.record.rating === "easy" ? "✓" : "◷"}</Text>
+      </View>)}
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Your practiced ayahs</Text>
+      {items.length === 0 ? <Text style={styles.progressHint}>Finish a memorization practice and rate how it felt. It will appear here.</Text> : items.map(item => <View key={item.id} style={styles.choice}>
+        <View style={{flex:1}}><Text style={styles.choiceText}>{item.surah} · {item.verse}</Text><Text style={styles.reference}>{labels[item.record.rating] || "Awaiting rating"}</Text></View>
+        <Text style={styles.choiceMark}>{item.record.attempts || 1}×</Text>
+      </View>)}
+      <Text style={styles.tinyNote}>Ratings are self-reported and do not verify memorization accuracy. Ask a qualified teacher to check your recitation.</Text>
+    </View>
+  </>;
 }
 function MemorizationPlanScreen({ plan, onSavePlan, onStartPractice, practiceCount }) {
   const [dailyTarget, setDailyTarget] = useState(plan?.dailyTarget || 1);
@@ -842,6 +899,8 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = usePersistentState("practiceCount", 0);
   const [memorizationPlan, setMemorizationPlan] = usePersistentState("memorizationPlan", { dailyTarget: 1, daysPerWeek: 5, focus: "balanced" });
+  const [reviewRecords, setReviewRecords] = usePersistentState("reviewRecords", {});
+  const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; const previous = reviewRecords[id] || {}; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (previous.attempts || 0) + 1 } })); };
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
   const [selectedChapter, setSelectedChapter] = useState(null);
@@ -871,8 +930,9 @@ export default function App() {
   let screen;
   if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} savedIds={savedIds} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
+  else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} onRateReview={saveReviewRating} onStartPractice={() => setTab("memorize")} />;
   else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} practiceCount={practiceCount} />;
-  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} />;
+  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
