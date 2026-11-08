@@ -68,12 +68,24 @@ The Library and Reader UI are in place, but they intentionally do not invent or 
 
 Start the backend with `cd server && npm install && npm start`. Copy `server/.env.example` to `server/.env` and fill in credentials obtained for your own Quran Foundation backend app. Keep `server/.env` private. The backend obtains and caches Quran Foundation Content API access tokens on the server. Never put a Quran Foundation client secret or private API token in this Expo app, source control, or an `EXPO_PUBLIC_` variable. New Quran Foundation integrations require a backend/server app and approved Content API access; their pre-live dataset is limited to Al-Fatihah and Al-Baqarah. Production access is needed for the complete Qur’an dataset. The example backend requests the granular `content.quran.read` and `content.translations.read` scopes; existing credentials may require the `content` scope configured for that app. See the [Quran Foundation API quickstart](https://api-docs.quran.com/docs/quickstart/) and [verses-by-chapter reference](https://api-docs.quran.com/docs/content_apis_versioned/4.0.0/verses-by-chapter-number/).
 
+## Recitation audio
+
+The Listen screen now loads chapter-reciter choices from the secure backend, retrieves a chapter audio URL for the selected reciter and surah, and provides play/pause, restart, repeat, and previous/next surah controls. The reader's word-by-word cards also show a "Hear word" control when Quran Foundation supplies a word audio asset.
+
+The backend exposes:
+- `GET /api/audio/reciters?language=en`
+- `GET /api/audio/chapters/:reciterId/:chapterId`
+
+Audio metadata is retrieved server-side using the distinct chapter-reciter resource IDs and the `content.audio.read` permission. Word pronunciation assets are resolved against Quran Foundation's audio CDN. Do not mix chapter-reciter IDs with ayah-by-ayah recitation IDs. Audio playback requires a configured and deployed backend with approved audio access. Offline downloads and background playback are not enabled.
+
+The Expo app uses `expo-audio`. After pulling the changes in Codespaces, run `npm install` and restart Expo. Test playback on a device/browser with audio output; this code has not yet been integration-tested against live credentials.
+
 ## Still to build
 
 - Secure backend and verified full Qur’an data connection
 - Persistent accounts, bookmarks, notes, collections, and progress sync
 - Tafsir, related ayahs, search, and reflection tools
-- Authorized recitation audio, repeat controls, and offline support
+- Ayah-level recitation timing, advanced playback queue, background controls, and offline support
 - Recitation recognition and word-level memorization feedback
 - Full revision plans, streaks, and analytics
 - Live AI teacher and reviewed Arabic curriculum
