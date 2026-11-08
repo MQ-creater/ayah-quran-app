@@ -64,7 +64,7 @@ The Library and Reader UI are in place, but they intentionally do not invent or 
 
 - `GET /chapters` → `{ "chapters": [{ "id": 1, "name_simple": "Al-Fatihah", "name_arabic": "الفاتحة", "translated_name": { "name": "The Opener" }, "verses_count": 7, "revelation_place": "makkah" }] }`
 - `GET /translations?language=en` → `{ "translations": [{ "id": 131, "name": "Dr. Mustafa Khattab, the Clear Quran", "author_name": "Dr. Mustafa Khattab", "language_name": "english" }] }` (the actual list is supplied by Quran Foundation and varies by language)
-- `GET /chapters/:id/verses?page=1&per_page=50&translation_id=131` → `{ "verses": [{ "verse_key": "1:1", "text_uthmani": "…", "translations": [{ "text": "…" }] }] }`
+- `GET /chapters/:id/verses?page=1&per_page=50&translation_id=131&script=uthmani&language=en` → verses with selected Arabic text, full-ayah translation, and verified `words` entries containing word text, transliteration, translation, position, and word-audio asset path. The app currently displays word meanings and transliteration; word audio playback is the next milestone.
 
 Start the backend with `cd server && npm install && npm start`. Copy `server/.env.example` to `server/.env` and fill in credentials obtained for your own Quran Foundation backend app. Keep `server/.env` private. The backend obtains and caches Quran Foundation Content API access tokens on the server. Never put a Quran Foundation client secret or private API token in this Expo app, source control, or an `EXPO_PUBLIC_` variable. New Quran Foundation integrations require a backend/server app and approved Content API access; their pre-live dataset is limited to Al-Fatihah and Al-Baqarah. Production access is needed for the complete Qur’an dataset. The example backend requests the granular `content.quran.read` and `content.translations.read` scopes; existing credentials may require the `content` scope configured for that app. See the [Quran Foundation API quickstart](https://api-docs.quran.com/docs/quickstart/) and [verses-by-chapter reference](https://api-docs.quran.com/docs/content_apis_versioned/4.0.0/verses-by-chapter-number/).
 
@@ -72,7 +72,6 @@ Start the backend with `cd server && npm install && npm start`. Copy `server/.en
 
 - Secure backend and verified full Qur’an data connection
 - Persistent accounts, bookmarks, notes, collections, and progress sync
-- Word-by-word translation and pronunciation
 - Tafsir, related ayahs, search, and reflection tools
 - Authorized recitation audio, repeat controls, and offline support
 - Recitation recognition and word-level memorization feedback
