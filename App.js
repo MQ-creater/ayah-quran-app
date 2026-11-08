@@ -140,6 +140,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
         <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
+        <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
@@ -860,6 +861,48 @@ function SavedAyahsScreen({ savedIds, savedVerseDetails, onToggleSave, onLearn }
     <Button title="Back to learning" onPress={onLearn} />
   </>;
 }
+
+function StudyNotebookScreen({ notes, savedIds, savedVerseDetails, collections, onAssignCollection, onBack }) {
+  const [query, setQuery] = useState("");
+  const [activeCollection, setActiveCollection] = useState("All");
+  const noteItems = Object.entries(notes || {}).map(([key, note]) => ({ key, note })).filter(item => item.note);
+  const savedItems = Object.entries(savedVerseDetails || {}).filter(([key]) => savedIds.includes(key));
+  const matches = value => String(value || "").toLowerCase().includes(query.trim().toLowerCase());
+  const visibleNotes = noteItems.filter(item => matches(item.key) || matches(item.note));
+  const visibleSaved = savedItems.filter(([key, item]) => {
+    const collection = collections?.[key] || "Favorites";
+    return (activeCollection === "All" || collection === activeCollection) &&
+      (matches(key) || matches(item.reference) || matches(item.translation));
+  });
+  return <>
+    <Header eyebrow="YOUR PERSONAL STUDY SPACE" title="Study notebook" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Find your reflections and bookmarks</Text>
+      <TextInput value={query} onChangeText={setQuery} placeholder="Search notes, surah:ayah, or translation…" placeholderTextColor={MUTED} style={styles.emailInput}/>
+      <Text style={styles.sectionTitle}>Collections</Text>
+      <View style={styles.readerToggleRow}>
+        {["All","Favorites","Study","Memorization"].map(name => <Pressable key={name} accessibilityRole="button" onPress={() => setActiveCollection(name)} style={[styles.readerToggle,activeCollection===name && styles.readerToggleActive]}><Text style={[styles.readerToggleText,activeCollection===name && styles.readerToggleTextActive]}>{name}</Text></Pressable>)}
+      </View>
+      <Text style={styles.sectionTitle}>Saved ayahs ({visibleSaved.length})</Text>
+      {visibleSaved.length ? visibleSaved.map(([key,item]) => <View key={key} style={styles.savedAyah}>
+        <Text style={styles.reference}>{item.reference || key}</Text>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic || ""}</Text>
+        <Text style={styles.translation}>{item.translation || ""}</Text>
+        <Text style={styles.readerToolLabel}>Move to collection</Text>
+        <View style={styles.readerToggleRow}>
+          {["Favorites","Study","Memorization"].map(name => <Pressable key={name} accessibilityRole="button" onPress={() => onAssignCollection(key,name)} style={[styles.readerToggle,(collections?.[key] || "Favorites")===name && styles.readerToggleActive]}><Text style={[styles.readerToggleText,(collections?.[key] || "Favorites")===name && styles.readerToggleTextActive]}>{name}</Text></Pressable>)}
+        </View>
+      </View>) : <Text style={styles.progressHint}>No saved ayahs match this search and collection.</Text>}
+      <Text style={styles.sectionTitle}>Personal notes ({visibleNotes.length})</Text>
+      {visibleNotes.length ? visibleNotes.map(item => <View key={item.key} style={styles.savedAyah}>
+        <Text style={styles.reference}>Ayah reference: {item.key}</Text>
+        <Text style={styles.translation}>{item.note}</Text>
+      </View>) : <Text style={styles.progressHint}>Your reader notes will appear here. Open an ayah in the Qur’an reader and choose Add note.</Text>}
+    </View>
+    <Button title="Back to home" secondary onPress={onBack}/>
+  </>;
+}
+
 function ArabicLessonsScreen({ onPremium }) {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -1307,6 +1350,7 @@ export default function App() {
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
   const [readerNotes, setReaderNotes] = usePersistentState("readerNotes", {});
+  const [ayahCollections, setAyahCollections] = usePersistentState("ayahCollections", {});
   const [lastReadPosition, setLastReadPosition] = usePersistentState("lastReadPosition", null);
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [tafsirTarget, setTafsirTarget] = useState({ surah:"1", ayah:"1" });
@@ -1342,6 +1386,7 @@ export default function App() {
   else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} onBuildSession={() => { setActiveAssignment(null); setTab("buildSession"); }} onStartAssignment={assignment => { setActiveAssignment(assignment); setTab("buildSession"); }} practiceCount={practiceCount} />;
   else if (tab === "buildSession") screen = <BuildMemorizationSessionScreen onBack={() => setTab("memorize")} initialAssignment={activeAssignment} onFinishAssignment={assignment => { if (!assignment.revision) setMemorizationPlan(current => ({ ...current, schedule: (current.schedule || []).map(item => item.date === assignment.date && item.startVerse === assignment.startVerse && item.endVerse === assignment.endVerse ? { ...item, completed: true, completedAt: new Date().toISOString() } : item) })); setActiveAssignment(null); if (assignment.revision) setTab("revision"); }} onProgressUpdate={(surahId, verse, status) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: status } }))} />;
   else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onBuildSession={() => setTab("buildSession")} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
+  else if (tab === "notebook") screen = <StudyNotebookScreen notes={readerNotes} savedIds={savedIds} savedVerseDetails={savedVerseDetails} collections={ayahCollections} onAssignCollection={(key,name) => setAyahCollections(current => ({ ...current, [key]:name }))} onBack={() => setTab("home")} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
