@@ -335,50 +335,83 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, initialAssig
   </>;
 }
 
-function SmartRevisionScreen({ records, onRateReview, onStartPractice }) {
+function SmartRevisionScreen({ records, progress, onRateReview, onSyncRating, onStartVerse, onStartPractice }) {
+  const [chapters, setChapters] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const base = AYAH_API_BASE ? (AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE) : "";
+  useEffect(() => {
+    if (!base) return;
+    let active = true;
+    setLoading(true);
+    fetch(base + "/chapters")
+      .then(response => { if (!response.ok) throw new Error("Could not load surah names."); return response.json(); })
+      .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
+      .catch(() => { if (active) setLoadError("Surah names are unavailable. You can still use the review list."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+  const chapterNames = Object.fromEntries(chapters.map(chapter => [String(chapter.id), chapter.name_simple]));
+  const legacyKeys = { fatiha2:"1:2", ikhlas1:"112:1", asr1:"103:1" };
+  const tracked = [];
+  Object.entries(progress || {}).forEach(([surahId, verses]) => {
+    Object.entries(verses || {}).forEach(([verse, status]) => {
+      if (!["learning","memorized","revision"].includes(status)) return;
+      const key = surahId + ":" + verse;
+      const legacyId = Object.keys(legacyKeys).find(id => legacyKeys[id] === key);
+      const record = records?.[key] || (legacyId ? records?.[legacyId] : null) || null;
+      tracked.push({ id:key, chapterId:String(surahId), verse:String(verse), surah:chapterNames[String(surahId)] || ("Surah " + surahId), status, record });
+    });
+  });
   const now = Date.now();
-  const items = PRACTICE_PASSAGES.map(passage => ({ ...passage, record: records?.[passage.id] || null }))
-    .filter(item => item.record)
-    .sort((a,b) => new Date(a.record.dueAt || 0).getTime() - new Date(b.record.dueAt || 0).getTime());
-  const due = items.filter(item => new Date(item.record.dueAt || 0).getTime() <= now);
-  const upcoming = items.filter(item => new Date(item.record.dueAt || 0).getTime() > now);
-  const labels = { difficult: "Needs more practice", medium: "Building confidence", easy: "Comfortable" };
-  const rate = (id, rating) => onRateReview(id, rating);
+  const due = tracked.filter(item => !item.record?.dueAt || new Date(item.record.dueAt).getTime() <= now)
+    .sort((a,b) => (a.status === "revision" ? -1 : 0) - (b.status === "revision" ? -1 : 0) || new Date(a.record?.dueAt || 0).getTime() - new Date(b.record?.dueAt || 0).getTime());
+  const upcoming = tracked.filter(item => item.record?.dueAt && new Date(item.record.dueAt).getTime() > now)
+    .sort((a,b) => new Date(a.record.dueAt).getTime() - new Date(b.record.dueAt).getTime());
+  const labels = { difficult:"Needs more practice", medium:"Building confidence", easy:"Comfortable" };
+  const rate = (item, rating) => {
+    onRateReview(item.id, rating);
+    onSyncRating?.(item.chapterId, item.verse, rating);
+  };
+  const ratingChoices = [{id:"difficult",label:"Difficult"},{id:"medium",label:"Getting there"},{id:"easy",label:"Comfortable"}];
   return <>
     <Header eyebrow="SMART REVISION" title="Your review queue" />
     <View style={styles.lessonCard}>
       <Text style={styles.cardEyebrow}>REVISION OVERVIEW</Text>
       <Text style={styles.quizScore}>{due.length}</Text>
-      <Text style={styles.sectionTitle}>Ayahs suggested for review</Text>
-      <Text style={styles.progressHint}>Ayah schedules a suggested review using your self-rating: difficult in 1 day, getting there in 3 days, and comfortable in 7 days. These intervals are a simple starter system and can be adjusted as we learn more.</Text>
+      <Text style={styles.sectionTitle}>Ayahs suggested for review today</Text>
+      <Text style={styles.progressHint}>Your queue now uses ayahs recorded in the full memorization tracker. New or unrated tracked ayahs appear as due; after a check-in, Ayah suggests 1, 3 or 7 days before the next review. These are adjustable starter intervals, not a scientifically validated prediction.</Text>
+      <Text style={styles.reference}>{tracked.length} tracked ayahs · {upcoming.length} scheduled for later</Text>
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Due now</Text>
-      {due.length === 0 ? <Text style={styles.progressHint}>Nothing is due right now. You can still review any ayah you have practiced.</Text> : due.map(item => <View key={item.id} style={styles.savedAyah}>
-        <Text style={styles.choiceText}>{item.surah} · {item.reference}</Text>
-        <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic}</Text>
-        <Text style={styles.translation}>{item.translation}</Text>
-        <Text style={styles.reference}>Last rating: {labels[item.record.rating] || "Not rated"}</Text>
+      {due.length === 0 ? <Text style={styles.progressHint}>Your tracked ayahs have no reviews due right now. Keep memorizing, or check the upcoming list below.</Text> : due.map(item => <View key={item.id} style={styles.savedAyah}>
+        <Text style={styles.choiceText}>{item.surah} · Ayah {item.verse}</Text>
+        <Text style={styles.reference}>Tracker status: {item.status === "revision" ? "Needs revision" : item.status === "memorized" ? "Marked memorized" : "Learning"}</Text>
+        <Text style={styles.reference}>Last check-in: {labels[item.record?.rating] || "Not rated yet"}</Text>
+        <Button title="Start this ayah's review" onPress={() => onStartVerse?.(item.chapterId, item.verse)} />
         <View style={styles.languageGrid}>
-          {[{id:"difficult",label:"Difficult"},{id:"medium",label:"Getting there"},{id:"easy",label:"Comfortable"}].map(option => <Pressable key={option.id} onPress={() => rate(item.id, option.id)} style={[styles.goalChoice, item.record.rating === option.id && styles.choiceSelected]}><Text style={styles.choiceText}>{option.label}</Text></Pressable>)}
+          {ratingChoices.map(option => <Pressable key={option.id} onPress={() => rate(item, option.id)} style={[styles.goalChoice, item.record?.rating === option.id && styles.choiceSelected]}><Text style={styles.choiceText}>{option.label}</Text></Pressable>)}
         </View>
       </View>)}
-      <Button title="Practice an ayah" onPress={onStartPractice} />
+      <Button title="Open memorization practice" secondary onPress={onStartPractice} />
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Coming up</Text>
-      {upcoming.length === 0 ? <Text style={styles.progressHint}>No upcoming reviews have been scheduled yet.</Text> : upcoming.map(item => <View key={item.id} style={styles.choice}>
-        <View style={{flex:1}}><Text style={styles.choiceText}>{item.surah}</Text><Text style={styles.reference}>Review on {new Date(item.record.dueAt).toLocaleDateString()}</Text></View>
+      {upcoming.length === 0 ? <Text style={styles.progressHint}>No future reviews yet. Rate a due ayah to schedule its next check-in.</Text> : upcoming.map(item => <View key={item.id} style={styles.choice}>
+        <View style={{flex:1}}><Text style={styles.choiceText}>{item.surah} · Ayah {item.verse}</Text><Text style={styles.reference}>Suggested review: {new Date(item.record.dueAt).toLocaleDateString()}</Text></View>
         <Text style={styles.choiceMark}>{item.record.rating === "easy" ? "✓" : "◷"}</Text>
       </View>)}
     </View>
     <View style={styles.infoCard}>
-      <Text style={styles.sectionTitle}>Your practiced ayahs</Text>
-      {items.length === 0 ? <Text style={styles.progressHint}>Finish a memorization practice and rate how it felt. It will appear here.</Text> : items.map(item => <View key={item.id} style={styles.choice}>
-        <View style={{flex:1}}><Text style={styles.choiceText}>{item.surah} · {item.verse}</Text><Text style={styles.reference}>{labels[item.record.rating] || "Awaiting rating"}</Text></View>
-        <Text style={styles.choiceMark}>{item.record.attempts || 1}×</Text>
+      <Text style={styles.sectionTitle}>Review history</Text>
+      {tracked.length === 0 ? <Text style={styles.progressHint}>Mark ayahs as Learning, Memorized or Needs revision in the full memorization tracker. They will appear here automatically.</Text> : tracked.map(item => <View key={item.id} style={styles.choice}>
+        <View style={{flex:1}}><Text style={styles.choiceText}>{item.surah} · {item.verse}</Text><Text style={styles.reference}>{labels[item.record?.rating] || item.status}</Text></View>
+        <Text style={styles.choiceMark}>{item.record?.attempts || 0}×</Text>
       </View>)}
-      <Text style={styles.tinyNote}>Ratings are self-reported and do not verify memorization accuracy. Ask a qualified teacher to check your recitation.</Text>
+      {loading ? <ActivityIndicator color={GOLD}/> : null}
+      {loadError ? <Text style={styles.progressHint}>{loadError}</Text> : null}
+      <Text style={styles.tinyNote}>A self-rating is not an accuracy check. Use a trusted mushaf or qualified Qur’an teacher to verify recitation and memorization.</Text>
     </View>
   </>;
 }
@@ -1071,7 +1104,7 @@ export default function App() {
   const [activeAssignment, setActiveAssignment] = useState(null);
   const [reviewRecords, setReviewRecords] = usePersistentState("reviewRecords", {});
   const [memorizationProgress, setMemorizationProgress] = usePersistentState("memorizationProgress", {});
-  const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; const previous = reviewRecords[id] || {}; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (previous.attempts || 0) + 1 } })); };
+  const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (current[id]?.attempts || 0) + 1 } })); };
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
   const [selectedChapter, setSelectedChapter] = useState(null);
@@ -1102,9 +1135,9 @@ export default function App() {
   if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} savedIds={savedIds} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
-  else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} onRateReview={saveReviewRating} onStartPractice={() => setTab("memorize")} />;
+  else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} progress={memorizationProgress} onRateReview={saveReviewRating} onSyncRating={(surahId, verse, rating) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } }))} onStartVerse={(chapterId, verse) => { setActiveAssignment({ chapterId, startVerse:Number(verse), endVerse:Number(verse), revision:true }); setTab("buildSession"); }} onStartPractice={() => setTab("memorize")} />;
   else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} onBuildSession={() => { setActiveAssignment(null); setTab("buildSession"); }} onStartAssignment={assignment => { setActiveAssignment(assignment); setTab("buildSession"); }} practiceCount={practiceCount} />;
-  else if (tab === "buildSession") screen = <BuildMemorizationSessionScreen onBack={() => setTab("memorize")} initialAssignment={activeAssignment} onFinishAssignment={assignment => { setMemorizationPlan(current => ({ ...current, schedule: (current.schedule || []).map(item => item.date === assignment.date && item.startVerse === assignment.startVerse && item.endVerse === assignment.endVerse ? { ...item, completed: true, completedAt: new Date().toISOString() } : item) })); setActiveAssignment(null); }} onProgressUpdate={(surahId, verse, status) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: status } }))} />;
+  else if (tab === "buildSession") screen = <BuildMemorizationSessionScreen onBack={() => setTab("memorize")} initialAssignment={activeAssignment} onFinishAssignment={assignment => { if (!assignment.revision) setMemorizationPlan(current => ({ ...current, schedule: (current.schedule || []).map(item => item.date === assignment.date && item.startVerse === assignment.startVerse && item.endVerse === assignment.endVerse ? { ...item, completed: true, completedAt: new Date().toISOString() } : item) })); setActiveAssignment(null); if (assignment.revision) setTab("revision"); }} onProgressUpdate={(surahId, verse, status) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: status } }))} />;
   else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onBuildSession={() => setTab("buildSession")} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
