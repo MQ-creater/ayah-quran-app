@@ -139,6 +139,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
+        <ActionTile icon="🔥" title="Daily goals & streaks" subtitle="Your routine and weekly report" onPress={() => onNavigate("goals")} />
         <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
         <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
@@ -227,7 +228,7 @@ function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, onBuil
     </>
   );
 }
-function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, initialAssignment, onFinishAssignment }) {
+function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSession, initialAssignment, onFinishAssignment }) {
   const [chapters, setChapters] = useState([]);
   const [chapterId, setChapterId] = useState(String(initialAssignment?.chapterId || "1"));
   const [startVerse, setStartVerse] = useState(String(initialAssignment?.startVerse || "1"));
@@ -296,7 +297,7 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, initialAssig
   };
   const finishVerse = () => {
     markCurrent("learning");
-    if (currentIndex >= verses.length - 1) { setCompleted(true); if (initialAssignment) onFinishAssignment?.(initialAssignment); }
+    if (currentIndex >= verses.length - 1) { setCompleted(true); onCompleteSession?.(verses.map(item => item.key)); if (initialAssignment) onFinishAssignment?.(initialAssignment); }
     else { setCurrentIndex(index => index + 1); setStage(0); setShowAyah(false); }
   };
   return <>
@@ -600,6 +601,56 @@ function ArabicStarterQuiz({ onReview }) {
   </View>;
 }
 
+
+function DailyGoalsScreen({ activity, onBack, readingTarget, memorizationTarget }) {
+  const dateKey = date => {
+    const d = new Date(date);
+    return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  };
+  const today = dateKey(new Date());
+  const dayData = activity?.[today] || {};
+  const readCount = (dayData.readingAyahs || []).length;
+  const memorizedCount = (dayData.memorizationAyahs || []).length;
+  const days = Array.from({length:7},(_,i) => {
+    const d = new Date(); d.setDate(d.getDate()-(6-i));
+    const key = dateKey(d), item = activity?.[key] || {};
+    return { key, label:d.toLocaleDateString(undefined,{weekday:"short"}), reading:(item.readingAyahs||[]).length, memorization:(item.memorizationAyahs||[]).length, active:((item.readingAyahs||[]).length+(item.memorizationAyahs||[]).length)>0 };
+  });
+  let streak=0;
+  for(let i=0;i<365;i++){ const d=new Date(); d.setDate(d.getDate()-i); const key=dateKey(d); const item=activity?.[key]||{}; if(((item.readingAyahs||[]).length+(item.memorizationAyahs||[]).length)>0) streak++; else if(i===0) continue; else break; }
+  const weekReading=days.reduce((n,d)=>n+d.reading,0), weekMem=days.reduce((n,d)=>n+d.memorization,0);
+  const Progress = ({value,target}) => <View style={styles.goalProgressTrack}><View style={[styles.goalProgressFill,{width:Math.min(100,target?value/target*100:0)+"%"}]}/></View>;
+  return <>
+    <Header eyebrow="YOUR DAILY ROUTINE" title="Goals & streaks" />
+    <View style={styles.infoCard}>
+      <View style={styles.goalStatRow}>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{streak}</Text><Text style={styles.reference}>Day streak</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{readCount}</Text><Text style={styles.reference}>Ayahs read today</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{memorizedCount}</Text><Text style={styles.reference}>Practiced today</Text></View>
+      </View>
+      <Text style={styles.sectionTitle}>Today’s goals</Text>
+      <Text style={styles.reference}>Reading · {readCount} / {readingTarget} ayahs</Text>
+      <Progress value={readCount} target={readingTarget}/>
+      <Text style={styles.reference}>Memorization · {memorizedCount} / {memorizationTarget} ayahs</Text>
+      <Progress value={memorizedCount} target={memorizationTarget}/>
+      <Text style={styles.tinyNote}>Goals count unique ayahs opened in the reader and completed in guided practice. They do not measure minutes or verify memorization accuracy.</Text>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Last 7 days</Text>
+      <View style={styles.weekActivityRow}>{days.map(day=><View key={day.key} style={styles.weekDay}>
+        <View style={[styles.weekDayDot,day.active && styles.weekDayDotActive]}><Text style={styles.weekDayCount}>{day.reading+day.memorization}</Text></View>
+        <Text style={styles.reference}>{day.label}</Text>
+      </View>)}</View>
+      <View style={styles.goalStatRow}>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{weekReading}</Text><Text style={styles.reference}>Read ayahs</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{weekMem}</Text><Text style={styles.reference}>Practice ayahs</Text></View>
+      </View>
+      <Text style={styles.tinyNote}>Your streak continues when you complete at least one reading or memorization activity on a calendar day. The weekly report uses this device’s local date.</Text>
+    </View>
+    <Button title="Back to home" secondary onPress={onBack}/>
+  </>;
+}
+
 function QuranSearchScreen({ onOpenResult, language }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -678,7 +729,7 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
   </>;
 }
-function QuranReaderScreen({ chapter, initialAyah = 1, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition }) {
+function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition }) {
   const wordPlayer = useAudioPlayer(null);
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : Math.floor((Number(initialAyah || 1) - 1) / 50) + 1);
@@ -753,6 +804,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onBack, savedIds, onToggl
         if (!active) return;
         const incoming = Array.isArray(data.verses) ? data.verses : [];
         setVerses(incoming);
+        onRecordReading?.(incoming.map(item => item.verse_key).filter(Boolean));
       })
       .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
       .finally(() => { if (active) setLoading(false); });
@@ -1403,6 +1455,8 @@ export default function App() {
   const [themeName, setThemeName] = usePersistentState("themeName", "auto");
   const [learningLanguage, setLearningLanguage] = usePersistentState("learningLanguage", "English");
   const [dailyGoal, setDailyGoal] = usePersistentState("dailyGoal", 10);
+  const [dailyActivity, setDailyActivity] = usePersistentState("dailyActivity", {});
+  const recordDailyActivity = (kind, keys) => { const d=new Date(); const date=d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); setDailyActivity(current => { const today={...(current[date]||{})}; const list=Array.isArray(today[kind])?[...today[kind]]:[]; keys.forEach(key=>{if(key&&!list.includes(String(key)))list.push(String(key));}); return {...current,[date]:{...today,[kind]:list}}; }); };
   const [remindersEnabled, setRemindersEnabled] = usePersistentState("remindersEnabled", false);
   const systemScheme = useColorScheme();
   const activeTheme = themeName === "auto" ? (systemScheme === "light" ? "light" : "dark") : themeName;
@@ -1424,14 +1478,14 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} initialAyah={searchInitialAyah} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} initialAyah={searchInitialAyah} onRecordReading={keys => recordDailyActivity("readingAyahs",keys)} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} progress={memorizationProgress} onRateReview={saveReviewRating} onSyncRating={(surahId, verse, rating) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } }))} onStartVerse={(chapterId, verse) => { setActiveAssignment({ chapterId, startVerse:Number(verse), endVerse:Number(verse), revision:true }); setTab("buildSession"); }} onStartPractice={() => setTab("memorize")} />;
   else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} onBuildSession={() => { setActiveAssignment(null); setTab("buildSession"); }} onStartAssignment={assignment => { setActiveAssignment(assignment); setTab("buildSession"); }} practiceCount={practiceCount} />;
-  else if (tab === "buildSession") screen = <BuildMemorizationSessionScreen onBack={() => setTab("memorize")} initialAssignment={activeAssignment} onFinishAssignment={assignment => { if (!assignment.revision) setMemorizationPlan(current => ({ ...current, schedule: (current.schedule || []).map(item => item.date === assignment.date && item.startVerse === assignment.startVerse && item.endVerse === assignment.endVerse ? { ...item, completed: true, completedAt: new Date().toISOString() } : item) })); setActiveAssignment(null); if (assignment.revision) setTab("revision"); }} onProgressUpdate={(surahId, verse, status) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: status } }))} />;
-  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onBuildSession={() => setTab("buildSession")} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
+  else if (tab === "buildSession") screen = <BuildMemorizationSessionScreen onBack={() => setTab("memorize")} onCompleteSession={keys => recordDailyActivity("memorizationAyahs",keys)} initialAssignment={activeAssignment} onFinishAssignment={assignment => { if (!assignment.revision) setMemorizationPlan(current => ({ ...current, schedule: (current.schedule || []).map(item => item.date === assignment.date && item.startVerse === assignment.startVerse && item.endVerse === assignment.endVerse ? { ...item, completed: true, completedAt: new Date().toISOString() } : item) })); setActiveAssignment(null); if (assignment.revision) setTab("revision"); }} onProgressUpdate={(surahId, verse, status) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: status } }))} />;
+  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onBuildSession={() => setTab("buildSession")} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) recordDailyActivity("memorizationAyahs",[ref[0]+":"+ref[1]]); if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
   else if (tab === "notebook") screen = <StudyNotebookScreen notes={readerNotes} savedIds={savedIds} savedVerseDetails={savedVerseDetails} collections={ayahCollections} onAssignCollection={(key,name) => setAyahCollections(current => ({ ...current, [key]:name }))} onBack={() => setTab("home")} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
@@ -1440,6 +1494,7 @@ export default function App() {
   else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
+  else if (tab === "goals") screen = <DailyGoalsScreen activity={dailyActivity} readingTarget={5} memorizationTarget={1} onBack={() => setTab("home")} />;
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => { setTafsirTarget({ surah:"1", ayah:"1" }); setTafsirReturnTab("premium"); setTab("tafsir"); }} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} lastReadPosition={lastReadPosition} onContinueReading={() => { if (lastReadPosition?.chapter) { setSelectedChapter(lastReadPosition.chapter); setTab("libraryReader"); } }} />;
@@ -1447,6 +1502,7 @@ export default function App() {
   return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
 const createStyles = (p) => StyleSheet.create({
+  goalProgressTrack:{height:9,backgroundColor:p.surface,borderRadius:8,overflow:"hidden",marginTop:7,marginBottom:16}, goalProgressFill:{height:9,backgroundColor:p.accent,borderRadius:8}, goalStatRow:{flexDirection:"row",justifyContent:"space-around",gap:8,marginVertical:12}, goalStat:{flex:1,alignItems:"center",backgroundColor:p.surface,borderRadius:12,padding:12}, goalStatValue:{fontSize:26,fontWeight:"800",color:p.accent}, weekActivityRow:{flexDirection:"row",justifyContent:"space-between",gap:5,marginVertical:16}, weekDay:{flex:1,alignItems:"center",gap:6}, weekDayDot:{width:34,height:34,borderRadius:17,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"}, weekDayDotActive:{backgroundColor:p.accent}, weekDayCount:{fontSize:12,fontWeight:"700",color:p.text},
   safeArea:{flex:1,backgroundColor:p.bg}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1},
   welcomeBackground:{flex:1,justifyContent:"center"}, welcomeShade:{flex:1,backgroundColor:"rgba(8,17,30,0.68)",padding:20,justifyContent:"center"},
   welcomeTop:{alignItems:"center",marginBottom:18}, logo:{width:54,height:54,borderRadius:18,backgroundColor:p.panel,borderWidth:1,borderColor:"#53617A",alignItems:"center",justifyContent:"center",marginBottom:8},
