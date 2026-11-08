@@ -50,12 +50,12 @@ This is an Expo React Native project. Android testing can be done with Expo Go o
 
 ## Qur’an content connection
 
-The Library and Reader UI are in place, but they intentionally do not invent or bundle Qur’an text. Configure `EXPO_PUBLIC_AYAH_API_URL` with the URL of an Ayah backend that implements:
+The Library and Reader UI are in place, but they intentionally do not invent or bundle Qur’an text. Run the backend in `server/` with its own environment file and configure the app's `EXPO_PUBLIC_AYAH_API_URL` as the backend URL ending in `/api` (for local development, `http://localhost:3001/api`). The backend routes are:
 
 - `GET /chapters` → `{ "chapters": [{ "id": 1, "name_simple": "Al-Fatihah", "name_arabic": "الفاتحة", "translated_name": { "name": "The Opener" }, "verses_count": 7, "revelation_place": "makkah" }] }`
 - `GET /chapters/:id/verses?page=1&per_page=50&translation_id=131` → `{ "verses": [{ "verse_key": "1:1", "text_uthmani": "…", "translations": [{ "text": "…" }] }] }`
 
-The backend must obtain and cache Quran Foundation Content API access tokens on the server. Never put a Quran Foundation client secret or private API token in this Expo app, source control, or an `EXPO_PUBLIC_` variable. New Quran Foundation integrations require a backend/server app and approved Content API access; their pre-live dataset is limited to Al-Fatihah and Al-Baqarah. Production access is needed for the complete Qur’an dataset. See the [Quran Foundation API quickstart](https://api-docs.quran.com/docs/quickstart/) and [verses-by-chapter reference](https://api-docs.quran.com/docs/content_apis_versioned/4.0.0/verses-by-chapter-number/).
+Start the backend with `cd server && npm install && npm start`. Copy `server/.env.example` to `server/.env` and fill in credentials obtained for your own Quran Foundation backend app. Keep `server/.env` private. The backend obtains and caches Quran Foundation Content API access tokens on the server. Never put a Quran Foundation client secret or private API token in this Expo app, source control, or an `EXPO_PUBLIC_` variable. New Quran Foundation integrations require a backend/server app and approved Content API access; their pre-live dataset is limited to Al-Fatihah and Al-Baqarah. Production access is needed for the complete Qur’an dataset. The example backend uses the new granular `content.quran.read` scope; existing credentials may require the scope configured for that app. See the [Quran Foundation API quickstart](https://api-docs.quran.com/docs/quickstart/) and [verses-by-chapter reference](https://api-docs.quran.com/docs/content_apis_versioned/4.0.0/verses-by-chapter-number/).
 
 ## Still to build
 
