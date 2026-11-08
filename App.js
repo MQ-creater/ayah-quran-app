@@ -4,10 +4,12 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
-  Pressable, TextInput, ImageBackground, Alert, ActivityIndicator
+  Pressable, TextInput, ImageBackground, Alert, ActivityIndicator, Share
 } from "react-native";
 
 const PREFERENCES_KEY = "@ayah/preferences-v1";
+const PRACTICE_HISTORY_LIMIT = 250;
+function localDateKey(value = new Date()) { const d=value instanceof Date?value:new Date(value); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
 function formatAudioTime(seconds) { const value=Number(seconds);if(!Number.isFinite(value)||value<0)return "0:00";const whole=Math.floor(value);return Math.floor(whole/60)+":"+String(whole%60).padStart(2,"0"); }
 
@@ -16,11 +18,11 @@ function usePersistentState(key, initialValue) {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
-    AsyncStorage.getItem(PREFERENCES_KEY + ":" + key).then(raw => {
+    AsyncStorage.getItem(PREFERENCES_KEY + ":" + key).then(async raw => {
       if (!active) return;
-      if (raw) {
-        const saved = JSON.parse(raw);
-        setValue(JSON.parse(raw));
+      if (raw !== null) {
+        try { setValue(JSON.parse(raw)); }
+        catch (parseError) { console.warn("Resetting unreadable preference:", key); await AsyncStorage.removeItem(PREFERENCES_KEY + ":" + key); if(active)setValue(initialValue); }
       }
     }).catch(error => {
       console.warn("Could not load saved Ayah preferences:", error);
@@ -143,12 +145,14 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
         <ActionTile icon="🔥" title="Daily goals & streaks" subtitle="Your routine and weekly report" onPress={() => onNavigate("goals")} />
         <ActionTile icon="✦" title="For you" subtitle="Personalized learning recommendations" onPress={() => onNavigate("recommendations")} />
+        <ActionTile icon="◷" title="Learning insights" subtitle="Sessions, practice and progress" onPress={() => onNavigate("insights")} />
+        <ActionTile icon="▣" title="Backup & privacy" subtitle="Export or clear this device’s data" onPress={() => onNavigate("data")} />
         <ActionTile icon="▦" title="Learning calendar" subtitle="Monthly reading and hifdh schedule" onPress={() => onNavigate("calendar")} />
         <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
         <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
         <ActionTile icon="⌕" title="Search ayahs" subtitle="Find words and passages" onPress={() => onNavigate("search")} />
-        <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
+        <ActionTile icon="↻" title="Smart revision" subtitle="Review ayahs when due" onPress={() => onNavigate("revision")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="Browse and preview reciters" onPress={() => onNavigate("reciters")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="۞" title="Tafsir library" subtitle="Verse explanations · Plus" locked onPress={() => onNavigate("premium")} />
@@ -174,7 +178,7 @@ const PRACTICE_PASSAGES = [
   { id: "ikhlas1", surah: "Al-Ikhlas", verse: "1", arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ", translation: "Say, He is Allah, the One.", reference: "Surah Al-Ikhlas · 112:1" },
   { id: "asr1", surah: "Al-Asr", verse: "1", arabic: "وَالْعَصْرِ", translation: "By time.", reference: "Surah Al-Asr · 103:1" }
 ];
-function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, onBuildSession, savedIds, onToggleSave, onSaved, onRateReview, reviewRecords }) {
+function MemorizeScreen({ onPracticed, onPracticeCompleted, onRecordSession, onSyncRating, onBuildSession, savedIds, onToggleSave, onSaved, onRateReview, reviewRecords }) {
   const [selectedId, setSelectedId] = useState("fatiha2");
   const [stage, setStage] = useState(0);
   const [done, setDone] = useState(false);
@@ -217,7 +221,7 @@ function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, onBuil
         <View style={styles.rowButtonCell}><Button title="Previous" secondary disabled={stage === 0} onPress={() => { setStage(n => Math.max(0, n - 1)); setShowMeaning(false); }} /></View>
         <View style={styles.rowButtonCell}><Button title={stage === 2 ? "Start again" : "Next step"} onPress={() => { if (stage === 2) { setStage(0); setShowMeaning(false); setDone(false); } else { setStage(n => n + 1); setShowMeaning(false); } }} /></View>
       </View>
-      <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); onPracticeCompleted?.(passage.id); } }} disabled={done} />
+      <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); onPracticeCompleted?.(passage.id); onRecordSession?.({type:"single-ayah",ayahKeys:[passage.id],ayahCount:1,source:"guided-practice"}); } }} disabled={done} />
       {done && <View style={styles.infoCard}>
         <Text style={styles.cardEyebrow}>REVISION CHECK-IN</Text>
         <Text style={styles.sectionTitle}>How did this ayah feel?</Text>
@@ -232,7 +236,7 @@ function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, onBuil
     </>
   );
 }
-function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSession, initialAssignment, onFinishAssignment }) {
+function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSession, onSessionCompleted, initialAssignment, onFinishAssignment }) {
   const [chapters, setChapters] = useState([]);
   const [chapterId, setChapterId] = useState(String(initialAssignment?.chapterId || "1"));
   const [startVerse, setStartVerse] = useState(String(initialAssignment?.startVerse || "1"));
@@ -301,7 +305,7 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSe
   };
   const finishVerse = () => {
     markCurrent("learning");
-    if (currentIndex >= verses.length - 1) { setCompleted(true); onCompleteSession?.(verses.map(item => item.key)); if (initialAssignment) onFinishAssignment?.(initialAssignment); }
+    if (currentIndex >= verses.length - 1) { setCompleted(true); const keys=verses.map(item=>item.key); onCompleteSession?.(keys); onSessionCompleted?.({type:initialAssignment?.revision?"revision":"guided-range",chapterId,startVerse:Number(startVerse),endVerse:Number(endVerse),ayahCount:keys.length,ayahKeys:keys,source:initialAssignment?"scheduled-assignment":"reader-builder"}); if (initialAssignment) onFinishAssignment?.(initialAssignment); }
     else { setCurrentIndex(index => index + 1); setStage(0); setShowAyah(false); }
   };
   return <>
@@ -752,12 +756,12 @@ function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPre
   </>;
 }
 
-function DailyGoalsScreen({ activity, onBack, readingTarget, memorizationTarget }) {
+function DailyGoalsScreen({ activity, onBack, readingTarget, memorizationTarget, onSetReadingTarget, onSetMemorizationTarget }) {
   const dateKey = date => {
     const d = new Date(date);
     return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
   };
-  const today = dateKey(new Date());
+  const today = localDateKey(new Date());
   const dayData = activity?.[today] || {};
   const readCount = (dayData.readingAyahs || []).length;
   const memorizedCount = (dayData.memorizationAyahs || []).length;
@@ -779,11 +783,15 @@ function DailyGoalsScreen({ activity, onBack, readingTarget, memorizationTarget 
         <View style={styles.goalStat}><Text style={styles.goalStatValue}>{memorizedCount}</Text><Text style={styles.reference}>Practiced today</Text></View>
       </View>
       <Text style={styles.sectionTitle}>Today’s goals</Text>
+      <Text style={styles.readerToolLabel}>Daily reading target</Text>
+      <View style={styles.readerToggleRow}>{[3,5,10,15,20].map(target=><Pressable key={target} onPress={()=>onSetReadingTarget?.(target)} style={[styles.readerToggle,readingTarget===target&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,readingTarget===target&&styles.readerToggleTextActive]}>{target} ayahs</Text></Pressable>)}</View>
+      <Text style={styles.readerToolLabel}>Daily memorization target</Text>
+      <View style={styles.readerToggleRow}>{[1,2,3,5].map(target=><Pressable key={target} onPress={()=>onSetMemorizationTarget?.(target)} style={[styles.readerToggle,memorizationTarget===target&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,memorizationTarget===target&&styles.readerToggleTextActive]}>{target} ayahs</Text></Pressable>)}</View>
       <Text style={styles.reference}>Reading · {readCount} / {readingTarget} ayahs</Text>
       <Progress value={readCount} target={readingTarget}/>
       <Text style={styles.reference}>Memorization · {memorizedCount} / {memorizationTarget} ayahs</Text>
       <Progress value={memorizedCount} target={memorizationTarget}/>
-      <Text style={styles.tinyNote}>Goals count unique ayahs opened in the reader and completed in guided practice. They do not measure minutes or verify memorization accuracy.</Text>
+      <Text style={styles.tinyNote}>Reading goals count ayahs you explicitly mark as read. Memorization goals count ayahs completed in guided practice. These measures do not verify memorization accuracy.</Text>
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Last 7 days</Text>
@@ -879,7 +887,7 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
   </>;
 }
-function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, onChangeChapter }) {
+function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readTodayIds = [], onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, onChangeChapter }) {
   const wordPlayer = useAudioPlayer(null);
   const audioStatus = useAudioPlayerStatus(wordPlayer);
   const chapterPlayer = useAudioPlayer(null);
@@ -1028,7 +1036,6 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
         if (!active) return;
         const incoming = Array.isArray(data.verses) ? data.verses : [];
         setVerses(incoming);
-        onRecordReading?.(incoming.map(item => item.verse_key).filter(Boolean));
       })
       .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
       .finally(() => { if (active) setLoading(false); });
@@ -1140,16 +1147,12 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
         </View>
         <Text style={styles.tinyNote}>Select individual ayahs below to build a sequential practice queue. Each ayah repeats according to your repeat setting before the next begins.</Text>
       </View>
-      {verses.filter((verse,index) => {
-        const key = verse.verse_key || (chapter.id + ":" + (index + 1));
-        return !noteFilter || Boolean(notes?.[key]);
-      }).map((verse, index) => {
-        const key = verse.verse_key || (chapter.id + ":" + (index + 1));
+      {verses.map((verse,index)=>({verse,index,key:verse.verse_key||(chapter.id+":"+(index+1))})).filter(item=>!noteFilter||Boolean(notes?.[item.key])).map(({verse,index,key})=>{
         const translation = verse.translations?.[0]?.text || "";
         const plainTranslation = translation.replace(/<[^>]*>/g, "");
         const isSyncedVerse=activeSyncedVerseKey===key;
         return <View key={key} style={[styles.verseCard,isSyncedVerse&&{borderWidth:2,borderColor:GOLD,backgroundColor:PANEL}]}>
-          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{isSyncedVerse?"▶ "+key:key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
+          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{isSyncedVerse?"▶ "+key:key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={()=>onMarkAyahRead?.(key)}><Text style={styles.verseBookmark}>{readTodayIds.includes(key)?"✓ Read today":"Mark read"}</Text></Pressable><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
           {showArabic && !recallMode ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
           <View style={styles.verseAudioControls}>
