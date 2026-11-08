@@ -161,7 +161,7 @@ const PRACTICE_PASSAGES = [
   { id: "ikhlas1", surah: "Al-Ikhlas", verse: "1", arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ", translation: "Say, He is Allah, the One.", reference: "Surah Al-Ikhlas · 112:1" },
   { id: "asr1", surah: "Al-Asr", verse: "1", arabic: "وَالْعَصْرِ", translation: "By time.", reference: "Surah Al-Asr · 103:1" }
 ];
-function MemorizeScreen({ onPracticed, savedIds, onToggleSave, onSaved, onRateReview, reviewRecords }) {
+function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, savedIds, onToggleSave, onSaved, onRateReview, reviewRecords }) {
   const [selectedId, setSelectedId] = useState("fatiha2");
   const [stage, setStage] = useState(0);
   const [done, setDone] = useState(false);
@@ -203,13 +203,13 @@ function MemorizeScreen({ onPracticed, savedIds, onToggleSave, onSaved, onRateRe
         <View style={styles.rowButtonCell}><Button title="Previous" secondary disabled={stage === 0} onPress={() => { setStage(n => Math.max(0, n - 1)); setShowMeaning(false); }} /></View>
         <View style={styles.rowButtonCell}><Button title={stage === 2 ? "Start again" : "Next step"} onPress={() => { if (stage === 2) { setStage(0); setShowMeaning(false); setDone(false); } else { setStage(n => n + 1); setShowMeaning(false); } }} /></View>
       </View>
-      <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); } }} disabled={done} />
+      <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); onPracticeCompleted?.(passage.id); } }} disabled={done} />
       {done && <View style={styles.infoCard}>
         <Text style={styles.cardEyebrow}>REVISION CHECK-IN</Text>
         <Text style={styles.sectionTitle}>How did this ayah feel?</Text>
         <Text style={styles.progressHint}>Your answer helps Ayah suggest when to revisit it. Choose honestly; this is a planning aid, not a recitation score.</Text>
         <View style={styles.languageGrid}>
-          {[{id:"difficult",label:"Difficult · review tomorrow"},{id:"medium",label:"Getting there · in 3 days"},{id:"easy",label:"Comfortable · in 7 days"}].map(option => <Pressable key={option.id} onPress={() => onRateReview(passage.id, option.id)} style={[styles.choice, reviewRecords?.[passage.id]?.rating === option.id && styles.choiceSelected, {flexGrow:1}]}><Text style={styles.choiceText}>{option.label}</Text><Text style={styles.choiceMark}>{reviewRecords?.[passage.id]?.rating === option.id ? "✓" : "○"}</Text></Pressable>)}
+          {[{id:"difficult",label:"Difficult · review tomorrow"},{id:"medium",label:"Getting there · in 3 days"},{id:"easy",label:"Comfortable · in 7 days"}].map(option => <Pressable key={option.id} onPress={() => { onRateReview(passage.id, option.id); onSyncRating?.(passage.id, option.id); }} style={[styles.choice, reviewRecords?.[passage.id]?.rating === option.id && styles.choiceSelected, {flexGrow:1}]}><Text style={styles.choiceText}>{option.label}</Text><Text style={styles.choiceMark}>{reviewRecords?.[passage.id]?.rating === option.id ? "✓" : "○"}</Text></Pressable>)}
         </View>
         {reviewRecords?.[passage.id]?.dueAt ? <Text style={styles.reference}>Next suggested review: {new Date(reviewRecords[passage.id].dueAt).toLocaleDateString()}</Text> : null}
       </View>}
@@ -897,7 +897,7 @@ export default function App() {
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} onRateReview={saveReviewRating} onStartPractice={() => setTab("memorize")} />;
   else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} practiceCount={practiceCount} />;
-  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
+  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
