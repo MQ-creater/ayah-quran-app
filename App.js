@@ -731,168 +731,64 @@ function SettingsScreen({ themeName, onSelectTheme, language, onSelectLanguage, 
   </>;
 }
 
-function ProgressScreen({ practiceCount, dailyGoal, language, onLearn, onSettings }) {
-  const goalReached = practiceCount >= 1;
+function ProgressScreen({ practiceCount, dailyGoal, language, onLearn, onSettings, reviewRecords, onRevision }) {
+  const records = reviewRecords || {};
+  const practiced = PRACTICE_PASSAGES.filter(item => records[item.id]);
+  const dueCount = practiced.filter(item => new Date(records[item.id].dueAt || 0).getTime() <= Date.now()).length;
+  const comfortableCount = practiced.filter(item => records[item.id].rating === "easy").length;
+  const developingCount = practiced.filter(item => records[item.id].rating === "medium").length;
+  const needsPracticeCount = practiced.filter(item => records[item.id].rating === "difficult").length;
+  const totalReviews = Object.values(records).reduce((sum, item) => sum + (Number(item.attempts) || 1), 0);
+  const lastActivity = practiced.map(item => records[item.id].lastReviewedAt).filter(Boolean).sort().reverse()[0];
+  const statusLabel = rating => rating === "easy" ? "Comfortable" : rating === "medium" ? "Building confidence" : rating === "difficult" ? "Needs practice" : "Not rated";
   return <>
     <Header eyebrow="YOUR JOURNEY" title="My learning progress" />
     <View style={styles.infoCard}>
       <Text style={styles.cardEyebrow}>PRACTICE ACTIVITY</Text>
       <Text style={styles.quizScore}>{practiceCount}</Text>
       <Text style={styles.sectionTitle}>Completed memorization sessions</Text>
-      <Text style={styles.progressHint}>This count reflects sessions completed since opening this app preview. It is not yet saved to an account.</Text>
+      <Text style={styles.progressHint}>This is the number of practice sessions recorded on this device. It does not measure recitation accuracy.</Text>
+      <View style={styles.readerToggleRow}>
+        <View style={[styles.readerToggle, styles.readerToggleActive]}><Text style={styles.readerToggleText}>Ayahs practiced: {practiced.length}</Text></View>
+        <View style={[styles.readerToggle, styles.readerToggleActive]}><Text style={styles.readerToggleText}>Review ratings: {totalReviews}</Text></View>
+      </View>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Memorization overview</Text>
+      <Text style={styles.progressHint}>Your current practice set contains {PRACTICE_PASSAGES.length} sample ayahs. Status is based on your own review check-in, not an automatic memorization test.</Text>
+      {PRACTICE_PASSAGES.map(item => {
+        const record = records[item.id];
+        return <View key={item.id} style={styles.choice}>
+          <View style={{flex:1,paddingRight:8}}>
+            <Text style={styles.choiceText}>{item.surah} · Ayah {item.verse}</Text>
+            <Text style={styles.reference}>{statusLabel(record?.rating)}{record?.dueAt ? " · Review " + (new Date(record.dueAt).getTime() <= Date.now() ? "due now" : "scheduled") : " · Not practiced yet"}</Text>
+          </View>
+          <Text style={styles.choiceMark}>{record ? "✓" : "○"}</Text>
+        </View>;
+      })}
+      <View style={styles.languageGrid}>
+        <View style={[styles.goalChoice,{flexGrow:1}]}><Text style={styles.choiceText}>Comfortable: {comfortableCount}</Text></View>
+        <View style={[styles.goalChoice,{flexGrow:1}]}><Text style={styles.choiceText}>Building: {developingCount}</Text></View>
+        <View style={[styles.goalChoice,{flexGrow:1}]}><Text style={styles.choiceText}>Needs practice: {needsPracticeCount}</Text></View>
+      </View>
+      <Button title={"Open Smart Revision · " + dueCount + " due"} onPress={onRevision} />
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Your daily learning goal</Text>
-      <Text style={styles.progressHint}>Your selected target is {dailyGoal} minutes per day. The app does not yet measure active study time, so it will not claim that this goal has been reached.</Text>
-      <View style={styles.progressTrack}><View style={[styles.progressFill,{width:goalReached ? "100%" : "0%"}]} /></View>
-      <Text style={styles.reference}>{goalReached ? "You've completed a practice session today in this preview." : "Complete a memorization session to record activity here."}</Text>
+      <Text style={styles.progressHint}>Your selected target is {dailyGoal} minutes per day. Ayah does not yet measure active study time, so it will not claim that this goal has been reached.</Text>
+      <View style={styles.progressTrack}><View style={[styles.progressFill,{width:"0%"}]} /></View>
+      <Text style={styles.reference}>Daily time tracking is not connected yet.</Text>
     </View>
     <View style={styles.infoCard}>
-      <Text style={styles.sectionTitle}>Learning preferences</Text>
+      <Text style={styles.sectionTitle}>Learning activity</Text>
+      <Text style={styles.progressHint}>Total review check-ins: {totalReviews}</Text>
+      <Text style={styles.progressHint}>Last review check-in: {lastActivity ? new Date(lastActivity).toLocaleDateString() : "No review check-ins yet"}</Text>
       <Text style={styles.progressHint}>Preferred guidance language: {language}</Text>
-      <Text style={styles.progressHint}>Next up: build your Arabic alphabet skills and continue with short, steady practice.</Text>
       <Button title="Continue learning" onPress={onLearn} />
       <Button title="Update preferences" secondary onPress={onSettings} />
     </View>
-    <Text style={styles.tinyNote}>Streaks, daily minutes, memorized ayahs, quiz history and cross-device progress will appear after secure accounts and saved progress are connected.</Text>
+    <Text style={styles.tinyNote}>This dashboard currently summarizes the three built-in practice ayahs and locally saved review ratings. Full-surah tracking, verified recitation assessment, weekly history and cloud-synced analytics are future steps.</Text>
   </>;
-}
-
-function ReviewScreen() {
-  const [show, setShow] = useState(false);
-  return <><Header eyebrow="REVIEW" title="Strengthen your recall" /><View style={styles.infoCard}><Text style={styles.cardEyebrow}>REVIEW CARD</Text><Text style={styles.dailyArabic} writingDirection="rtl">{PRACTICE.arabic}</Text>{show && <Text style={styles.translation}>{PRACTICE.translation}</Text>}<Text style={styles.reference}>{PRACTICE.reference}</Text><Button title={show ? "Hide translation" : "Show translation"} secondary onPress={() => setShow(!show)} /></View><Text style={styles.progressHint}>A personal review schedule and saved memorization history will be added in a later milestone.</Text></>;
-}
-function ListenScreen() {
-  const player = useAudioPlayer(null);
-  const status = useAudioPlayerStatus(player);
-  const [reciters, setReciters] = useState([]);
-  const [chapters, setChapters] = useState([]);
-  const [reciterId, setReciterId] = useState("");
-  const [chapterId, setChapterId] = useState(1);
-  const [audioUrl, setAudioUrl] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
-  const [repeat, setRepeat] = useState(false);
-  const selectedReciter = reciters.find(item => String(item.id) === String(reciterId));
-  const selectedChapter = chapters.find(item => Number(item.id) === Number(chapterId));
-  useEffect(() => {
-    if (!AYAH_API_BASE) return;
-    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
-    let active = true;
-    Promise.all([
-      fetch(base + "/audio/reciters?language=en").then(response => { if (!response.ok) throw new Error("Reciters unavailable"); return response.json(); }),
-      fetch(base + "/chapters").then(response => { if (!response.ok) throw new Error("Chapters unavailable"); return response.json(); })
-    ]).then(([reciterData, chapterData]) => {
-      if (!active) return;
-      const availableReciters = Array.isArray(reciterData.reciters) ? reciterData.reciters : [];
-      const availableChapters = Array.isArray(chapterData.chapters) ? chapterData.chapters : [];
-      setReciters(availableReciters);
-      setChapters(availableChapters);
-      if (availableReciters.length) setReciterId(String(availableReciters[0].id));
-    }).catch(() => { if (active) setError("Connect the Ayah backend to load verified reciters and surahs."); });
-    return () => { active = false; player.pause(); };
-  }, []);
-  useEffect(() => { player.loop = repeat; }, [repeat, player]);
-  useEffect(() => {
-    if (!AYAH_API_BASE || !reciterId || !chapterId) return;
-    let active = true;
-    setLoading(true);
-    setError("");
-    setAudioUrl("");
-    player.pause();
-    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
-    fetch(base + "/audio/chapters/" + encodeURIComponent(reciterId) + "/" + encodeURIComponent(chapterId))
-      .then(response => { if (!response.ok) throw new Error("Audio unavailable"); return response.json(); })
-      .then(data => {
-        if (!active) return;
-        if (!data.audio?.url) throw new Error("No audio file");
-        setAudioUrl(data.audio.url);
-        player.replace(data.audio.url);
-      })
-      .catch(() => { if (active) setError("Audio for this reciter and surah is not available right now."); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; player.pause(); };
-  }, [reciterId, chapterId]);
-  const changeChapter = direction => {
-    const next = Math.min(114, Math.max(1, Number(chapterId) + direction));
-    setChapterId(next);
-  };
-  return <><Header eyebrow="RECITATION" title="Listen and follow" />
-    <View style={styles.infoCard}>
-      <Text style={styles.sectionTitle}>Choose a reciter</Text>
-      {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the secure Ayah backend to load the reciter catalogue and audio.</Text> : null}
-      {reciters.map(item => <Pressable key={item.id} onPress={() => setReciterId(String(item.id))} style={[styles.choice, String(reciterId) === String(item.id) && styles.choiceSelected]}>
-        <View style={{ flex: 1 }}><Text style={[styles.choiceText, String(reciterId) === String(item.id) && styles.choiceTextSelected]}>{item.name}</Text><Text style={styles.reference}>{item.style?.name || "Recitation"} · {item.qirat?.name || "Qira’at"}</Text></View>
-        <Text style={styles.choiceMark}>{String(reciterId) === String(item.id) ? "✓" : "○"}</Text>
-      </Pressable>)}
-      <Text style={styles.sectionTitle}>Choose a surah</Text>
-      <View style={styles.readerToggleRow}>
-        <Pressable style={styles.readerToggle} onPress={() => changeChapter(-1)} disabled={chapterId <= 1}><Text style={styles.readerToggleText}>Previous</Text></Pressable>
-        <View style={{ flex: 1, alignItems: "center" }}><Text style={styles.choiceText}>{selectedChapter?.name_simple || ("Surah " + chapterId)}</Text><Text style={styles.reference}>{chapterId} / 114</Text></View>
-        <Pressable style={styles.readerToggle} onPress={() => changeChapter(1)} disabled={chapterId >= 114}><Text style={styles.readerToggleText}>Next</Text></Pressable>
-      </View>
-      <Text style={styles.progressHint}>{selectedReciter ? "Reciter: " + selectedReciter.name : "Loading reciters…"}</Text>
-      {loading ? <ActivityIndicator color={GOLD} /> : null}
-      {error ? <Text style={styles.progressHint}>{error}</Text> : null}
-      <View style={styles.readerToggleRow}>
-        <Pressable accessibilityRole="button" disabled={!audioUrl || loading} onPress={() => status.playing ? player.pause() : player.play()} style={[styles.readerToggle, styles.readerToggleActive]}>
-          <Text style={[styles.readerToggleText, styles.readerToggleTextActive]}>{loading ? "Loading…" : status.playing ? "Ⅱ Pause" : "▶ Play surah"}</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" disabled={!audioUrl} onPress={() => { player.pause(); player.seekTo(0); player.play(); }} style={styles.readerToggle}><Text style={styles.readerToggleText}>↺ Restart</Text></Pressable>
-        <Pressable accessibilityRole="button" onPress={() => setRepeat(value => !value)} style={[styles.readerToggle, repeat && styles.readerToggleActive]}><Text style={[styles.readerToggleText, repeat && styles.readerToggleTextActive]}>{repeat ? "✓ Repeat on" : "Repeat off"}</Text></Pressable>
-      </View>
-      {status.duration > 0 ? <Text style={styles.reference}>{Math.floor(status.currentTime / 60)}:{String(Math.floor(status.currentTime % 60)).padStart(2,"0")} / {Math.floor(status.duration / 60)}:{String(Math.floor(status.duration % 60)).padStart(2,"0")}</Text> : null}
-      <Text style={styles.tinyNote}>Audio is streamed from Quran Foundation’s recitation catalogue. Internet access is required; offline downloads are not enabled.</Text>
-    </View>
-  </>;
-}
-function TeacherScreen({ onPremium }) {
-  const [assistant, setAssistant] = useState("Hamza");
-  return <><Header eyebrow="AYAH PLUS · AI TEACHER" title="A teacher by your side" /><View style={styles.teacherCard}><View style={styles.teacherAvatar}><Text style={styles.teacherAvatarText}>{assistant === "Hamza" ? "ح" : "م"}</Text></View><Text style={styles.teacherName}>{assistant}</Text><Text style={styles.translation}>Your Qur’an learning companion</Text><View style={styles.assistantChoices}>{["Hamza", "Maryam"].map(n => <Pressable key={n} onPress={() => setAssistant(n)} style={[styles.nameChoice, assistant === n && styles.choiceSelected]}><Text style={[styles.choiceText, assistant === n && styles.choiceTextSelected]}>{n}</Text></Pressable>)}</View><Text style={styles.progressHint}>Choose the assistant name you prefer. The assistant’s teaching voice will be original and carefully designed for clear, gentle recitation guidance.</Text></View><View style={styles.infoCard}><Text style={styles.sectionTitle}>Planned teacher features</Text>{["Repeat-after-me practice, ayah by ayah","Speak with you in your chosen language","Help with memorization and revision","Explain vocabulary and basic meanings","Build a personal learning routine"].map(x => <Text key={x} style={styles.stepText}>✦  {x}</Text>)}<Text style={styles.lockedLabel}>PREMIUM FEATURE PREVIEW</Text><Button title="See Ayah Plus" onPress={onPremium} /></View></>;
-}
-function TeacherPreviewScreen({ onBack, onPremium }) {
-  const [assistant, setAssistant] = useState("Hamza");
-  const [language, setLanguage] = useState("English");
-  const [step, setStep] = useState(0);
-  const languages = ["English", "العربية", "اردو", "বাংলা", "Türkçe", "Français", "Bahasa Indonesia"];
-  const steps = [
-    "Listen carefully to the ayah.",
-    "Now repeat the ayah at a comfortable pace.",
-    "Check the words, then try once more."
-  ];
-  return <>
-    <Header eyebrow="AYAH PLUS · TEACHER PREVIEW" title="Meet your Qur’an teacher" />
-    <View style={styles.teacherCard}>
-      <View style={styles.teacherAvatar}><Text style={styles.teacherAvatarText}>{assistant === "Hamza" ? "ح" : "م"}</Text></View>
-      <Text style={styles.teacherName}>{assistant}</Text>
-      <Text style={styles.translation}>A calm, warm, original teaching voice</Text>
-      <Text style={styles.progressHint}>Designed to be gentle, clear and unhurried—not an imitation of a specific reciter.</Text>
-      <View style={styles.assistantChoices}>
-        {["Hamza", "Maryam"].map(n => <Pressable key={n} onPress={() => setAssistant(n)} style={[styles.nameChoice, assistant === n && styles.choiceSelected]}><Text style={[styles.choiceText, assistant === n && styles.choiceTextSelected]}>{n}</Text></Pressable>)}
-      </View>
-    </View>
-    <View style={styles.infoCard}>
-      <Text style={styles.sectionTitle}>Teaching language</Text>
-      <Text style={styles.progressHint}>Choose the language you would like the assistant to use for explanations.</Text>
-      <View style={styles.languageGrid}>
-        {languages.map(item => <Pressable key={item} onPress={() => setLanguage(item)} style={[styles.languageChoice, language === item && styles.choiceSelected]}><Text style={[styles.choiceText, language === item && styles.choiceTextSelected]}>{item}</Text></Pressable>)}
-      </View>
-      <Text style={styles.progressHint}>Selected: {language}. More languages can be added as the assistant is developed.</Text>
-    </View>
-    <View style={styles.infoCard}>
-      <Text style={styles.sectionTitle}>Repeat-after-me lesson preview</Text>
-      <Text style={styles.dailyArabic} writingDirection="rtl">{PRACTICE.arabic}</Text>
-      <Text style={styles.reference}>{PRACTICE.reference}</Text>
-      <View style={styles.practicePrompt}><Text style={styles.practicePromptText}>{steps[step]}</Text></View>
-      <Button title={step === 2 ? "Restart lesson preview" : "Next practice step"} onPress={() => setStep(step === 2 ? 0 : step + 1)} />
-      <Text style={styles.tinyNote}>This is a screen-flow preview only. Live AI conversation, speech recognition and generated audio are not connected yet.</Text>
-    </View>
-    <Button title="See Ayah Plus plan" onPress={onPremium} />
-    <Button title="Back to Ayah" secondary onPress={onBack} />
-  </>;
-}
-function PremiumScreen({ onBack, onTeacher }) {
-  return <><Header eyebrow="AYAH PLUS" title="More support for your hifdh" /><View style={styles.premiumHero}><Text style={styles.premiumKicker}>YOUR PERSONAL LEARNING COMPANION</Text><Text style={styles.premiumBig}>Learn. Listen. Repeat.</Text><Text style={styles.translation}>A focused Qur’an learning experience with an AI teacher.</Text></View><View style={styles.infoCard}><Text style={styles.sectionTitle}>Planned Plus benefits</Text>{["AI teacher with repeat-after-me sessions","Choose Hamza or Maryam as your assistant","Multilingual conversation and explanations","Guided memorization and revision tools","Expanded recitation and learning options"].map(x => <Text key={x} style={styles.stepText}>✓  {x}</Text>)}<Button title="Preview the AI teacher" onPress={onTeacher} secondary /></View><View style={styles.trialCard}><Text style={styles.sectionTitle}>Try Ayah Plus for 7 days</Text><Text style={styles.progressHint}>The free trial is planned as a one-time offer per account. Subscription price: to be decided.</Text><Text style={styles.tinyNote}>Trial eligibility, billing, cancellation and one-time-use enforcement will be implemented securely before launch. This preview does not start a trial or charge anything.</Text><Button title="Premium access — coming soon" disabled onPress={() => {}} /></View><Button title="Back to Ayah" secondary onPress={onBack} /></>;
 }
 export default function App() {
   const [signedIn, setSignedIn] = useState(false);
@@ -939,7 +835,7 @@ export default function App() {
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
-  else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
+  else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
   const tabs = [["home", "⌂", "Home"], ["library", "📖", "Qur’an"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
