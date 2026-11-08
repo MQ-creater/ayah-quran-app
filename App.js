@@ -303,7 +303,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
     let active = true;
     setLoading(true); setError("");
     const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
-    fetch(base + "/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=131")
+    fetch(base + "/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=" + encodeURIComponent(translationId))
       .then(response => { if (!response.ok) throw new Error("Server returned " + response.status); return response.json(); })
       .then(data => {
         if (!active) return;
