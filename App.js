@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
-  Pressable, TextInput, ImageBackground, Alert
+  Pressable, TextInput, ImageBackground, Alert, ActivityIndicator
 } from "react-native";
 
 const GOLD = "#D9B96E";
 const NAVY = "#101C2D";
 const PANEL = "#1B2A40";
 const MUTED = "#AAB6C7";
+// Public app URL only. Never place Quran Foundation client secrets in this mobile app.
+const AYAH_API_BASE = process.env.EXPO_PUBLIC_AYAH_API_URL || "";
 
 const THEME_PALETTES = {
   dark: { bg:"#101C2D",panel:"#1B2A40",surface:"#24354C",text:"#FFFFFF",soft:"#E1E6ED",muted:"#AAB6C7",accent:"#D9B96E",border:"#34445B",navyText:"#101C2D" },
@@ -101,6 +103,7 @@ function HomeScreen({ onNavigate, onPractice }) {
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
         <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
+        <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
@@ -216,6 +219,76 @@ function ArabicStarterQuiz({ onReview }) {
     <Button title={question === ARABIC_STARTER_QUIZ.length - 1 ? "Finish quiz" : "Next question"} disabled={!answer} onPress={submit} />
     <Text style={styles.tinyNote}>This short checkpoint reviews the three words in the starter lesson. It is practice, not a formal language proficiency test.</Text>
   </View>;
+}
+function QuranLibraryScreen({ onOpenChapter }) {
+  const [chapters, setChapters] = useState([]);
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!AYAH_API_BASE) return;
+    let active = true;
+    setLoading(true); setError("");
+    fetch(`${AYAH_API_BASE.replace(/\\/$/, "")}/chapters`)
+      .then(response => { if (!response.ok) throw new Error(`Server returned ${response.status}`); return response.json(); })
+      .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
+      .catch(() => { if (active) setError("We could not load the surah list. Please check the Ayah content server connection."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, []);
+  const filtered = chapters.filter(ch => `${ch.name_simple || ""} ${ch.name_arabic || ""} ${ch.translated_name?.name || ""} ${ch.id || ""}`.toLowerCase().includes(query.toLowerCase()));
+  return <>
+    <Header eyebrow="QUR’AN" title="Qur’an library" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Explore all 114 surahs</Text>
+      <Text style={styles.progressHint}>Search by surah name, Arabic name, meaning, or number.</Text>
+      <TextInput value={query} onChangeText={setQuery} placeholder="Search surahs…" placeholderTextColor={MUTED} style={styles.emailInput} />
+      {!AYAH_API_BASE ? <View style={styles.apiNotice}>
+        <Text style={styles.sectionTitle}>Qur’an content connection needed</Text>
+        <Text style={styles.progressHint}>The library interface is ready. Before showing Qur’an text, we need to connect a secure Ayah backend to a verified content source. API credentials must stay on the backend, never inside the app.</Text>
+        <Text style={styles.tinyNote}>Developer setup: configure EXPO_PUBLIC_AYAH_API_URL to your own backend URL. The backend should provide GET /chapters and GET /chapters/:id/verses.</Text>
+      </View> : loading ? <ActivityIndicator color={GOLD} size="large" /> : error ? <Text style={styles.progressHint}>{error}</Text> : filtered.length === 0 ? <Text style={styles.progressHint}>No matching surahs found.</Text> : filtered.map(ch => <Pressable key={ch.id} onPress={() => onOpenChapter(ch)} style={styles.chapterRow}>
+        <View style={styles.chapterNumber}><Text style={styles.chapterNumberText}>{ch.id}</Text></View>
+        <View style={styles.chapterDetails}><Text style={styles.choiceText}>{ch.name_simple}</Text><Text style={styles.reference}>{ch.translated_name?.name || ""} · {ch.verses_count} ayahs</Text></View>
+        <Text style={styles.chapterArabic}>{ch.name_arabic || ""}</Text>
+      </Pressable>)}
+    </View>
+    <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
+  </>;
+}
+function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
+  const [verses, setVerses] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  useEffect(() => {
+    if (!AYAH_API_BASE || !chapter?.id) return;
+    let active = true;
+    setLoading(true); setError(""); setVerses([]);
+    fetch(`${AYAH_API_BASE.replace(/\\/$/, "")}/chapters/${chapter.id}/verses?page=1&per_page=50&translation_id=131`)
+      .then(response => { if (!response.ok) throw new Error(`Server returned ${response.status}`); return response.json(); })
+      .then(data => { if (active) setVerses(Array.isArray(data.verses) ? data.verses : []); })
+      .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
+      .finally(() => { if (active) setLoading(false); });
+    return () => { active = false; };
+  }, [chapter?.id]);
+  return <>
+    <Header eyebrow={`SURAH ${chapter.id}`} title={chapter.name_simple} />
+    <View style={styles.infoCard}>
+      <Text style={styles.chapterArabicLarge}>{chapter.name_arabic || ""}</Text>
+      <Text style={styles.reference}>{chapter.translated_name?.name || ""} · {chapter.verses_count} ayahs · {chapter.revelation_place || ""}</Text>
+      <Button title="Back to surah list" secondary onPress={onBack} />
+      {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the verified Qur’an content backend to read this surah.</Text> : loading ? <ActivityIndicator color={GOLD} size="large" /> : error ? <Text style={styles.progressHint}>{error}</Text> : verses.map((verse, index) => {
+        const key = verse.verse_key || `${chapter.id}:${index + 1}`;
+        const translation = verse.translations?.[0]?.text || "";
+        const plainTranslation = translation.replace(/<[^>]*>/g, "");
+        return <View key={key} style={styles.verseCard}>
+          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key)}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
+          <Text style={styles.verseArabic} writingDirection="rtl">{verse.text_uthmani || ""}</Text>
+          <Text style={styles.translation}>{plainTranslation}</Text>
+        </View>;
+      })}
+    </View>
+  </>;
 }
 function SavedAyahsScreen({ savedIds, onToggleSave, onLearn }) {
   const saved = PRACTICE_PASSAGES.filter(item => savedIds.includes(item.id));
@@ -483,6 +556,7 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = useState(0);
   const [savedIds, setSavedIds] = useState([]);
+  const [selectedChapter, setSelectedChapter] = useState(null);
   const [themeName, setThemeName] = useState("auto");
   const [learningLanguage, setLearningLanguage] = useState("English");
   const [dailyGoal, setDailyGoal] = useState(10);
@@ -507,7 +581,9 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} />;
+  else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
+  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.filter(x => x !== id))} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
@@ -517,7 +593,7 @@ export default function App() {
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
-  const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
+  const tabs = [["home", "⌂", "Home"], ["library", "📖", "Qur’an"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
   return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
 const createStyles = (p) => StyleSheet.create({
@@ -559,6 +635,7 @@ const createStyles = (p) => StyleSheet.create({
   exampleBox:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14,alignItems:"center"},exampleArabic:{color:p.text,fontSize:24,lineHeight:42,textAlign:"center"},
   navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:p.bg},
   savedAyah:{backgroundColor:p.surface,borderRadius:15,padding:13,marginTop:12},
+  apiNotice:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14},chapterRow:{flexDirection:"row",alignItems:"center",paddingVertical:13,borderBottomWidth:1,borderBottomColor:p.border,gap:11},chapterNumber:{width:34,height:34,borderRadius:10,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"},chapterNumberText:{color:p.accent,fontWeight:"800"},chapterDetails:{flex:1},chapterArabic:{color:p.text,fontSize:19},chapterArabicLarge:{color:p.text,fontSize:34,textAlign:"center",marginVertical:12},verseCard:{backgroundColor:p.surface,borderRadius:15,padding:14,marginTop:14},verseMeta:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},verseNumber:{color:p.accent,fontWeight:"800"},verseBookmark:{color:p.accent,fontSize:12,fontWeight:"700"},verseArabic:{color:p.text,fontSize:27,lineHeight:54,textAlign:"right",marginTop:13},
   navIcon:{color:p.muted,fontSize:19,marginBottom:3},navLabel:{color:p.muted,fontSize:10},navSelected:{color:p.accent,fontWeight:"700"},
   stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
   rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1},
