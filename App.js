@@ -90,7 +90,7 @@ function HomeScreen({ onNavigate, onPractice }) {
       <Text style={styles.sectionTitle}>Your tools</Text>
       <View style={styles.actionGrid}>
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
-        <ActionTile icon="ا" title="Arabic lessons" subtitle="Start learning Arabic" onPress={() => onNavigate("arabic")} />
+        <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />\n        <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
@@ -241,7 +241,88 @@ function ArabicLessonsScreen({ onPremium }) {
     <Text style={styles.tinyNote}>This starter lesson is a small learning preview. More lessons will be reviewed for accuracy before release.</Text>
   </>;
 }
-function ReviewScreen() {
+
+const ALPHABET_LESSON = [
+  { letter: "ا", name: "Alif", sound: "A long or open vowel carrier in many beginner examples.", word: "أَسَدٌ", wordName: "asadun", meaning: "a lion" },
+  { letter: "ب", name: "Bā’", sound: "A b sound.", word: "بَابٌ", wordName: "bābun", meaning: "a door" },
+  { letter: "ت", name: "Tā’", sound: "A t sound.", word: "تِينٌ", wordName: "tīnun", meaning: "figs" },
+  { letter: "ث", name: "Thā’", sound: "A th sound, as in “think”.", word: "ثَوْبٌ", wordName: "thawbun", meaning: "a garment" },
+  { letter: "ج", name: "Jīm", sound: "A j sound in many varieties of standard Arabic teaching.", word: "جَمَلٌ", wordName: "jamalun", meaning: "a camel" },
+  { letter: "ح", name: "Ḥā’", sound: "A distinct breathy, throaty h sound. It is not the same as ه.", word: "حَلِيبٌ", wordName: "ḥalībun", meaning: "milk" },
+  { letter: "خ", name: "Khā’", sound: "A throaty kh sound.", word: "خُبْزٌ", wordName: "khubzun", meaning: "bread" },
+  { letter: "د", name: "Dāl", sound: "A d sound.", word: "دَارٌ", wordName: "dārun", meaning: "a home" }
+];
+function ArabicAlphabetScreen({ onPremium }) {
+  const [selected, setSelected] = useState(0);
+  const [showWord, setShowWord] = useState(false);
+  const [quizIndex, setQuizIndex] = useState(0);
+  const [quizAnswer, setQuizAnswer] = useState("");
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizDone, setQuizDone] = useState(false);
+  const quizLetters = [1, 3, 5, 7];
+  const target = ALPHABET_LESSON[quizLetters[quizIndex]];
+  const choices = [target, ALPHABET_LESSON[(quizLetters[quizIndex] + 2) % 8], ALPHABET_LESSON[(quizLetters[quizIndex] + 5) % 8]];
+  const submitAnswer = () => {
+    if (!quizAnswer) return;
+    if (quizAnswer === target.letter) setQuizScore(n => n + 1);
+    if (quizIndex === quizLetters.length - 1) setQuizDone(true);
+    else { setQuizIndex(n => n + 1); setQuizAnswer(""); }
+  };
+  const restartQuiz = () => { setQuizIndex(0); setQuizAnswer(""); setQuizScore(0); setQuizDone(false); };
+  const item = ALPHABET_LESSON[selected];
+  return <>
+    <Header eyebrow="ARABIC ACADEMY · LEVEL 1" title="Meet the Arabic letters" />
+    <View style={styles.infoCard}>
+      <Text style={styles.cardEyebrow}>LETTER CLASSROOM · FIRST 8 LETTERS</Text>
+      <Text style={styles.progressHint}>Tap a letter to explore its name and a beginner example. Arabic letters can change shape when they join other letters; connected forms will be a later lesson.</Text>
+      <View style={styles.alphabetGrid}>
+        {ALPHABET_LESSON.map((entry, index) => <Pressable key={entry.letter} accessibilityRole="button" accessibilityLabel={entry.name} onPress={() => {setSelected(index);setShowWord(false);}} style={[styles.alphabetTile, selected === index && styles.choiceSelected]}>
+          <Text style={[styles.alphabetTileLetter, selected === index && styles.choiceTextSelected]}>{entry.letter}</Text>
+          <Text style={styles.alphabetTileName}>{entry.name}</Text>
+        </Pressable>)}
+      </View>
+    </View>
+    <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>LETTER {selected + 1} OF {ALPHABET_LESSON.length}</Text>
+      <Text style={styles.alphabetHeroLetter} writingDirection="rtl">{item.letter}</Text>
+      <Text style={styles.teacherName}>{item.name}</Text>
+      <Text style={styles.progressHint}>{item.sound}</Text>
+      <Button title={showWord ? "Hide example word" : "See an example word"} secondary onPress={() => setShowWord(v => !v)} />
+      {showWord && <View style={styles.exampleBox}>
+        <Text style={styles.exampleArabic} writingDirection="rtl">{item.word}</Text>
+        <Text style={styles.translation}>{item.wordName} · {item.meaning}</Text>
+      </View>}
+      <View style={styles.rowButtons}>
+        <View style={styles.rowButtonCell}><Button title="Previous" secondary disabled={selected === 0} onPress={() => {setSelected(n => Math.max(0,n-1));setShowWord(false);}} /></View>
+        <View style={styles.rowButtonCell}><Button title={selected === ALPHABET_LESSON.length - 1 ? "Back to Alif" : "Next letter"} onPress={() => {setSelected(n => (n + 1) % ALPHABET_LESSON.length);setShowWord(false);}} /></View>
+      </View>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.cardEyebrow}>QUICK CHECK · 4 QUESTIONS</Text>
+      <Text style={styles.sectionTitle}>Find the letter</Text>
+      {quizDone ? <>
+        <Text style={styles.quizScore}>{quizScore} / {quizLetters.length}</Text>
+        <Text style={styles.progressHint}>{quizScore === 4 ? "Excellent recognition!" : "Nice effort. Review the letters and try again."}</Text>
+        <Button title="Try again" onPress={restartQuiz} />
+      </> : <>
+        <Text style={styles.quizPrompt}>Which letter is {target.name}?</Text>
+        {choices.map(option => <Pressable key={option.letter} onPress={() => setQuizAnswer(option.letter)} style={[styles.choice, quizAnswer === option.letter && styles.choiceSelected]}>
+          <Text style={styles.alphabetOption}>{option.letter}</Text>
+          <Text style={styles.choiceMark}>{quizAnswer === option.letter ? "✓" : "○"}</Text>
+        </Pressable>)}
+        <Button title={quizIndex === quizLetters.length - 1 ? "Finish checkpoint" : "Next question"} disabled={!quizAnswer} onPress={submitAnswer} />
+      </>}
+      <Text style={styles.tinyNote}>This is a letter-recognition exercise, not a pronunciation assessment. Listen to a qualified Arabic teacher for accurate sound practice.</Text>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Continue your Arabic journey</Text>
+      <Text style={styles.progressHint}>The full course is planned to cover all 28 letters, connected letter shapes, short vowels, reading practice, vocabulary and grammar.</Text>
+      <Text style={styles.lockedLabel}>MORE LESSONS · PLANNED</Text>
+      <Button title="Explore Ayah Plus" secondary onPress={onPremium} />
+    </View>
+  </>;
+}
+\nfunction ReviewScreen() {
   const [show, setShow] = useState(false);
   return <><Header eyebrow="REVIEW" title="Strengthen your recall" /><View style={styles.infoCard}><Text style={styles.cardEyebrow}>REVIEW CARD</Text><Text style={styles.dailyArabic} writingDirection="rtl">{PRACTICE.arabic}</Text>{show && <Text style={styles.translation}>{PRACTICE.translation}</Text>}<Text style={styles.reference}>{PRACTICE.reference}</Text><Button title={show ? "Hide translation" : "Show translation"} secondary onPress={() => setShow(!show)} /></View><Text style={styles.progressHint}>A personal review schedule and saved memorization history will be added in a later milestone.</Text></>;
 }
@@ -319,7 +400,7 @@ export default function App() {
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
   if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} />;
-  else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
+  else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;\n  else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
@@ -366,5 +447,5 @@ const styles = StyleSheet.create({
   navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:NAVY},
   navIcon:{color:MUTED,fontSize:19,marginBottom:3},navLabel:{color:MUTED,fontSize:10},navSelected:{color:GOLD,fontWeight:"700"},
   stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
-  rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1}
+  rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1},\n  alphabetGrid:{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",marginTop:14},alphabetTile:{width:"23%",minHeight:82,backgroundColor:"#24354C",borderRadius:14,marginBottom:9,alignItems:"center",justifyContent:"center",padding:6},alphabetTileLetter:{color:"#FFF",fontSize:28,lineHeight:38},alphabetTileName:{color:MUTED,fontSize:9,marginTop:3},alphabetHeroLetter:{color:"#FFF",fontSize:76,lineHeight:104,textAlign:"center",marginTop:10},alphabetOption:{color:"#FFF",fontSize:30,lineHeight:38}
 });
