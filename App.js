@@ -9,6 +9,8 @@ import {
 
 const PREFERENCES_KEY = "@ayah/preferences-v1";
 
+function formatAudioTime(seconds) { const value=Number(seconds);if(!Number.isFinite(value)||value<0)return "0:00";const whole=Math.floor(value);return Math.floor(whole/60)+":"+String(whole%60).padStart(2,"0"); }
+
 function usePersistentState(key, initialValue) {
   const [value, setValue] = useState(initialValue);
   const [hydrated, setHydrated] = useState(false);
@@ -877,12 +879,16 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
   </>;
 }
-function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName }) {
+function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, onChangeChapter }) {
   const audioStatus = useAudioPlayerStatus(wordPlayer);
   const chapterPlayer = useAudioPlayer(null);
   const chapterAudioStatus = useAudioPlayerStatus(chapterPlayer);
   const [chapterAudioLoading,setChapterAudioLoading] = useState(false);
   const [chapterAudioError,setChapterAudioError] = useState("");
+  const [chapterList,setChapterList] = useState([]);
+  const [lastAudioPosition,setLastAudioPosition] = usePersistentState("lastAudioPosition_"+String(chapter?.id||""),0);
+  const [autoAdvance,setAutoAdvance] = useState(true);
+  useEffect(()=>{if(!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;fetch(base+"/chapters").then(r=>{if(!r.ok)throw new Error("Surah list unavailable");return r.json();}).then(data=>{if(active)setChapterList(Array.isArray(data.chapters)?data.chapters:[]);}).catch(()=>{if(active)setChapterAudioError("Surah navigation is unavailable until the content service responds.");});return()=>{active=false;};},[]);
   const playPreferredReciter = async () => {
     if (!preferredReciterId) { Alert.alert("Choose a reciter first","Open the Recitation Library and choose your preferred reciter."); return; }
     if (!AYAH_API_BASE) { Alert.alert("Backend required","Connect the Ayah content backend to play chapter recitations."); return; }
@@ -898,6 +904,10 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
       const message=error.message||"Please try again.";setChapterAudioError(message);Alert.alert("Unable to play recitation",message);
     } finally { setChapterAudioLoading(false); }
   };
+  useEffect(()=>{if(chapterAudioStatus?.currentTime!=null&&chapterAudioStatus.playing)setLastAudioPosition(chapterAudioStatus.currentTime);},[chapterAudioStatus?.currentTime,chapterAudioStatus?.playing]);
+  useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||!autoAdvance)return;const next=chapterList.find(item=>Number(item.id)===Number(chapter.id)+1);if(!next||!preferredReciterId||!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;fetch(base+"/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+next.id).then(r=>{if(!r.ok)throw new Error("Next surah audio unavailable");return r.json();}).then(data=>{if(!active||!data.audio?.url)return;onChangeChapter?.(next);chapterPlayer.replace(data.audio.url);chapterPlayer.play();}).catch(()=>{if(active)setChapterAudioError("The next surah could not be loaded. You can continue manually.");});return()=>{active=false;};},[chapterAudioStatus?.didJustFinish,autoAdvance,chapterList,chapter.id,preferredReciterId]);
+  const navigateSurah=direction=>{const target=chapterList.find(item=>Number(item.id)===Number(chapter.id)+direction);if(target){chapterPlayer.pause();onChangeChapter?.(target);}};
+  const restartSurah=()=>{chapterPlayer.seekTo(0);chapterPlayer.play();setLastAudioPosition(0);};
   const [activeAudioKey,setActiveAudioKey] = useState(null);
   const [repeatCount,setRepeatCount] = usePersistentState("recitationRepeatCount",3);
   const [repeatsRemaining,setRepeatsRemaining] = useState(0);
@@ -1007,11 +1017,21 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
       <Text style={styles.readerToolLabel}>PREFERRED RECITER</Text>
       <Text style={styles.progressHint}>{preferredReciterName || (preferredReciterId ? "Selected reciter" : "No preferred reciter selected")}</Text>
       <View style={styles.readerToggleRow}>
+        <Pressable accessibilityRole="button" disabled={Number(chapter.id)<=1} onPress={()=>navigateSurah(-1)} style={styles.readerToggle}><Text style={styles.readerToggleText}>← Previous surah</Text></Pressable>
+        <Pressable accessibilityRole="button" disabled={Number(chapter.id)>=114} onPress={()=>navigateSurah(1)} style={styles.readerToggle}><Text style={styles.readerToggleText}>Next surah →</Text></Pressable>
+      </View>
+      <View style={styles.readerToggleRow}>
         <Pressable accessibilityRole="button" disabled={chapterAudioLoading} onPress={playPreferredReciter} style={[styles.readerToggle,styles.readerToggleActive,chapterAudioLoading&&styles.disabled]}>
           <Text style={[styles.readerToggleText,styles.readerToggleTextActive]}>{chapterAudioLoading?"Loading recitation…":chapterAudioStatus?.playing?"Play again · Surah":"▶ Play surah"}</Text>
         </Pressable>
         {chapterAudioStatus?.playing?<Pressable accessibilityRole="button" onPress={()=>chapterPlayer.pause()} style={styles.readerToggle}><Text style={styles.readerToggleText}>Ⅱ Pause</Text></Pressable>:null}
         {chapterAudioStatus?.paused?<Pressable accessibilityRole="button" onPress={()=>chapterPlayer.play()} style={styles.readerToggle}><Text style={styles.readerToggleText}>▶ Resume</Text></Pressable>:null}
+        <Pressable accessibilityRole="button" disabled={!chapterAudioStatus?.isLoaded} onPress={restartSurah} style={styles.readerToggle}><Text style={styles.readerToggleText}>↺ Restart</Text></Pressable>
+      </View>
+      <View style={{marginTop:12}}>
+        <View style={{height:7,backgroundColor:BORDER,borderRadius:8,overflow:"hidden"}}><View style={{height:7,width:(Number(chapterAudioStatus?.duration)>0?Math.min(100,Number(chapterAudioStatus.currentTime||0)/Number(chapterAudioStatus.duration)*100):0)+"%",backgroundColor:GOLD,borderRadius:8}} /></View>
+        <View style={{flexDirection:"row",justifyContent:"space-between",marginTop:6}}><Text style={styles.reference}>{formatAudioTime(chapterAudioStatus?.currentTime)}</Text><Text style={styles.reference}>{formatAudioTime(chapterAudioStatus?.duration)}</Text></View>
+        <View style={styles.readerToggleRow}><Pressable onPress={()=>chapterPlayer.seekTo(Math.max(0,Number(chapterAudioStatus?.currentTime||0)-10))} style={styles.readerToggle}><Text style={styles.readerToggleText}>−10 sec</Text></Pressable><Pressable onPress={()=>chapterPlayer.seekTo(Number(chapterAudioStatus?.currentTime||0)+10)} style={styles.readerToggle}><Text style={styles.readerToggleText}>+10 sec</Text></Pressable><Pressable onPress={()=>setAutoAdvance(value=>!value)} style={[styles.readerToggle,autoAdvance&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,autoAdvance&&styles.readerToggleTextActive]}>{autoAdvance?"Auto-next on":"Auto-next off"}</Text></Pressable></View>
       </View>
       {chapterAudioError?<Text style={styles.tinyNote}>{chapterAudioError}</Text>:null}
       <Text style={styles.reference}>{chapter.translated_name?.name || ""} · {chapter.verses_count} ayahs · {chapter.revelation_place || ""}</Text>
@@ -1691,7 +1711,7 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} chapter={selectedChapter} initialAyah={searchInitialAyah} onRecordReading={keys => recordDailyActivity("readingAyahs",keys)} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} onChangeChapter={setSelectedChapter} chapter={selectedChapter} initialAyah={searchInitialAyah} onRecordReading={keys => recordDailyActivity("readingAyahs",keys)} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
