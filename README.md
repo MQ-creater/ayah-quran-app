@@ -44,6 +44,16 @@ npx expo install react-dom react-native-web @expo/metro-runtime
 
 Then open the forwarded port shown by Codespaces (usually port 8081) in the browser.
 
+## Qur’an font rendering
+
+The reader supports two connected Unicode editions:
+- Uthmani / QPC Hafs using Quran Foundation's Uthmanic Hafs font and matching `text_qpc_hafs` field.
+- IndoPak Nastaleeq using Quran Foundation's compatible IndoPak Nastaleeq font and matching `text_indopak_nastaleeq` field.
+
+The app loads the matching TTF font at runtime through Expo Font. The backend accepts only the `uthmani` and `indopak` script values and requests the matching verse field. Quran Foundation's font-rendering documentation specifies that IndoPak text must use its compatible font, and gives conditions for font use, including developer-account requirements and app attribution. Include an accessible credit in the app: "Qur’an fonts provided by Quran Foundation." Do not redistribute the font files as standalone downloads.
+
+After these changes are pulled into Codespaces, run `npm install` to install Expo Font and refresh the lockfile, then restart the Expo preview.
+
 ## Android
 
 This is an Expo React Native project. Android testing can be done with Expo Go on an Android device or an Android emulator. A distributable Android build will be configured after the core app flow is tested.
