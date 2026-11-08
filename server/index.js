@@ -29,6 +29,8 @@ if (!environments[environment]) {
 const qf = environments[environment];
 let cachedToken = null;
 let tokenExpiresAt = 0;
+let cachedTafsirToken = null;
+let tafsirTokenExpiresAt = 0;
 
 app.disable("x-powered-by");
 app.use(helmet());
@@ -50,11 +52,12 @@ app.use("/api/", rateLimit({
   legacyHeaders: false
 }));
 
-async function getAccessToken() {
+async function getAccessToken(includeTafsir = false) {
   if (!clientId || !clientSecret) {
     throw new Error("Quran Foundation server credentials are not configured.");
   }
-  if (cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
+  if (includeTafsir && cachedTafsirToken && Date.now() < tafsirTokenExpiresAt - 60_000) return cachedTafsirToken;
+  if (!includeTafsir && cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
 
   const credentials = Buffer.from(clientId + ":" + clientSecret).toString("base64");
   const response = await fetch(qf.auth + "/oauth2/token", {
@@ -65,19 +68,21 @@ async function getAccessToken() {
     },
     body: new URLSearchParams({
       grant_type: "client_credentials",
-      scope: "content.quran.read content.translations.read content.audio.read content.tafsirs.read"
+      scope: includeTafsir ? "content.tafsirs.read" : "content.quran.read content.translations.read content.audio.read"
     })
   });
   if (!response.ok) throw new Error("Quran Foundation authentication failed.");
   const data = await response.json();
   if (!data.access_token) throw new Error("The content provider returned no access token.");
+  const expiry = Date.now() + Number(data.expires_in || 3600) * 1000;
+  if (includeTafsir) { cachedTafsirToken = data.access_token; tafsirTokenExpiresAt = expiry; return cachedTafsirToken; }
   cachedToken = data.access_token;
-  tokenExpiresAt = Date.now() + Number(data.expires_in || 3600) * 1000;
+  tokenExpiresAt = expiry;
   return cachedToken;
 }
 
-async function qfGet(path) {
-  const token = await getAccessToken();
+async function qfGet(path, includeTafsir = false) {
+  const token = await getAccessToken(includeTafsir);
   const response = await fetch(qf.api + "/content/api/v4" + path, {
     headers: {
       "x-auth-token": token,
@@ -143,7 +148,7 @@ app.get("/api/tafsirs", async (req, res) => {
     return res.status(400).json({ error: "Language must be a two-letter language code." });
   }
   try {
-    const data = await qfGet("/resources/tafsirs?language=" + encodeURIComponent(language));
+    const data = await qfGet("/resources/tafsirs?language=" + encodeURIComponent(language), true);
     res.json({ tafsirs: data.tafsirs || [] });
   } catch (error) {
     console.error("Tafsir resources request failed:", error.message);
@@ -161,7 +166,7 @@ app.get("/api/tafsirs/:resourceId/ayah/:surah/:ayah", async (req, res) => {
     return res.status(400).json({ error: "Choose a valid Tafsir source and ayah reference." });
   }
   try {
-    const data = await qfGet("/tafsirs/" + resourceId + "/by_ayah/" + surah + ":" + ayah);
+    const data = await qfGet("/tafsirs/" + resourceId + "/by_ayah/" + surah + ":" + ayah, true);
     if (!data.tafsir || typeof data.tafsir.text !== "string" || !data.tafsir.text.trim()) {
       return res.status(404).json({ error: "No commentary was returned for this source and ayah." });
     }
