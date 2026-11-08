@@ -146,8 +146,49 @@ function TeacherScreen({ onPremium }) {
   const [assistant, setAssistant] = useState("Hamza");
   return <><Header eyebrow="AYAH PLUS · AI TEACHER" title="A teacher by your side" /><View style={styles.teacherCard}><View style={styles.teacherAvatar}><Text style={styles.teacherAvatarText}>{assistant === "Hamza" ? "ح" : "م"}</Text></View><Text style={styles.teacherName}>{assistant}</Text><Text style={styles.translation}>Your Qur’an learning companion</Text><View style={styles.assistantChoices}>{["Hamza", "Maryam"].map(n => <Pressable key={n} onPress={() => setAssistant(n)} style={[styles.nameChoice, assistant === n && styles.choiceSelected]}><Text style={[styles.choiceText, assistant === n && styles.choiceTextSelected]}>{n}</Text></Pressable>)}</View><Text style={styles.progressHint}>Choose the assistant name you prefer. The assistant’s teaching voice will be original and carefully designed for clear, gentle recitation guidance.</Text></View><View style={styles.infoCard}><Text style={styles.sectionTitle}>Planned teacher features</Text>{["Repeat-after-me practice, ayah by ayah","Speak with you in your chosen language","Help with memorization and revision","Explain vocabulary and basic meanings","Build a personal learning routine"].map(x => <Text key={x} style={styles.stepText}>✦  {x}</Text>)}<Text style={styles.lockedLabel}>PREMIUM FEATURE PREVIEW</Text><Button title="See Ayah Plus" onPress={onPremium} /></View></>;
 }
-function PremiumScreen({ onBack }) {
-  return <><Header eyebrow="AYAH PLUS" title="More support for your hifdh" /><View style={styles.premiumHero}><Text style={styles.premiumKicker}>YOUR PERSONAL LEARNING COMPANION</Text><Text style={styles.premiumBig}>Learn. Listen. Repeat.</Text><Text style={styles.translation}>A focused Qur’an learning experience with an AI teacher.</Text></View><View style={styles.infoCard}><Text style={styles.sectionTitle}>Planned Plus benefits</Text>{["AI teacher with repeat-after-me sessions","Choose Hamza or Maryam as your assistant","Multilingual conversation and explanations","Guided memorization and revision tools","Expanded recitation and learning options"].map(x => <Text key={x} style={styles.stepText}>✓  {x}</Text>)}</View><View style={styles.trialCard}><Text style={styles.sectionTitle}>Try Ayah Plus for 7 days</Text><Text style={styles.progressHint}>The free trial is planned as a one-time offer per account. Subscription price: to be decided.</Text><Text style={styles.tinyNote}>Trial eligibility, billing, cancellation and one-time-use enforcement will be implemented securely before launch. This preview does not start a trial or charge anything.</Text><Button title="Premium preview — coming soon" disabled onPress={() => {}} /></View><Button title="Back to Ayah" secondary onPress={onBack} /></>;
+function TeacherPreviewScreen({ onBack, onPremium }) {
+  const [assistant, setAssistant] = useState("Hamza");
+  const [language, setLanguage] = useState("English");
+  const [step, setStep] = useState(0);
+  const languages = ["English", "العربية", "اردو", "বাংলা", "Türkçe", "Français", "Bahasa Indonesia"];
+  const steps = [
+    "Listen carefully to the ayah.",
+    "Now repeat the ayah at a comfortable pace.",
+    "Check the words, then try once more."
+  ];
+  return <>
+    <Header eyebrow="AYAH PLUS · TEACHER PREVIEW" title="Meet your Qur’an teacher" />
+    <View style={styles.teacherCard}>
+      <View style={styles.teacherAvatar}><Text style={styles.teacherAvatarText}>{assistant === "Hamza" ? "ح" : "م"}</Text></View>
+      <Text style={styles.teacherName}>{assistant}</Text>
+      <Text style={styles.translation}>A calm, warm, original teaching voice</Text>
+      <Text style={styles.progressHint}>Designed to be gentle, clear and unhurried—not an imitation of a specific reciter.</Text>
+      <View style={styles.assistantChoices}>
+        {["Hamza", "Maryam"].map(n => <Pressable key={n} onPress={() => setAssistant(n)} style={[styles.nameChoice, assistant === n && styles.choiceSelected]}><Text style={[styles.choiceText, assistant === n && styles.choiceTextSelected]}>{n}</Text></Pressable>)}
+      </View>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Teaching language</Text>
+      <Text style={styles.progressHint}>Choose the language you would like the assistant to use for explanations.</Text>
+      <View style={styles.languageGrid}>
+        {languages.map(item => <Pressable key={item} onPress={() => setLanguage(item)} style={[styles.languageChoice, language === item && styles.choiceSelected]}><Text style={[styles.choiceText, language === item && styles.choiceTextSelected]}>{item}</Text></Pressable>)}
+      </View>
+      <Text style={styles.progressHint}>Selected: {language}. More languages can be added as the assistant is developed.</Text>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Repeat-after-me lesson preview</Text>
+      <Text style={styles.dailyArabic} writingDirection="rtl">{PRACTICE.arabic}</Text>
+      <Text style={styles.reference}>{PRACTICE.reference}</Text>
+      <View style={styles.practicePrompt}><Text style={styles.practicePromptText}>{steps[step]}</Text></View>
+      <Button title={step === 2 ? "Restart lesson preview" : "Next practice step"} onPress={() => setStep(step === 2 ? 0 : step + 1)} />
+      <Text style={styles.tinyNote}>This is a screen-flow preview only. Live AI conversation, speech recognition and generated audio are not connected yet.</Text>
+    </View>
+    <Button title="See Ayah Plus plan" onPress={onPremium} />
+    <Button title="Back to Ayah" secondary onPress={onBack} />
+  </>;
+}
+function PremiumScreen({ onBack, onTeacher }) {
+  return <><Header eyebrow="AYAH PLUS" title="More support for your hifdh" /><View style={styles.premiumHero}><Text style={styles.premiumKicker}>YOUR PERSONAL LEARNING COMPANION</Text><Text style={styles.premiumBig}>Learn. Listen. Repeat.</Text><Text style={styles.translation}>A focused Qur’an learning experience with an AI teacher.</Text></View><View style={styles.infoCard}><Text style={styles.sectionTitle}>Planned Plus benefits</Text>{["AI teacher with repeat-after-me sessions","Choose Hamza or Maryam as your assistant","Multilingual conversation and explanations","Guided memorization and revision tools","Expanded recitation and learning options"].map(x => <Text key={x} style={styles.stepText}>✓  {x}</Text>)}<Button title="Preview the AI teacher" onPress={onTeacher} secondary /></View><View style={styles.trialCard}><Text style={styles.sectionTitle}>Try Ayah Plus for 7 days</Text><Text style={styles.progressHint}>The free trial is planned as a one-time offer per account. Subscription price: to be decided.</Text><Text style={styles.tinyNote}>Trial eligibility, billing, cancellation and one-time-use enforcement will be implemented securely before launch. This preview does not start a trial or charge anything.</Text><Button title="Premium access — coming soon" disabled onPress={() => {}} /></View><Button title="Back to Ayah" secondary onPress={onBack} /></>;
 }
 export default function App() {
   const [signedIn, setSignedIn] = useState(false);
@@ -171,8 +212,9 @@ export default function App() {
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
   if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} />;
-  else if (tab === "review" || tab === "listen" || tab === "teacher") screen = <PremiumScreen onBack={() => setTab("home")} />;
-  else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} />;
+  else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
+  else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
+  else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
   const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["premium", "✧", "Ayah Plus"]];
   return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={NAVY} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
@@ -208,6 +250,8 @@ const styles = StyleSheet.create({
   premiumHero:{backgroundColor:"#263A50",borderRadius:22,padding:22,borderWidth:1,borderColor:"#8D784B",marginBottom:16},
   premiumKicker:{color:GOLD,fontSize:10,letterSpacing:1.5,fontWeight:"800"},premiumBig:{color:"#FFF",fontSize:25,fontWeight:"800",marginTop:14,marginBottom:10},
   trialCard:{backgroundColor:PANEL,borderRadius:20,padding:18,borderWidth:1,borderColor:GOLD,marginBottom:14},
+  languageGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginTop:12},languageChoice:{backgroundColor:"#24354C",borderRadius:12,paddingVertical:10,paddingHorizontal:13},
+  practicePrompt:{backgroundColor:"#24354C",borderRadius:14,padding:15,marginTop:10},practicePromptText:{color:GOLD,fontSize:14,fontWeight:"600",textAlign:"center",lineHeight:22},
   navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:NAVY},
   navIcon:{color:MUTED,fontSize:19,marginBottom:3},navLabel:{color:MUTED,fontSize:10},navSelected:{color:GOLD,fontWeight:"700"}
 });
