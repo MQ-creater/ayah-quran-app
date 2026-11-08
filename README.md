@@ -16,6 +16,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Adjustable daily reading and memorization targets; reading activity counts only when the learner explicitly marks an ayah as read
 - Local practice-session history, seven-day insights, tracker summaries, and recent sessions
 - JSON backup through the device share sheet, plus a clear-local-data control
+- Backend connection diagnostics for checking the configured content API and server credential presence without exposing secrets
 - Arabic starter vocabulary, alphabet classroom, and quizzes
 - Ayah Plus Tafsir catalogue and commentary UI, subject to provider access approval and content licensing
 - AI Teacher and Ayah Plus previews; live AI, user accounts, subscriptions, and billing are not connected
