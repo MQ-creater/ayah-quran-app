@@ -142,6 +142,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
         <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
+        <ActionTile icon="⌕" title="Search ayahs" subtitle="Find words and passages" onPress={() => onNavigate("search")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
@@ -598,6 +599,49 @@ function ArabicStarterQuiz({ onReview }) {
     <Text style={styles.tinyNote}>This short checkpoint reviews the three words in the starter lesson. It is practice, not a formal language proficiency test.</Text>
   </View>;
 }
+
+function QuranSearchScreen({ onOpenResult, language }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [error, setError] = useState("");
+  const search = async () => {
+    const term = query.trim();
+    if (term.length < 2) { setError("Enter at least two characters to search."); return; }
+    if (!AYAH_API_BASE) { setError("Connect the Ayah content server to search the Qur’an."); return; }
+    setLoading(true); setError(""); setSearched(true); setResults([]);
+    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE;
+    try {
+      const codes = {English:"en",Arabic:"ar",Urdu:"ur",Bengali:"bn",Turkish:"tr",French:"fr","Bahasa Indonesia":"id"};
+      const response = await fetch(base + "/search?q=" + encodeURIComponent(term) + "&language=" + (codes[language] || "en"));
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "Search could not be completed.");
+      setResults(Array.isArray(data.results) ? data.results : []);
+    } catch (e) { setError(e.message || "Search is temporarily unavailable."); }
+    finally { setLoading(false); }
+  };
+  return <>
+    <Header eyebrow="EXPLORE THE QUR’AN" title="Search ayahs" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Find a passage</Text>
+      <Text style={styles.progressHint}>Search Arabic words, words from a translation, or a verse reference such as 2:255.</Text>
+      <TextInput value={query} onChangeText={setQuery} onSubmitEditing={search} returnKeyType="search" placeholder="Search the Qur’an…" placeholderTextColor={MUTED} style={styles.emailInput}/>
+      <Button title="Search Qur’an" onPress={search} disabled={loading}/>
+      {loading ? <ActivityIndicator color={GOLD} size="large"/> : null}
+      {error ? <Text style={styles.progressHint}>{error}</Text> : null}
+      {searched && !loading && !error ? <Text style={styles.reference}>{results.length} matching ayahs</Text> : null}
+      {results.map((item,index) => <Pressable key={item.verse_key || index} onPress={() => onOpenResult(item)} style={styles.savedAyah}>
+        <Text style={styles.reference}>Surah {item.chapter_id} · Ayah {item.verse_number} ({item.verse_key})</Text>
+        {item.arabic ? <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic}</Text> : null}
+        <Text style={styles.translation}>{String(item.translation || "Translation not available").replace(/<[^>]*>/g," ").replace(/&nbsp;/g," ").trim()}</Text>
+        <Text style={styles.readerToolLabel}>Open in reader →</Text>
+      </Pressable>)}
+      {searched && !loading && !error && results.length===0 ? <Text style={styles.progressHint}>No matching ayahs found. Try another word or phrase.</Text> : null}
+    </View>
+  </>;
+}
+
 function QuranLibraryScreen({ onOpenChapter }) {
   const [chapters, setChapters] = useState([]);
   const [query, setQuery] = useState("");
@@ -634,10 +678,10 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
   </>;
 }
-function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition }) {
+function QuranReaderScreen({ chapter, initialAyah = 1, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition }) {
   const wordPlayer = useAudioPlayer(null);
   const [verses, setVerses] = useState([]);
-  const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : 1);
+  const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : Math.floor((Number(initialAyah || 1) - 1) / 50) + 1);
   const [jumpAyah, setJumpAyah] = useState("");
   const [noteEditorKey, setNoteEditorKey] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -661,7 +705,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafs
   const translationLanguages = [{ code: "en", label: "English" }, { code: "ur", label: "Urdu" }, { code: "ar", label: "Arabic" }, { code: "bn", label: "Bengali" }, { code: "tr", label: "Turkish" }, { code: "fr", label: "French" }, { code: "id", label: "Indonesian" }];
   useEffect(() => {
     setVerses([]);
-    setPage(lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : 1);
+    setPage(lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : Math.floor((Number(initialAyah || 1) - 1) / 50) + 1);
     setError("");
   }, [chapter?.id]);
   useEffect(() => {
@@ -1353,6 +1397,7 @@ export default function App() {
   const [ayahCollections, setAyahCollections] = usePersistentState("ayahCollections", {});
   const [lastReadPosition, setLastReadPosition] = usePersistentState("lastReadPosition", null);
   const [selectedChapter, setSelectedChapter] = useState(null);
+  const [searchInitialAyah, setSearchInitialAyah] = useState(1);
   const [tafsirTarget, setTafsirTarget] = useState({ surah:"1", ayah:"1" });
   const [tafsirReturnTab, setTafsirReturnTab] = useState("premium");
   const [themeName, setThemeName] = usePersistentState("themeName", "auto");
@@ -1379,7 +1424,8 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} initialAyah={searchInitialAyah} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} progress={memorizationProgress} onRateReview={saveReviewRating} onSyncRating={(surahId, verse, rating) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } }))} onStartVerse={(chapterId, verse) => { setActiveAssignment({ chapterId, startVerse:Number(verse), endVerse:Number(verse), revision:true }); setTab("buildSession"); }} onStartPractice={() => setTab("memorize")} />;
