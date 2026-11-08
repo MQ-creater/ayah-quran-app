@@ -809,6 +809,93 @@ function DailyGoalsScreen({ activity, onBack, readingTarget, memorizationTarget,
   </>;
 }
 
+
+function LearningInsightsScreen({ practiceHistory = [], activity = {}, progress = {}, reviewRecords = {}, onBack, onNavigate }) {
+  const sessions = Array.isArray(practiceHistory) ? practiceHistory : [];
+  const days = Array.from({length:7},(_,i)=>{const d=new Date();d.setDate(d.getDate()-(6-i));const key=localDateKey(d);const item=activity?.[key]||{};return {key,label:d.toLocaleDateString(undefined,{weekday:"short"}),read:(item.readingAyahs||[]).length,practice:(item.memorizationAyahs||[]).length,sessions:sessions.filter(s=>localDateKey(s.completedAt)===key).length};});
+  const weekSessions=days.reduce((n,d)=>n+d.sessions,0);
+  const weekRead=days.reduce((n,d)=>n+d.read,0);
+  const weekPractice=days.reduce((n,d)=>n+d.practice,0);
+  const progressEntries=Object.values(progress||{}).flatMap(value=>Object.values(value||{}));
+  const memorized=progressEntries.filter(status=>status==="memorized").length;
+  const learning=progressEntries.filter(status=>status==="learning").length;
+  const revision=progressEntries.filter(status=>status==="revision").length;
+  const now=Date.now();
+  const due=Object.values(reviewRecords||{}).filter(item=>!item?.dueAt||new Date(item.dueAt).getTime()<=now).length;
+  let streak=0;
+  for(let i=0;i<365;i++){const d=new Date();d.setDate(d.getDate()-i);const day=activity?.[localDateKey(d)]||{};const active=((day.readingAyahs||[]).length+(day.memorizationAyahs||[]).length)>0;if(active)streak++;else if(i===0)continue;else break;}
+  const totalSessions=sessions.length;
+  const totalAyahs=sessions.reduce((n,item)=>n+Number(item.ayahCount||item.ayahKeys?.length||0),0);
+  return <>
+    <Header eyebrow="YOUR LEARNING DATA" title="Learning insights" />
+    <View style={styles.infoCard}>
+      <View style={styles.goalStatRow}>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{totalSessions}</Text><Text style={styles.reference}>Sessions</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{totalAyahs}</Text><Text style={styles.reference}>Practice ayahs</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{streak}</Text><Text style={styles.reference}>Day streak</Text></View>
+      </View>
+      <Text style={styles.sectionTitle}>Last 7 days</Text>
+      <View style={styles.weekActivityRow}>{days.map(day=><View key={day.key} style={styles.weekDay}>
+        <View style={[styles.weekDayDot,(day.read+day.practice+day.sessions)>0&&styles.weekDayDotActive]}><Text style={styles.weekDayCount}>{day.read+day.practice}</Text></View>
+        <Text style={styles.reference}>{day.label}</Text>
+        <Text style={styles.reference}>{day.sessions} sessions</Text>
+      </View>)}</View>
+      <View style={styles.goalStatRow}>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{weekRead}</Text><Text style={styles.reference}>Read ayahs</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{weekPractice}</Text><Text style={styles.reference}>Practiced ayahs</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{weekSessions}</Text><Text style={styles.reference}>Sessions</Text></View>
+      </View>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Memorization tracker</Text>
+      <View style={styles.goalStatRow}>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{memorized}</Text><Text style={styles.reference}>Marked memorized</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{learning}</Text><Text style={styles.reference}>Learning</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{revision}</Text><Text style={styles.reference}>For revision</Text></View>
+      </View>
+      <Text style={styles.progressHint}>{due} review items are due or unrated. These counts reflect your own tracker choices and review check-ins. Ayah does not automatically test recitation or certify memorization.</Text>
+      <View style={styles.readerToggleRow}>
+        <Pressable onPress={()=>onNavigate?.("tracking")} style={styles.readerToggle}><Text style={styles.readerToggleText}>Open tracker</Text></Pressable>
+        <Pressable onPress={()=>onNavigate?.("revision")} style={styles.readerToggle}><Text style={styles.readerToggleText}>Review due ayahs</Text></Pressable>
+      </View>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Recent practice sessions</Text>
+      {sessions.length===0?<Text style={styles.progressHint}>Your completed guided sessions will appear here. Finish a practice session to start your history.</Text>:sessions.slice(0,8).map(item=><View key={item.id} style={styles.savedAyah}>
+        <Text style={styles.choiceText}>{item.type==="single-ayah"?"Single ayah":item.type==="revision"?"Revision session":"Guided memorization"} · {item.ayahCount||item.ayahKeys?.length||0} ayahs</Text>
+        <Text style={styles.reference}>{item.completedAt?new Date(item.completedAt).toLocaleString():"Date unavailable"}</Text>
+        {item.chapterName?<Text style={styles.reference}>{item.chapterName} · {item.startVerse||"—"}–{item.endVerse||item.startVerse||"—"}</Text>:null}
+      </View>)}
+    </View>
+    <Text style={styles.tinyNote}>Insights are calculated from data stored on this device. Reading counts only include ayahs you explicitly marked as read. Practice totals are not independent accuracy scores.</Text>
+    <Button title="Backup & privacy" secondary onPress={()=>onNavigate?.("data")}/>
+    <Button title="Back to home" secondary onPress={onBack}/>
+  </>;
+}
+
+function DataPrivacyScreen({ onBack, onExport, onReset, stats }) {
+  return <>
+    <Header eyebrow="YOUR DEVICE · YOUR DATA" title="Backup & privacy" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Your learning data</Text>
+      <View style={styles.goalStatRow}>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{stats.sessions}</Text><Text style={styles.reference}>Sessions</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{stats.bookmarks}</Text><Text style={styles.reference}>Bookmarks</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{stats.notes}</Text><Text style={styles.reference}>Notes</Text></View>
+      </View>
+      <Text style={styles.progressHint}>Ayah currently stores these preferences, notes, bookmarks, review ratings and progress locally on this device. A user account and cloud sync are not connected.</Text>
+      <Button title="Export my Ayah backup" onPress={onExport}/>
+      <Text style={styles.tinyNote}>The export includes local learning records and settings as a JSON backup. Store it somewhere private. It does not contain your Quran Foundation server credentials.</Text>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Privacy and reset</Text>
+      <Text style={styles.progressHint}>You can clear the locally saved Ayah data from this device. This cannot delete a backup file you have already shared or data stored outside this device.</Text>
+      <Button title="Clear local Ayah data" secondary onPress={onReset}/>
+    </View>
+    <Button title="Back" secondary onPress={onBack}/>
+  </>;
+}
+
 function QuranSearchScreen({ onOpenResult, language }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
