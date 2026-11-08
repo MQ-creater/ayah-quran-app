@@ -147,7 +147,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
         <ActionTile icon="⌕" title="Search ayahs" subtitle="Find words and passages" onPress={() => onNavigate("search")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
-        <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
+        <ActionTile icon="♫" title="Recitation library" subtitle="Browse and preview reciters" onPress={() => onNavigate("reciters")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="۞" title="Tafsir library" subtitle="Verse explanations · Plus" locked onPress={() => onNavigate("premium")} />
       </View>
@@ -693,6 +693,60 @@ function PersonalLearningCalendarScreen({ plan, activity, onStartAssignment, onB
     </View>
     <View style={styles.infoCard}><Text style={styles.sectionTitle}>Your schedule at a glance</Text><Text style={styles.progressHint}>{assignments.length} planned sessions · {assignments.filter(a=>a.completed).length} marked complete</Text>{assignments.length===0?<Text style={styles.progressHint}>Create a memorization plan to place study assignments on this calendar.</Text>:null}<Button title="Open memorization plan" secondary onPress={()=>onBack("plan")}/></View>
     <Button title="Back to home" secondary onPress={()=>onBack("home")}/>
+  </>;
+}
+
+
+function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPreferredId, onBack }) {
+  const player=useAudioPlayer(null),status=useAudioPlayerStatus(player);
+  const [reciters,setReciters]=useState([]),[loading,setLoading]=useState(false),[error,setError]=useState("");
+  const [language,setLanguage]=useState("en"),[selectedChapter,setSelectedChapter]=useState("1"),[playingId,setPlayingId]=useState(null),[search,setSearch]=useState("");
+  useEffect(()=>{let active=true;if(!AYAH_API_BASE){setError("Connect the secure Ayah content backend to browse reciters.");return;}
+    const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
+    setLoading(true);setError("");
+    fetch(base+"/audio/reciters?language="+language).then(res=>{if(!res.ok)throw new Error("Reciter catalogue is unavailable (server "+res.status+").");return res.json();})
+      .then(data=>{if(active)setReciters(Array.isArray(data.reciters)?data.reciters:[]);})
+      .catch(err=>{if(active)setError(err.message||"Unable to load reciters.");})
+      .finally(()=>{if(active)setLoading(false);});
+    return()=>{active=false;};
+  },[language]);
+  const getId=item=>String(item.id??item.reciter_id??"");
+  const getName=item=>item.reciter_name||item.name||item.translated_name?.name||("Reciter "+getId(item));
+  const filtered=reciters.filter(item=>getName(item).toLowerCase().includes(search.toLowerCase()));
+  const toggleFavorite=id=>setFavoriteIds(current=>current.includes(id)?current.filter(x=>x!==id):[...current,id]);
+  const preview=async item=>{
+    const id=getId(item);if(!id)return;
+    if(!AYAH_API_BASE){Alert.alert("Backend required","Connect the Ayah content backend first.");return;}
+    try{
+      const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
+      const response=await fetch(base+"/audio/chapters/"+encodeURIComponent(id)+"/"+selectedChapter);
+      if(!response.ok)throw new Error("A preview is not available for this reciter and surah.");
+      const data=await response.json(),url=data.audio?.url;
+      if(!url)throw new Error("The provider did not return an audio file.");
+      setPreferredId(id);setPlayingId(id);player.replace(url);player.play();
+    }catch(err){Alert.alert("Unable to play preview",err.message||"Please try again.");}
+  };
+  return <>
+    <Header eyebrow="RECITATION LIBRARY" title="Choose your reciter" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Find a reciter</Text>
+      <Text style={styles.progressHint}>Browse the available recordings supplied by the connected Qur’an content provider.</Text>
+      <TextInput value={search} onChangeText={setSearch} placeholder="Search reciter names" placeholderTextColor={MUTED} style={styles.emailInput}/>
+      <Text style={styles.readerToolLabel}>Catalogue language</Text>
+      <View style={styles.readerToggleRow}>{[{code:"en",label:"English"},{code:"ar",label:"Arabic"},{code:"ur",label:"Urdu"}].map(item=><Pressable key={item.code} onPress={()=>setLanguage(item.code)} style={[styles.readerToggle,language===item.code&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,language===item.code&&styles.readerToggleTextActive]}>{item.label}</Text></Pressable>)}</View>
+      <Text style={styles.readerToolLabel}>Preview surah</Text>
+      <View style={styles.readerToggleRow}>{[1,2,36,55,112,114].map(id=><Pressable key={id} onPress={()=>setSelectedChapter(String(id))} style={[styles.readerToggle,selectedChapter===String(id)&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,selectedChapter===String(id)&&styles.readerToggleTextActive]}>{id}</Text></Pressable>)}</View>
+      {loading?<ActivityIndicator color={GOLD}/>:null}
+      {error?<Text style={styles.tinyNote}>{error}</Text>:null}
+      {!loading&&!error&&filtered.length===0?<Text style={styles.progressHint}>No reciters match this search. Try another name or catalogue language.</Text>:null}
+    </View>
+    {filtered.map(item=>{const id=getId(item),name=getName(item),favorite=favoriteIds.includes(id),selected=preferredId===id;return <View key={id||name} style={styles.infoCard}>
+      <View style={styles.reciterRow}><View style={{flex:1}}><Text style={styles.sectionTitle}>{name}</Text><Text style={styles.reference}>{item.style||item.recitation_style||item.translated_name?.name||"Qur’an recitation"}</Text>{selected?<Text style={styles.lockedLabel}>YOUR PREFERRED RECITER</Text>:null}</View>
+      <Pressable onPress={()=>toggleFavorite(id)} style={styles.readerToggle}><Text style={styles.readerToggleText}>{favorite?"★ Saved":"☆ Favorite"}</Text></Pressable></View>
+      <View style={styles.readerToggleRow}><Pressable onPress={()=>setPreferredId(id)} style={[styles.readerToggle,selected&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,selected&&styles.readerToggleTextActive]}>{selected?"✓ Preferred":"Set as preferred"}</Text></Pressable><Pressable onPress={()=>preview(item)} style={[styles.readerToggle,playingId===id&&status?.playing&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,playingId===id&&status?.playing&&styles.readerToggleTextActive]}>{playingId===id&&status?.playing?"Ⅱ Playing":"▶ Preview surah"}</Text></Pressable></View>
+    </View>;})}
+    <Text style={styles.tinyNote}>Reciter availability and recording rights depend on the content provider. Favorites and preferred reciter are saved on this device. Preview uses the selected surah's recording; it is not a short sample.</Text>
+    <Button title="Back to home" secondary onPress={onBack}/>
   </>;
 }
 
@@ -1571,6 +1625,8 @@ export default function App() {
   const [memorizationProgress, setMemorizationProgress] = usePersistentState("memorizationProgress", {});
   const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (current[id]?.attempts || 0) + 1 } })); };
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
+  const [favoriteReciterIds,setFavoriteReciterIds] = usePersistentState("favoriteReciterIds", []);
+  const [preferredReciterId,setPreferredReciterId] = usePersistentState("preferredReciterId", "");
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
   const [readerNotes, setReaderNotes] = usePersistentState("readerNotes", {});
   const [ayahCollections, setAyahCollections] = usePersistentState("ayahCollections", {});
@@ -1621,6 +1677,7 @@ export default function App() {
   else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
+  else if (tab === "reciters") screen = <ReciterLibraryScreen favoriteIds={favoriteReciterIds} setFavoriteIds={setFavoriteReciterIds} preferredId={preferredReciterId} setPreferredId={setPreferredReciterId} onBack={() => setTab("home")} />;
   else if (tab === "calendar") screen = <PersonalLearningCalendarScreen plan={memorizationPlan} activity={dailyActivity} onStartAssignment={assignment=>{setActiveAssignment(assignment);setTab("buildSession");}} onBack={destination=>setTab(destination||"home")} />;
   else if (tab === "recommendations") screen = <LearningRecommendationsScreen progress={memorizationProgress} reviewRecords={reviewRecords} activity={dailyActivity} onStartVerse={(chapterId,verse)=>{setActiveAssignment({chapterId,startVerse:Number(verse),endVerse:Number(verse),revision:true});setTab("buildSession");}} onStartPractice={mode=>setTab(mode==="revision"?"revision":"memorize")} onOpenPlan={()=>setTab("tracking")} onBack={()=>setTab("home")} />;
   else if (tab === "goals") screen = <DailyGoalsScreen activity={dailyActivity} readingTarget={5} memorizationTarget={1} onBack={() => setTab("home")} />;
@@ -1631,7 +1688,7 @@ export default function App() {
   return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
 const createStyles = (p) => StyleSheet.create({
-  goalProgressTrack:{height:9,backgroundColor:p.surface,borderRadius:8,overflow:"hidden",marginTop:7,marginBottom:16}, goalProgressFill:{height:9,backgroundColor:p.accent,borderRadius:8}, goalStatRow:{flexDirection:"row",justifyContent:"space-around",gap:8,marginVertical:12}, goalStat:{flex:1,alignItems:"center",backgroundColor:p.surface,borderRadius:12,padding:12}, goalStatValue:{fontSize:26,fontWeight:"800",color:p.accent}, calendarGrid:{flexDirection:"row",flexWrap:"wrap",marginTop:12},calendarDay:{width:"14.2857%",minHeight:48,alignItems:"center",justifyContent:"center",borderRadius:10,marginBottom:4},calendarToday:{borderWidth:1,borderColor:p.accent},calendarMarks:{flexDirection:"row",gap:4,marginTop:4,minHeight:7},calendarDot:{width:6,height:6,borderRadius:3,backgroundColor:"transparent"},calendarAssignmentDot:{backgroundColor:p.accent},calendarActivityDot:{backgroundColor:"#58B88A"},calendarLegend:{flexDirection:"row",justifyContent:"space-around",marginTop:10},weekActivityRow:{flexDirection:"row",justifyContent:"space-between",gap:5,marginVertical:16}, weekDay:{flex:1,alignItems:"center",gap:6}, weekDayDot:{width:34,height:34,borderRadius:17,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"}, weekDayDotActive:{backgroundColor:p.accent}, weekDayCount:{fontSize:12,fontWeight:"700",color:p.text},
+  goalProgressTrack:{height:9,backgroundColor:p.surface,borderRadius:8,overflow:"hidden",marginTop:7,marginBottom:16}, goalProgressFill:{height:9,backgroundColor:p.accent,borderRadius:8}, goalStatRow:{flexDirection:"row",justifyContent:"space-around",gap:8,marginVertical:12}, goalStat:{flex:1,alignItems:"center",backgroundColor:p.surface,borderRadius:12,padding:12}, goalStatValue:{fontSize:26,fontWeight:"800",color:p.accent}, reciterRow:{flexDirection:"row",alignItems:"center",gap:10},calendarGrid:{flexDirection:"row",flexWrap:"wrap",marginTop:12},calendarDay:{width:"14.2857%",minHeight:48,alignItems:"center",justifyContent:"center",borderRadius:10,marginBottom:4},calendarToday:{borderWidth:1,borderColor:p.accent},calendarMarks:{flexDirection:"row",gap:4,marginTop:4,minHeight:7},calendarDot:{width:6,height:6,borderRadius:3,backgroundColor:"transparent"},calendarAssignmentDot:{backgroundColor:p.accent},calendarActivityDot:{backgroundColor:"#58B88A"},calendarLegend:{flexDirection:"row",justifyContent:"space-around",marginTop:10},weekActivityRow:{flexDirection:"row",justifyContent:"space-between",gap:5,marginVertical:16}, weekDay:{flex:1,alignItems:"center",gap:6}, weekDayDot:{width:34,height:34,borderRadius:17,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"}, weekDayDotActive:{backgroundColor:p.accent}, weekDayCount:{fontSize:12,fontWeight:"700",color:p.text},
   safeArea:{flex:1,backgroundColor:p.bg}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1},
   welcomeBackground:{flex:1,justifyContent:"center"}, welcomeShade:{flex:1,backgroundColor:"rgba(8,17,30,0.68)",padding:20,justifyContent:"center"},
   welcomeTop:{alignItems:"center",marginBottom:18}, logo:{width:54,height:54,borderRadius:18,backgroundColor:p.panel,borderWidth:1,borderColor:"#53617A",alignItems:"center",justifyContent:"center",marginBottom:8},
