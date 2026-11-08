@@ -1,10 +1,42 @@
 import React, { useEffect, useState } from "react";
 import * as Font from "expo-font";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
 import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
   Pressable, TextInput, ImageBackground, Alert, ActivityIndicator
 } from "react-native";
+
+const PREFERENCES_KEY = "@ayah/preferences-v1";
+
+function usePersistentState(key, initialValue) {
+  const [value, setValue] = useState(initialValue);
+  const [hydrated, setHydrated] = useState(false);
+  useEffect(() => {
+    let active = true;
+    AsyncStorage.getItem(PREFERENCES_KEY).then(raw => {
+      if (!active) return;
+      if (raw) {
+        const saved = JSON.parse(raw);
+        if (Object.prototype.hasOwnProperty.call(saved, key)) setValue(saved[key]);
+      }
+    }).catch(error => {
+      console.warn("Could not load saved Ayah preferences:", error);
+    }).finally(() => {
+      if (active) setHydrated(true);
+    });
+    return () => { active = false; };
+  }, [key]);
+  useEffect(() => {
+    if (!hydrated) return;
+    AsyncStorage.getItem(PREFERENCES_KEY).then(raw => {
+      const saved = raw ? JSON.parse(raw) : {};
+      saved[key] = value;
+      return AsyncStorage.setItem(PREFERENCES_KEY, JSON.stringify(saved));
+    }).catch(error => console.warn("Could not save Ayah preferences:", error));
+  }, [key, value, hydrated]);
+  return [value, setValue, hydrated];
+}
 
 const GOLD = "#D9B96E";
 const NAVY = "#101C2D";
@@ -767,14 +799,14 @@ function PremiumScreen({ onBack, onTeacher }) {
 export default function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [tab, setTab] = useState("home");
-  const [practiceCount, setPracticeCount] = useState(0);
-  const [savedIds, setSavedIds] = useState([]);
-  const [savedVerseDetails, setSavedVerseDetails] = useState({});
+  const [practiceCount, setPracticeCount] = usePersistentState("practiceCount", 0);
+  const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
+  const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
   const [selectedChapter, setSelectedChapter] = useState(null);
-  const [themeName, setThemeName] = useState("auto");
-  const [learningLanguage, setLearningLanguage] = useState("English");
-  const [dailyGoal, setDailyGoal] = useState(10);
-  const [remindersEnabled, setRemindersEnabled] = useState(false);
+  const [themeName, setThemeName] = usePersistentState("themeName", "auto");
+  const [learningLanguage, setLearningLanguage] = usePersistentState("learningLanguage", "English");
+  const [dailyGoal, setDailyGoal] = usePersistentState("dailyGoal", 10);
+  const [remindersEnabled, setRemindersEnabled] = usePersistentState("remindersEnabled", false);
   const systemScheme = useColorScheme();
   const activeTheme = themeName === "auto" ? (systemScheme === "light" ? "light" : "dark") : themeName;
   styles = createStyles(THEME_PALETTES[activeTheme] || THEME_PALETTES.dark);
