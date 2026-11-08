@@ -140,6 +140,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
         <ActionTile icon="🔥" title="Daily goals & streaks" subtitle="Your routine and weekly report" onPress={() => onNavigate("goals")} />
+        <ActionTile icon="✦" title="For you" subtitle="Personalized learning recommendations" onPress={() => onNavigate("recommendations")} />
         <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
         <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
@@ -601,6 +602,64 @@ function ArabicStarterQuiz({ onReview }) {
   </View>;
 }
 
+
+
+function LearningRecommendationsScreen({ progress, reviewRecords, activity, onStartVerse, onStartPractice, onOpenPlan, onBack }) {
+  const now = Date.now();
+  const legacy = { "1:2":"fatiha2", "112:1":"ikhlas1", "103:1":"asr1" };
+  const items = [];
+  Object.entries(progress || {}).forEach(([surah, verses]) => Object.entries(verses || {}).forEach(([verse,status]) => {
+    if (!["learning","memorized","revision"].includes(status)) return;
+    const key=surah+":"+verse, record=reviewRecords?.[key] || reviewRecords?.[legacy[key]] || {};
+    const due=!record.dueAt || new Date(record.dueAt).getTime()<=now;
+    items.push({key,surah,verse,status,record,due});
+  }));
+  const due=items.filter(item=>item.due).sort((a,b)=>(a.status==="revision"?0:1)-(b.status==="revision"?0:1) || (a.record.rating==="difficult"?-1:0)-(b.record.rating==="difficult"?-1:0));
+  const bySurah={};
+  items.forEach(item=>{const x=bySurah[item.surah]||(bySurah[item.surah]={total:0,difficult:0,revision:0,learning:0});x.total++;if(item.record.rating==="difficult")x.difficult++;if(item.status==="revision")x.revision++;if(item.status==="learning")x.learning++;});
+  const focus=Object.entries(bySurah).sort((a,b)=>(b[1].revision*3+b[1].difficult*2+b[1].learning)-(a[1].revision*3+a[1].difficult*2+a[1].learning))[0];
+  const today=new Date(), dateKey=today.getFullYear()+"-"+String(today.getMonth()+1).padStart(2,"0")+"-"+String(today.getDate()).padStart(2,"0");
+  const todayData=activity?.[dateKey]||{};
+  const read=(todayData.readingAyahs||[]).length, practiced=(todayData.memorizationAyahs||[]).length;
+  return <>
+    <Header eyebrow="PERSONALIZED LEARNING" title="Your next best steps" />
+    <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>TODAY’S RECOMMENDATION</Text>
+      <Text style={styles.sectionTitle}>{due.length ? "Begin with a revision" : items.length ? "Keep your learning moving" : "Start with a small step"}</Text>
+      <Text style={styles.progressHint}>{due.length ? "You have "+due.length+" tracked ayah"+(due.length===1?"":"s")+" due for review. Start with one, then continue at a comfortable pace." : items.length ? "No tracked ayahs are due right now. Continue your current memorization plan or read a few new ayahs." : "Track a few ayahs in the memorization tracker or begin a guided session to unlock more tailored suggestions."}</Text>
+      <View style={styles.goalStatRow}>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{due.length}</Text><Text style={styles.reference}>Due to review</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{read}</Text><Text style={styles.reference}>Read today</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{practiced}</Text><Text style={styles.reference}>Practiced today</Text></View>
+      </View>
+      {due[0] ? <Button title={"Review ayah "+due[0].key} onPress={()=>onStartVerse(due[0].surah,due[0].verse)}/> : <Button title="Start memorization practice" onPress={onStartPractice}/>}
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Suggested revision queue</Text>
+      {due.slice(0,5).map(item=><Pressable key={item.key} onPress={()=>onStartVerse(item.surah,item.verse)} style={styles.choice}>
+        <View style={{flex:1}}><Text style={styles.choiceText}>Surah {item.surah} · Ayah {item.verse}</Text><Text style={styles.reference}>{item.status==="revision"?"Marked for revision":item.record.rating==="difficult"?"Previously rated difficult":"Ready for a check-in"}</Text></View><Text style={styles.choiceMark}>›</Text>
+      </Pressable>)}
+      {due.length===0 ? <Text style={styles.progressHint}>No review recommendations at the moment.</Text> : null}
+      <Button title="Open full Smart Revision" secondary onPress={()=>onStartPractice("revision")}/>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Where to focus</Text>
+      {focus ? <><Text style={styles.choiceText}>Surah {focus[0]}</Text><Text style={styles.progressHint}>This surah has {focus[1].revision} ayahs marked for revision, {focus[1].difficult} previously rated difficult, and {focus[1].learning} still being learned. Consider reviewing these before adding more new ayahs.</Text></> : <Text style={styles.progressHint}>As you track and review ayahs, Ayah will highlight areas that may benefit from extra attention.</Text>}
+      <Button title="Open memorization tracker" secondary onPress={onOpenPlan}/>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Build a steady routine</Text>
+      <Text style={styles.progressHint}>Your current activity today: {read} ayahs read and {practiced} ayahs practiced. A short, consistent session can be a useful next step.</Text>
+      <Button title="View my memorization plan" onPress={onOpenPlan}/>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.cardEyebrow}>AYAH PLUS · FUTURE INSIGHTS</Text>
+      <Text style={styles.sectionTitle}>Advanced learning insights</Text>
+      <Text style={styles.progressHint}>A future Plus experience can add longer-term trends, customizable review strategies, and deeper learning reports. Current suggestions are simple rules based on your own tracker and self-ratings—not AI judgments or verified recitation scores.</Text>
+    </View>
+    <Button title="Back to home" secondary onPress={onBack}/>
+  </>;
+}
 
 function DailyGoalsScreen({ activity, onBack, readingTarget, memorizationTarget }) {
   const dateKey = date => {
@@ -1494,6 +1553,7 @@ export default function App() {
   else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
+  else if (tab === "recommendations") screen = <LearningRecommendationsScreen progress={memorizationProgress} reviewRecords={reviewRecords} activity={dailyActivity} onStartVerse={(chapterId,verse)=>{setActiveAssignment({chapterId,startVerse:Number(verse),endVerse:Number(verse),revision:true});setTab("buildSession");}} onStartPractice={mode=>setTab(mode==="revision"?"revision":"memorize")} onOpenPlan={()=>setTab("tracking")} onBack={()=>setTab("home")} />;
   else if (tab === "goals") screen = <DailyGoalsScreen activity={dailyActivity} readingTarget={5} memorizationTarget={1} onBack={() => setTab("home")} />;
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => { setTafsirTarget({ surah:"1", ayah:"1" }); setTafsirReturnTab("premium"); setTab("tafsir"); }} />;
