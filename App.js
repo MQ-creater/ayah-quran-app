@@ -628,10 +628,14 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
   </>;
 }
-function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafsir }) {
+function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote }) {
   const wordPlayer = useAudioPlayer(null);
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(1);
+  const [jumpAyah, setJumpAyah] = useState("");
+  const [noteEditorKey, setNoteEditorKey] = useState(null);
+  const [noteDraft, setNoteDraft] = useState("");
+  const [noteFilter, setNoteFilter] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [arabicSize, setArabicSize] = useState(29);
@@ -711,6 +715,27 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafs
       <Text style={styles.reference}>{chapter.translated_name?.name || ""} · {chapter.verses_count} ayahs · {chapter.revelation_place || ""}</Text>
       <Button title="Back to surah list" secondary onPress={onBack} />
       <View style={styles.readerTools}>
+        <Text style={styles.sectionTitle}>Ayah navigation</Text>
+        <Text style={styles.progressHint}>Page {page} · Showing ayahs {verses.length ? (page - 1) * 50 + 1 : 0}–{Math.min(page * 50, Number(chapter.verses_count || 0))} of {chapter.verses_count}</Text>
+        <View style={styles.readerToggleRow}>
+          <View style={{flex:1}}><TextInput value={jumpAyah} onChangeText={setJumpAyah} keyboardType="number-pad" placeholder="Enter ayah number" placeholderTextColor={MUTED} style={styles.emailInput}/></View>
+          <Pressable accessibilityRole="button" onPress={() => {
+            const target = Number(jumpAyah);
+            if (!Number.isInteger(target) || target < 1 || target > Number(chapter.verses_count || 0)) {
+              Alert.alert("Check ayah number", "Enter a number from 1 to " + chapter.verses_count + ".");
+              return;
+            }
+            setPage(Math.floor((target - 1) / 50) + 1);
+            setJumpAyah("");
+          }} style={[styles.readerToggle,styles.readerToggleActive]}><Text style={[styles.readerToggleText,styles.readerToggleTextActive]}>Go to ayah</Text></Pressable>
+        </View>
+        <View style={styles.readerToggleRow}>
+          <Pressable accessibilityRole="button" disabled={page <= 1 || loading} onPress={() => setPage(value => Math.max(1,value-1))} style={[styles.readerToggle,page <= 1 && styles.disabled]}><Text style={styles.readerToggleText}>← Previous 50</Text></Pressable>
+          <Pressable accessibilityRole="button" disabled={page * 50 >= Number(chapter.verses_count || 0) || loading} onPress={() => setPage(value => value+1)} style={[styles.readerToggle,page * 50 >= Number(chapter.verses_count || 0) && styles.disabled]}><Text style={styles.readerToggleText}>Next 50 →</Text></Pressable>
+        </View>
+        <View style={styles.readerToggleRow}>
+          <Pressable accessibilityRole="button" onPress={() => setNoteFilter(value => !value)} style={[styles.readerToggle,noteFilter && styles.readerToggleActive]}><Text style={[styles.readerToggleText,noteFilter && styles.readerToggleTextActive]}>{noteFilter ? "✓ Showing notes only" : "Show ayahs with notes"}</Text></Pressable>
+        </View>
         <Text style={styles.sectionTitle}>Reading preferences</Text>
         <View style={styles.readerToolRow}>
           <Text style={styles.readerToolLabel}>Arabic text</Text>
@@ -758,7 +783,10 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafs
         <Text style={styles.tinyNote}>Font and display choices apply to this reading session. Preferences are not saved between app launches yet.</Text>
       </View>
       {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the verified Qur’an content backend to read this surah.</Text> : null}
-      {verses.map((verse, index) => {
+      {verses.filter((verse,index) => {
+        const key = verse.verse_key || (chapter.id + ":" + (index + 1));
+        return !noteFilter || Boolean(notes?.[key]);
+      }).map((verse, index) => {
         const key = verse.verse_key || (chapter.id + ":" + (index + 1));
         const translation = verse.translations?.[0]?.text || "";
         const plainTranslation = translation.replace(/<[^>]*>/g, "");
@@ -766,6 +794,20 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafs
           <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
           {showArabic ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
+          <View style={{marginTop:12,borderTopWidth:1,borderTopColor:BORDER,paddingTop:10}}>
+            <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center"}}>
+              <Text style={styles.readerToolLabel}>{notes?.[key] ? "Personal note saved" : "Personal note"}</Text>
+              <Pressable accessibilityRole="button" onPress={() => {setNoteEditorKey(noteEditorKey===key?null:key);setNoteDraft(notes?.[key] || "");}}><Text style={styles.verseBookmark}>{noteEditorKey===key ? "Close" : notes?.[key] ? "Edit note" : "Add note"}</Text></Pressable>
+            </View>
+            {notes?.[key] && noteEditorKey !== key ? <Text style={styles.progressHint}>{notes[key]}</Text> : null}
+            {noteEditorKey === key ? <>
+              <TextInput multiline value={noteDraft} onChangeText={setNoteDraft} placeholder="Write a reflection or study note…" placeholderTextColor={MUTED} style={[styles.emailInput,{minHeight:90,textAlignVertical:"top",marginTop:8}]}/>
+              <View style={styles.readerToggleRow}>
+                <Pressable accessibilityRole="button" onPress={() => {onSaveNote?.(key,noteDraft);setNoteEditorKey(null);}} style={[styles.readerToggle,styles.readerToggleActive]}><Text style={[styles.readerToggleText,styles.readerToggleTextActive]}>Save note</Text></Pressable>
+                <Pressable accessibilityRole="button" onPress={() => {onSaveNote?.(key,"");setNoteDraft("");setNoteEditorKey(null);}} style={styles.readerToggle}><Text style={styles.readerToggleText}>Delete note</Text></Pressable>
+              </View>
+            </> : null}
+          </View>
           {showWordByWord ? <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 12 }}>
             <Text style={styles.readerToolLabel}>Word-by-word study</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 9 }}>
@@ -788,6 +830,10 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafs
       {loading ? <ActivityIndicator color={GOLD} size="small" /> : null}
       {error ? <Text style={styles.progressHint}>{error}</Text> : null}
       {AYAH_API_BASE && verses.length < Number(chapter.verses_count || 0) ? <Button title="Load next ayahs" secondary disabled={loading} onPress={() => setPage(current => current + 1)} /> : null}
+      <View style={styles.readerToggleRow}>
+        <Pressable accessibilityRole="button" disabled={page <= 1 || loading} onPress={() => setPage(value => Math.max(1,value-1))} style={[styles.readerToggle,page <= 1 && styles.disabled]}><Text style={styles.readerToggleText}>← Previous page</Text></Pressable>
+        <Pressable accessibilityRole="button" disabled={page * 50 >= Number(chapter.verses_count || 0) || loading} onPress={() => setPage(value => value+1)} style={[styles.readerToggle,page * 50 >= Number(chapter.verses_count || 0) && styles.disabled]}><Text style={styles.readerToggleText}>Next page →</Text></Pressable>
+      </View>
     </View>
   </>;
 }
@@ -1256,6 +1302,7 @@ export default function App() {
   const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (current[id]?.attempts || 0) + 1 } })); };
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
+  const [readerNotes, setReaderNotes] = usePersistentState("readerNotes", {});
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [tafsirTarget, setTafsirTarget] = useState({ surah:"1", ayah:"1" });
   const [tafsirReturnTab, setTafsirReturnTab] = useState("premium");
@@ -1283,7 +1330,7 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} progress={memorizationProgress} onRateReview={saveReviewRating} onSyncRating={(surahId, verse, rating) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } }))} onStartVerse={(chapterId, verse) => { setActiveAssignment({ chapterId, startVerse:Number(verse), endVerse:Number(verse), revision:true }); setTab("buildSession"); }} onStartPractice={() => setTab("memorize")} />;
