@@ -266,12 +266,38 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
   const [showTranslation, setShowTranslation] = useState(true);
   const [arabicScript, setArabicScript] = useState("Uthmani");
   const [translationFont, setTranslationFont] = useState("Sans");
+  const [translationLanguage, setTranslationLanguage] = useState("en");
+  const [translationOptions, setTranslationOptions] = useState([]);
+  const [translationId, setTranslationId] = useState("131");
+  const [translationListLoading, setTranslationListLoading] = useState(false);
+  const [translationListError, setTranslationListError] = useState("");
   const translationFontFamily = translationFont === "Serif" ? "serif" : translationFont === "Monospace" ? "monospace" : undefined;
+  const translationLanguages = [{ code: "en", label: "English" }, { code: "ur", label: "Urdu" }, { code: "ar", label: "Arabic" }, { code: "bn", label: "Bengali" }, { code: "tr", label: "Turkish" }, { code: "fr", label: "French" }, { code: "id", label: "Indonesian" }];
   useEffect(() => {
     setVerses([]);
     setPage(1);
     setError("");
   }, [chapter?.id]);
+  useEffect(() => {
+    if (!AYAH_API_BASE) return;
+    let active = true;
+    setTranslationListLoading(true);
+    setTranslationListError("");
+    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
+    fetch(base + "/translations?language=" + translationLanguage)
+      .then(response => { if (!response.ok) throw new Error("Server returned " + response.status); return response.json(); })
+      .then(data => {
+        if (!active) return;
+        const items = Array.isArray(data.translations) ? data.translations : [];
+        setTranslationOptions(items);
+        if (!items.some(item => String(item.id) === String(translationId))) {
+          setTranslationId(items.length ? String(items[0].id) : "");
+        }
+      })
+      .catch(() => { if (active) setTranslationListError("We could not load translations for this language. Please try again later."); })
+      .finally(() => { if (active) setTranslationListLoading(false); });
+    return () => { active = false; };
+  }, [translationLanguage]);
   useEffect(() => {
     if (!AYAH_API_BASE || !chapter?.id) return;
     let active = true;
@@ -287,7 +313,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
       .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [chapter?.id, page]);
+  }, [chapter?.id, page, translationId]);
   return <>
     <Header eyebrow={"SURAH " + chapter.id} title={chapter.name_simple} />
     <View style={styles.infoCard}>
@@ -308,6 +334,25 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
           <Pressable accessibilityRole="button" onPress={() => setShowArabic(value => !value)} style={[styles.readerToggle, showArabic && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showArabic && styles.readerToggleTextActive]}>{showArabic ? "✓ Arabic shown" : "Show Arabic"}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setShowTranslation(value => !value)} style={[styles.readerToggle, showTranslation && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showTranslation && styles.readerToggleTextActive]}>{showTranslation ? "✓ Translation shown" : "Show translation"}</Text></Pressable>
         </View>
+        <Text style={styles.readerToolLabel}>Translation language</Text>
+        <View style={styles.readerToggleRow}>
+          {translationLanguages.map(item => <Pressable key={item.code} accessibilityRole="button" onPress={() => { setTranslationLanguage(item.code); setPage(1); setVerses([]); }} style={[styles.readerToggle, translationLanguage === item.code && styles.readerToggleActive]}><Text style={[styles.readerToggleText, translationLanguage === item.code && styles.readerToggleTextActive]}>{item.label}</Text></Pressable>)}
+        </View>
+        <Text style={styles.readerToolLabel}>Choose a translation</Text>
+        {translationListLoading ? <ActivityIndicator color={GOLD} size="small" /> : null}
+        {translationListError ? <Text style={styles.tinyNote}>{translationListError}</Text> : null}
+        {!AYAH_API_BASE ? <Text style={styles.tinyNote}>Connect the secure content backend to load the translation catalogue.</Text> : null}
+        {translationOptions.map(item => {
+          const selected = String(item.id) === String(translationId);
+          const title = item.name || item.translated_name?.name || ("Translation " + item.id);
+          return <Pressable key={item.id} accessibilityRole="button" onPress={() => { setTranslationId(String(item.id)); setPage(1); setVerses([]); }} style={[styles.choice, selected && styles.choiceSelected]}>
+            <View style={{ flex: 1, paddingRight: 8 }}>
+              <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{title}</Text>
+              <Text style={styles.reference}>{item.author_name || ""}{item.language_name ? " · " + item.language_name : ""}</Text>
+            </View>
+            <Text style={styles.choiceMark}>{selected ? "✓" : "○"}</Text>
+          </Pressable>;
+        })}
         <Text style={styles.readerToolLabel}>Arabic script edition</Text>
         <View style={styles.readerToggleRow}>
           {["Uthmani", "IndoPak", "Imla’i"].map(option => <Pressable key={option} accessibilityRole="button" onPress={() => setArabicScript(option)} style={[styles.readerToggle, arabicScript === option && styles.readerToggleActive]}><Text style={[styles.readerToggleText, arabicScript === option && styles.readerToggleTextActive]}>{option}</Text></Pressable>)}
