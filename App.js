@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import {
-  SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View,
+  SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
   Pressable, TextInput, ImageBackground, Alert
 } from "react-native";
 
@@ -418,7 +418,10 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = useState(0);
-  const [themeName, setThemeName] = useState("dark");
+  const [themeName, setThemeName] = useState("auto");
+  const systemScheme = useColorScheme();
+  const activeTheme = themeName === "auto" ? (systemScheme === "light" ? "light" : "dark") : themeName;
+  styles = createStyles(THEME_PALETTES[activeTheme] || THEME_PALETTES.dark);
   const navigate = key => {
     if (["review", "listen", "teacher"].includes(key)) {
       setTab("premium");
@@ -434,7 +437,7 @@ export default function App() {
     setSignedIn(true);
   };
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
-  if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
+  if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
   if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
@@ -445,7 +448,7 @@ export default function App() {
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
   const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
-  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={NAVY} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
+  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
 const createStyles = (p) => StyleSheet.create({
   safeArea:{flex:1,backgroundColor:p.bg}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1},
