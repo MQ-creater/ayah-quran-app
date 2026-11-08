@@ -1015,7 +1015,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
   useEffect(()=>{if(resumeAfterLoad&&chapterAudioStatus?.isLoaded){chapterPlayer.seekTo(Number(lastAudioPosition)||0);chapterPlayer.play();setResumeAfterLoad(false);}},[resumeAfterLoad,chapterAudioStatus?.isLoaded]);
   useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||surahRepeatsRemaining<=0)return;setSurahRepeatsRemaining(value=>Math.max(0,value-1));chapterPlayer.seekTo(0);chapterPlayer.play();},[chapterAudioStatus?.didJustFinish,surahRepeatsRemaining]);
   useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||!autoAdvance||surahRepeatsRemaining>0)return;const next=chapterList.find(item=>Number(item.id)===Number(chapter.id)+1);if(!next||!preferredReciterId||!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;fetch(base+"/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+next.id).then(r=>{if(!r.ok)throw new Error("Next surah audio unavailable");return r.json();}).then(data=>{if(!active||!data.audio?.url)return;setVerseTimestamps(Array.isArray(data.audio.timestamps)?data.audio.timestamps:[]);setActiveSyncedVerseKey("");onChangeChapter?.(next);chapterPlayer.replace(data.audio.url);chapterPlayer.play();}).catch(()=>{if(active)setChapterAudioError("The next surah could not be loaded. You can continue manually.");});return()=>{active=false;};},[chapterAudioStatus?.didJustFinish,autoAdvance,chapterList,chapter.id,preferredReciterId]);
-  const navigateSurah=direction=>{const target=chapterList.find(item=>Number(item.id)===Number(chapter.id)+direction);if(target){chapterPlayer.pause();onChangeChapter?.(target);}};
+  const navigateSurah=direction=>{const target=chapterList.find(item=>Number(item.id)===Number(chapter.id)+direction);if(target){chapterPlayer.pause();wordPlayer.pause();setActiveAudioKey(null);setAudioQueueKeys([]);setAudioQueueIndex(0);setSelectedAudioKeys([]);setVerseTimestamps([]);setActiveSyncedVerseKey("");setRepeatsRemaining(0);onChangeChapter?.(target);}};
   const restartSurah=()=>{chapterPlayer.seekTo(0);chapterPlayer.play();setLastAudioPosition(0);};
   const [activeAudioKey,setActiveAudioKey] = useState(null);
   const [repeatCount,setRepeatCount] = usePersistentState("recitationRepeatCount",3);
@@ -1024,11 +1024,11 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
   const [audioQueueIndex,setAudioQueueIndex] = useState(0);
   const [selectedAudioKeys,setSelectedAudioKeys] = useState([]);
   const [recallMode,setRecallMode] = useState(false);
-  useEffect(()=>{wordPlayer.pause();chapterPlayer.pause();setActiveAudioKey(null);setAudioQueueKeys([]);setAudioQueueIndex(0);setSelectedAudioKeys([]);setVerseTimestamps([]);setActiveSyncedVerseKey("");},[chapter?.id]);
   const playVerseAudio = (verse,key,keepQueue=false) => {
     const audioUrl = verse.audio?.url || verse.audio_url || verse.audio?.audio_url;
     if (!audioUrl) { Alert.alert("Audio unavailable","A recitation recording is not available for this ayah in the current content response."); return; }
     const url = /^https?:\\/\\//i.test(audioUrl) ? audioUrl : "https://audio.qurancdn.com/" + String(audioUrl).replace(/^\\/+/, "");
+    chapterPlayer.pause();setActiveSyncedVerseKey("");
     if(!keepQueue){setAudioQueueKeys([key]);setAudioQueueIndex(0);}
     setActiveAudioKey(key);
     setRepeatsRemaining(Math.max(0,Number(repeatCount)-1));
