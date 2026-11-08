@@ -332,18 +332,20 @@ function ArabicAlphabetScreen({ onPremium }) {
 }
 
 
-function SettingsScreen({ themeName, onSelectTheme, onBack }) {
+function SettingsScreen({ themeName, onSelectTheme, language, onSelectLanguage, dailyGoal, onSelectGoal, remindersEnabled, onToggleReminders, practiceCount, onBack }) {
   const options = [
     { id:"auto", name:"Auto", note:"Follow your device appearance" },
     { id:"light", name:"Light", note:"Bright background and dark text" },
     { id:"sepia", name:"Sepia", note:"Warm cream and golden-brown tones" },
     { id:"dark", name:"Dark", note:"Deep navy background and light text" }
   ];
+  const languages = ["English", "العربية", "اردو", "বাংলা", "Türkçe", "Français", "Bahasa Indonesia"];
+  const goals = [5, 10, 15, 20];
   return <>
-    <Header eyebrow="APP SETTINGS" title="Appearance" />
+    <Header eyebrow="APP SETTINGS" title="Settings" />
     <View style={styles.infoCard}>
-      <Text style={styles.sectionTitle}>Choose your colors</Text>
-      <Text style={styles.progressHint}>Select the look that feels comfortable. Auto follows your iPad or phone system setting; it may look the same as Dark when your device is set to dark mode.</Text>
+      <Text style={styles.sectionTitle}>Appearance</Text>
+      <Text style={styles.progressHint}>Choose comfortable colors. Auto follows your device setting, so it can look the same as Dark when your device is in dark mode.</Text>
       {options.map(option => <Pressable key={option.id} onPress={() => onSelectTheme(option.id)} style={[styles.themeOption, themeName === option.id && styles.choiceSelected]}>
         <View style={styles.themeSwatches}>
           <View style={[styles.swatch,{backgroundColor:option.id==="sepia"?"#E8DDC8":option.id==="light"?"#F5F7FA":"#101C2D"}]} />
@@ -353,6 +355,20 @@ function SettingsScreen({ themeName, onSelectTheme, onBack }) {
         <View style={styles.themeTextWrap}><Text style={styles.choiceText}>{option.name}</Text><Text style={styles.themeNote}>{option.note}</Text></View>
         <Text style={styles.choiceMark}>{themeName === option.id ? "✓" : "○"}</Text>
       </Pressable>)}
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Learning preferences</Text>
+      <Text style={styles.progressHint}>Choose the language for app guidance and your daily learning target. These preferences are currently kept while the app stays open.</Text>
+      <Text style={styles.settingLabel}>Preferred language</Text>
+      <View style={styles.languageGrid}>{languages.map(item => <Pressable key={item} onPress={() => onSelectLanguage(item)} style={[styles.languageChoice, language === item && styles.choiceSelected]}><Text style={[styles.choiceText, language === item && styles.choiceTextSelected]}>{item}</Text></Pressable>)}</View>
+      <Text style={styles.settingLabel}>Daily learning goal</Text>
+      <View style={styles.languageGrid}>{goals.map(minutes => <Pressable key={minutes} onPress={() => onSelectGoal(minutes)} style={[styles.goalChoice, dailyGoal === minutes && styles.choiceSelected]}><Text style={[styles.choiceText, dailyGoal === minutes && styles.choiceTextSelected]}>{minutes} min</Text></Pressable>)}</View>
+      <View style={styles.settingRow}><View style={styles.settingTextWrap}><Text style={styles.choiceText}>Learning reminders</Text><Text style={styles.themeNote}>Preference only; notifications are not connected yet.</Text></View><Pressable accessibilityRole="switch" accessibilityState={{checked:remindersEnabled}} onPress={onToggleReminders} style={[styles.toggle, remindersEnabled && styles.toggleOn]}><View style={[styles.toggleKnob, remindersEnabled && styles.toggleKnobOn]} /></Pressable></View>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Your learning</Text>
+      <Text style={styles.progressHint}>Practice sessions completed in this app session: {practiceCount}</Text>
+      <Text style={styles.tinyNote}>Account sign-in, cloud syncing, saved preferences and cross-device progress will be connected after secure authentication is set up.</Text>
     </View>
     <Button title="Back to Ayah" secondary onPress={onBack} />
   </>;
@@ -419,6 +435,9 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = useState(0);
   const [themeName, setThemeName] = useState("auto");
+  const [learningLanguage, setLearningLanguage] = useState("English");
+  const [dailyGoal, setDailyGoal] = useState(10);
+  const [remindersEnabled, setRemindersEnabled] = useState(false);
   const systemScheme = useColorScheme();
   const activeTheme = themeName === "auto" ? (systemScheme === "light" ? "light" : "dark") : themeName;
   styles = createStyles(THEME_PALETTES[activeTheme] || THEME_PALETTES.dark);
@@ -444,7 +463,7 @@ export default function App() {
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
-  else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} onBack={() => setTab("home")} />;
+  else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
   const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
@@ -490,7 +509,7 @@ const createStyles = (p) => StyleSheet.create({
   navIcon:{color:p.muted,fontSize:19,marginBottom:3},navLabel:{color:p.muted,fontSize:10},navSelected:{color:p.accent,fontWeight:"700"},
   stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
   rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1},
-  settingsButton:{backgroundColor:p.panel,borderWidth:1,borderColor:p.border,borderRadius:12,paddingVertical:9,paddingHorizontal:12,marginRight:8},settingsButtonText:{color:p.accent,fontSize:11,fontWeight:"700"},themeOption:{backgroundColor:p.surface,borderRadius:14,padding:13,marginTop:10,flexDirection:"row",alignItems:"center",gap:10},themeSwatches:{flexDirection:"row",gap:4},swatch:{width:15,height:28,borderRadius:5},themeTextWrap:{flex:1},themeNote:{color:p.muted,fontSize:10,marginTop:3},
+  settingsButton:{backgroundColor:p.panel,borderWidth:1,borderColor:p.border,borderRadius:12,paddingVertical:9,paddingHorizontal:12,marginRight:8},settingsButtonText:{color:p.accent,fontSize:11,fontWeight:"700"},settingLabel:{color:p.accent,fontSize:11,fontWeight:"800",letterSpacing:1,marginTop:18,marginBottom:3},settingRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between",marginTop:18,paddingTop:14,borderTopWidth:1,borderTopColor:p.border},settingTextWrap:{flex:1,paddingRight:12},goalChoice:{backgroundColor:p.surface,borderRadius:12,paddingVertical:11,paddingHorizontal:16},toggle:{width:48,height:28,borderRadius:15,backgroundColor:p.surface,borderWidth:1,borderColor:p.border,justifyContent:"center",padding:3},toggleOn:{backgroundColor:p.accent,alignItems:"flex-end"},toggleKnob:{width:20,height:20,borderRadius:10,backgroundColor:"#FFFFFF"},toggleKnobOn:{backgroundColor:"#101C2D"},themeOption:{backgroundColor:p.surface,borderRadius:14,padding:13,marginTop:10,flexDirection:"row",alignItems:"center",gap:10},themeSwatches:{flexDirection:"row",gap:4},swatch:{width:15,height:28,borderRadius:5},themeTextWrap:{flex:1},themeNote:{color:p.muted,fontSize:10,marginTop:3},
   alphabetGrid:{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",marginTop:14},alphabetTile:{width:"23%",minHeight:82,backgroundColor:p.surface,borderRadius:14,marginBottom:9,alignItems:"center",justifyContent:"center",padding:6},alphabetTileLetter:{color:p.text,fontSize:28,lineHeight:38},alphabetTileName:{color:p.muted,fontSize:9,marginTop:3},alphabetHeroLetter:{color:p.text,fontSize:76,lineHeight:104,textAlign:"center",marginTop:10},alphabetOption:{color:p.text,fontSize:30,lineHeight:38}
 });
 let styles = createStyles(THEME_PALETTES.dark);
