@@ -129,12 +129,16 @@ app.get("/api/chapters/:id/verses", async (req, res) => {
   if (!/^\d+$/.test(requestedTranslation)) {
     return res.status(400).json({ error: "Invalid translation selection." });
   }
+  const requestedScript = String(req.query.script || "uthmani");
+  if (!["uthmani", "indopak"].includes(requestedScript)) {
+    return res.status(400).json({ error: "Invalid Arabic script selection." });
+  }
   try {
     const params = new URLSearchParams({
       language: "en",
       words: "false",
       translations: requestedTranslation,
-      fields: "text_uthmani",
+      fields: requestedScript === "indopak" ? "text_indopak_nastaleeq" : "text_qpc_hafs",
       page: String(page),
       per_page: String(perPage)
     });
