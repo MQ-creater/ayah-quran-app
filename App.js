@@ -141,6 +141,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
         <ActionTile icon="🔥" title="Daily goals & streaks" subtitle="Your routine and weekly report" onPress={() => onNavigate("goals")} />
         <ActionTile icon="✦" title="For you" subtitle="Personalized learning recommendations" onPress={() => onNavigate("recommendations")} />
+        <ActionTile icon="▦" title="Learning calendar" subtitle="Monthly reading and hifdh schedule" onPress={() => onNavigate("calendar")} />
         <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
         <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="📖" title="Qur’an library" subtitle="Browse all surahs" onPress={() => onNavigate("library")} />
@@ -658,6 +659,40 @@ function LearningRecommendationsScreen({ progress, reviewRecords, activity, onSt
       <Text style={styles.progressHint}>A future Plus experience can add longer-term trends, customizable review strategies, and deeper learning reports. Current suggestions are simple rules based on your own tracker and self-ratings—not AI judgments or verified recitation scores.</Text>
     </View>
     <Button title="Back to home" secondary onPress={onBack}/>
+  </>;
+}
+
+
+function PersonalLearningCalendarScreen({ plan, activity, onStartAssignment, onBack }) {
+  const [monthOffset,setMonthOffset]=useState(0),[selectedDate,setSelectedDate]=useState(null);
+  const baseDate=new Date();baseDate.setDate(1);baseDate.setMonth(baseDate.getMonth()+monthOffset);
+  const year=baseDate.getFullYear(),month=baseDate.getMonth();
+  const keyOf=d=>d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0");
+  const todayKey=keyOf(new Date()),assignments=plan?.schedule||[],daysInMonth=new Date(year,month+1,0).getDate(),firstWeekday=new Date(year,month,1).getDay();
+  const cells=Array.from({length:Math.ceil((firstWeekday+daysInMonth)/7)*7},(_,i)=>{const n=i-firstWeekday+1;if(n<1||n>daysInMonth)return null;const date=new Date(year,month,n),key=keyOf(date),assignment=assignments.find(a=>a.date===key),data=activity?.[key]||{},read=(data.readingAyahs||[]).length,memorized=(data.memorizationAyahs||[]).length;return {date,key,n,assignment,read,memorized,active:read+memorized>0};});
+  const selected=cells.find(d=>d?.key===selectedDate)||cells.find(d=>d?.key===todayKey)||null;
+  const monthLabel=baseDate.toLocaleDateString(undefined,{month:"long",year:"numeric"}),planName=plan?.chapterName||("Surah "+(plan?.chapterId||""));
+  return <>
+    <Header eyebrow="YOUR STUDY ROUTINE" title="Learning calendar" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Your month</Text>
+      <View style={[styles.goalStatRow,{alignItems:"center"}]}>
+        <Pressable onPress={()=>{setMonthOffset(v=>v-1);setSelectedDate(null);}} style={styles.goalChoice}><Text style={styles.choiceText}>‹ Prev</Text></Pressable>
+        <View style={{flex:1,alignItems:"center"}}><Text style={styles.choiceText}>{monthLabel}</Text></View>
+        <Pressable onPress={()=>{setMonthOffset(v=>v+1);setSelectedDate(null);}} style={styles.goalChoice}><Text style={styles.choiceText}>Next ›</Text></Pressable>
+      </View>
+      <View style={styles.weekActivityRow}>{["Sun","Mon","Tue","Wed","Thu","Fri","Sat"].map(day=><View key={day} style={styles.weekDay}><Text style={styles.reference}>{day}</Text></View>)}</View>
+      <View style={styles.calendarGrid}>{cells.map((day,index)=>day?<Pressable key={day.key} onPress={()=>setSelectedDate(day.key)} style={[styles.calendarDay,day.key===selected?.key&&styles.choiceSelected,day.key===todayKey&&styles.calendarToday]}><Text style={[styles.choiceText,day.key===selected?.key&&styles.choiceTextSelected]}>{day.n}</Text><View style={styles.calendarMarks}><View style={[styles.calendarDot,day.assignment&&styles.calendarAssignmentDot]}/>{day.active?<View style={[styles.calendarDot,styles.calendarActivityDot]}/>:null}</View></Pressable>:<View key={"empty-"+index} style={styles.calendarDay}/>)}</View>
+      <View style={styles.calendarLegend}><Text style={styles.reference}>● Planned study</Text><Text style={styles.reference}>● Activity recorded</Text></View>
+      <Text style={styles.tinyNote}>Planned study and recorded activity are shown separately. A missed day is not a failure—adjust your routine whenever needed.</Text>
+    </View>
+    <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>SELECTED DAY</Text><Text style={styles.sectionTitle}>{selected?selected.date:"Choose a date"}</Text>
+      {selected?.assignment?<><Text style={styles.progressHint}>Memorization · {planName}, ayahs {selected.assignment.startVerse}–{selected.assignment.endVerse}</Text><Text style={styles.reference}>{selected.assignment.completed?"Marked complete":"Scheduled assignment"}</Text>{!selected.assignment.completed?<Button title="Start this memorization assignment" onPress={()=>onStartAssignment?.({chapterId:String(plan.chapterId),date:selected.key,startVerse:selected.assignment.startVerse,endVerse:selected.assignment.endVerse})}/>:null}</>:<Text style={styles.progressHint}>No memorization assignment scheduled for this day.</Text>}
+      {selected?<><Text style={styles.reference}>Reading activity: {selected.read} ayahs · Memorization activity: {selected.memorized} ayahs</Text><Text style={styles.reference}>{selected.active?"Activity recorded on this device":"No activity recorded yet."}</Text></>:null}
+    </View>
+    <View style={styles.infoCard}><Text style={styles.sectionTitle}>Your schedule at a glance</Text><Text style={styles.progressHint}>{assignments.length} planned sessions · {assignments.filter(a=>a.completed).length} marked complete</Text>{assignments.length===0?<Text style={styles.progressHint}>Create a memorization plan to place study assignments on this calendar.</Text>:null}<Button title="Open memorization plan" secondary onPress={()=>onBack("plan")}/></View>
+    <Button title="Back to home" secondary onPress={()=>onBack("home")}/>
   </>;
 }
 
@@ -1553,6 +1588,7 @@ export default function App() {
   else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
+  else if (tab === "calendar") screen = <PersonalLearningCalendarScreen plan={memorizationPlan} activity={dailyActivity} onStartAssignment={assignment=>{setActiveAssignment(assignment);setTab("buildSession");}} onBack={destination=>setTab(destination||"home")} />;
   else if (tab === "recommendations") screen = <LearningRecommendationsScreen progress={memorizationProgress} reviewRecords={reviewRecords} activity={dailyActivity} onStartVerse={(chapterId,verse)=>{setActiveAssignment({chapterId,startVerse:Number(verse),endVerse:Number(verse),revision:true});setTab("buildSession");}} onStartPractice={mode=>setTab(mode==="revision"?"revision":"memorize")} onOpenPlan={()=>setTab("tracking")} onBack={()=>setTab("home")} />;
   else if (tab === "goals") screen = <DailyGoalsScreen activity={dailyActivity} readingTarget={5} memorizationTarget={1} onBack={() => setTab("home")} />;
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
@@ -1562,7 +1598,7 @@ export default function App() {
   return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
 const createStyles = (p) => StyleSheet.create({
-  goalProgressTrack:{height:9,backgroundColor:p.surface,borderRadius:8,overflow:"hidden",marginTop:7,marginBottom:16}, goalProgressFill:{height:9,backgroundColor:p.accent,borderRadius:8}, goalStatRow:{flexDirection:"row",justifyContent:"space-around",gap:8,marginVertical:12}, goalStat:{flex:1,alignItems:"center",backgroundColor:p.surface,borderRadius:12,padding:12}, goalStatValue:{fontSize:26,fontWeight:"800",color:p.accent}, weekActivityRow:{flexDirection:"row",justifyContent:"space-between",gap:5,marginVertical:16}, weekDay:{flex:1,alignItems:"center",gap:6}, weekDayDot:{width:34,height:34,borderRadius:17,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"}, weekDayDotActive:{backgroundColor:p.accent}, weekDayCount:{fontSize:12,fontWeight:"700",color:p.text},
+  goalProgressTrack:{height:9,backgroundColor:p.surface,borderRadius:8,overflow:"hidden",marginTop:7,marginBottom:16}, goalProgressFill:{height:9,backgroundColor:p.accent,borderRadius:8}, goalStatRow:{flexDirection:"row",justifyContent:"space-around",gap:8,marginVertical:12}, goalStat:{flex:1,alignItems:"center",backgroundColor:p.surface,borderRadius:12,padding:12}, goalStatValue:{fontSize:26,fontWeight:"800",color:p.accent}, calendarGrid:{flexDirection:"row",flexWrap:"wrap",marginTop:12},calendarDay:{width:"14.2857%",minHeight:48,alignItems:"center",justifyContent:"center",borderRadius:10,marginBottom:4},calendarToday:{borderWidth:1,borderColor:p.accent},calendarMarks:{flexDirection:"row",gap:4,marginTop:4,minHeight:7},calendarDot:{width:6,height:6,borderRadius:3,backgroundColor:"transparent"},calendarAssignmentDot:{backgroundColor:p.accent},calendarActivityDot:{backgroundColor:"#58B88A"},calendarLegend:{flexDirection:"row",justifyContent:"space-around",marginTop:10},weekActivityRow:{flexDirection:"row",justifyContent:"space-between",gap:5,marginVertical:16}, weekDay:{flex:1,alignItems:"center",gap:6}, weekDayDot:{width:34,height:34,borderRadius:17,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"}, weekDayDotActive:{backgroundColor:p.accent}, weekDayCount:{fontSize:12,fontWeight:"700",color:p.text},
   safeArea:{flex:1,backgroundColor:p.bg}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1},
   welcomeBackground:{flex:1,justifyContent:"center"}, welcomeShade:{flex:1,backgroundColor:"rgba(8,17,30,0.68)",padding:20,justifyContent:"center"},
   welcomeTop:{alignItems:"center",marginBottom:18}, logo:{width:54,height:54,borderRadius:18,backgroundColor:p.panel,borderWidth:1,borderColor:"#53617A",alignItems:"center",justifyContent:"center",marginBottom:8},
