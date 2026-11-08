@@ -65,7 +65,7 @@ async function getAccessToken() {
     },
     body: new URLSearchParams({
       grant_type: "client_credentials",
-      scope: "content.quran.read content.translations.read"
+      scope: "content.quran.read content.translations.read content.audio.read"
     })
   });
   if (!response.ok) throw new Error("Quran Foundation authentication failed.");
@@ -93,6 +93,35 @@ async function qfGet(path) {
 }
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "ayah-content-api" }));
+
+app.get("/api/audio/reciters", async (req, res) => {
+  try {
+    const language = String(req.query.language || "en").toLowerCase();
+    if (!/^[a-z]{2}$/.test(language)) return res.status(400).json({ error: "Invalid language." });
+    const data = await qfGet("/resources/chapter_reciters?language=" + encodeURIComponent(language));
+    res.json({ reciters: data.reciters || [] });
+  } catch (error) {
+    console.error("Audio reciters request failed:", error.message);
+    res.status(error.status || 503).json({ error: "Reciters are temporarily unavailable." });
+  }
+});
+
+app.get("/api/audio/chapters/:reciterId/:chapterId", async (req, res) => {
+  const reciterId = Number(req.params.reciterId);
+  const chapterId = Number(req.params.chapterId);
+  if (!Number.isInteger(reciterId) || reciterId < 1 || !Number.isInteger(chapterId) || chapterId < 1 || chapterId > 114) {
+    return res.status(400).json({ error: "Invalid reciter or chapter selection." });
+  }
+  try {
+    const data = await qfGet("/chapter_recitations/" + reciterId + "/" + chapterId);
+    const file = data.audio_file || data;
+    if (!file.audio_url) return res.status(404).json({ error: "Audio is not available for this selection." });
+    res.json({ audio: { url: file.audio_url, format: file.format || "mp3", chapter_id: chapterId, timestamps: file.timestamps || [] } });
+  } catch (error) {
+    console.error("Chapter audio request failed:", error.message);
+    res.status(error.status || 503).json({ error: "Chapter audio is temporarily unavailable." });
+  }
+});
 
 app.get("/api/translations", async (req, res) => {
   const language = String(req.query.language || "en").toLowerCase();
