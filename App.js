@@ -936,7 +936,7 @@ function DataPrivacyScreen({ onBack, onExport, onReset, stats }) {
       </View>
       <Text style={styles.progressHint}>Ayah currently stores these preferences, notes, bookmarks, review ratings and progress locally on this device. A user account and cloud sync are not connected.</Text>
       <Button title="Export my Ayah backup" onPress={async()=>{const result=await onExport?.();if(typeof result==="string")setBackupPreview(result);}}/>
-      {backupPreview?<View style={styles.savedAyah}><Text style={styles.sectionTitle}>Backup JSON · copyable text</Text><Text selectable style={{color:TEXT,fontSize:10,lineHeight:15}}>{backupPreview}</Text><Button title="Hide backup text" secondary onPress={()=>setBackupPreview("")}/></View>:null}
+      {backupPreview?<View style={styles.savedAyah}><Text style={styles.sectionTitle}>Backup JSON · copyable text</Text><Text selectable style={[styles.choiceText,{fontSize:10,lineHeight:15}]}>{backupPreview}</Text><Button title="Hide backup text" secondary onPress={()=>setBackupPreview("")}/></View>:null}
       <Text style={styles.tinyNote}>The export includes every locally stored Ayah preference and learning record, including reader display choices and saved audio positions. Store it somewhere private. It does not contain your Quran Foundation server credentials.</Text>
     </View>
     <View style={styles.infoCard}>
