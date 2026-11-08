@@ -20,7 +20,12 @@ const checks = [
   ["production CORS allowlist", server.includes("ALLOWED_ORIGINS must contain") && server.includes("allowedOrigins.includes(origin)")],
   ["bounded provider request timeouts", server.includes("AbortSignal.timeout(15000)")],
   ["server status endpoint", server.includes('app.get("/api/status"')],
-  ["mobile bundle contains no provider secret variable", !app.includes("QF_CLIENT_SECRET")]
+  ["mobile bundle contains no provider secret variable", !app.includes("QF_CLIENT_SECRET")],
+  ["copyable backup fallback", app.includes("backupPreview") && app.includes("<Text selectable")],
+  ["reader audio players coordinate", app.includes("chapterPlayer.pause();setActiveSyncedVerseKey") && app.includes("wordPlayer.pause();setActiveAudioKey(null)")],
+  ["clean grouped home navigation", app.includes("MEMORIZE & REVIEW") && app.includes("READ & STUDY QUR’AN") && app.includes("APP & DATA")],
+  ["session history preserves surah references", app.includes("chapterName:selectedChapter?.name_simple") && app.includes("ayahReference:passage.reference")],
+  ["backend diagnostics screen is reachable from home", app.includes('title="Connection status"') && app.includes('tab === "backend"')]
 ];
 
 for (const [name, passed] of checks) {
