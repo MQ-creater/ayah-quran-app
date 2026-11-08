@@ -230,7 +230,7 @@ function MemorizeScreen({ onPracticed, onPracticeCompleted, onRecordSession, onS
         <View style={styles.rowButtonCell}><Button title="Previous" secondary disabled={stage === 0} onPress={() => { setStage(n => Math.max(0, n - 1)); setShowMeaning(false); }} /></View>
         <View style={styles.rowButtonCell}><Button title={stage === 2 ? "Start again" : "Next step"} onPress={() => { if (stage === 2) { setStage(0); setShowMeaning(false); setDone(false); } else { setStage(n => n + 1); setShowMeaning(false); } }} /></View>
       </View>
-      <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); onPracticeCompleted?.(passage.id); onRecordSession?.({type:"single-ayah",ayahKeys:[passage.id],ayahCount:1,source:"guided-practice"}); } }} disabled={done} />
+      <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); onPracticeCompleted?.(passage.id); onRecordSession?.({type:"single-ayah",surahName:passage.surah,ayahReference:passage.reference,ayahKeys:[passage.id],ayahCount:1,source:"guided-practice"}); } }} disabled={done} />
       {done && <View style={styles.infoCard}>
         <Text style={styles.cardEyebrow}>REVISION CHECK-IN</Text>
         <Text style={styles.sectionTitle}>How did this ayah feel?</Text>
@@ -314,7 +314,7 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSe
   };
   const finishVerse = () => {
     markCurrent("learning");
-    if (currentIndex >= verses.length - 1) { setCompleted(true); const keys=verses.map(item=>item.key); onCompleteSession?.(keys); onSessionCompleted?.({type:initialAssignment?.revision?"revision":"guided-range",chapterId,startVerse:Number(startVerse),endVerse:Number(endVerse),ayahCount:keys.length,ayahKeys:keys,source:initialAssignment?"scheduled-assignment":"reader-builder"}); if (initialAssignment) onFinishAssignment?.(initialAssignment); }
+    if (currentIndex >= verses.length - 1) { setCompleted(true); const keys=verses.map(item=>item.key); onCompleteSession?.(keys); onSessionCompleted?.({type:initialAssignment?.revision?"revision":"guided-range",chapterId,chapterName:selectedChapter?.name_simple||("Surah "+chapterId),startVerse:Number(startVerse),endVerse:Number(endVerse),ayahCount:keys.length,ayahKeys:keys,source:initialAssignment?"scheduled-assignment":"reader-builder"}); if (initialAssignment) onFinishAssignment?.(initialAssignment); }
     else { setCurrentIndex(index => index + 1); setStage(0); setShowAyah(false); }
   };
   return <>
@@ -800,7 +800,7 @@ function DailyGoalsScreen({ activity, onBack, readingTarget, memorizationTarget,
       <Progress value={readCount} target={readingTarget}/>
       <Text style={styles.reference}>Memorization · {memorizedCount} / {memorizationTarget} ayahs</Text>
       <Progress value={memorizedCount} target={memorizationTarget}/>
-      <Text style={styles.tinyNote}>Reading goals count ayahs you explicitly mark as read. Memorization goals count ayahs completed in guided practice. These measures do not verify memorization accuracy.</Text>
+      <Text style={styles.tinyNote}>Reading goals count ayahs you explicitly mark as read. Memorization goals count ayahs completed in guided practice. These measures do not verify memorization accuracy. Older activity from previous app versions may include page-open counts.</Text>
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Last 7 days</Text>
@@ -911,8 +911,9 @@ function LearningInsightsScreen({ practiceHistory = [], activity = {}, progress 
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Recent practice sessions</Text>
       {sessions.length===0?<Text style={styles.progressHint}>Your completed guided sessions will appear here. Finish a practice session to start your history.</Text>:sessions.slice(0,8).map(item=><View key={item.id} style={styles.savedAyah}>
-        <Text style={styles.choiceText}>{item.type==="single-ayah"?"Single ayah":item.type==="revision"?"Revision session":"Guided memorization"} · {item.ayahCount||item.ayahKeys?.length||0} ayahs</Text>
+        <Text style={styles.choiceText}>{item.type==="single-ayah"?"Single ayah":item.type==="revision"?"Revision session":"Guided memorization"} · {item.ayahCount||item.ayahKeys?.length||0} {(item.ayahCount||item.ayahKeys?.length||0)===1?"ayah":"ayahs"}</Text>
         <Text style={styles.reference}>{item.completedAt?new Date(item.completedAt).toLocaleString():"Date unavailable"}</Text>
+        {item.ayahReference?<Text style={styles.reference}>{item.ayahReference}</Text>:null}
         {item.chapterName?<Text style={styles.reference}>{item.chapterName} · {item.startVerse||"—"}–{item.endVerse||item.startVerse||"—"}</Text>:null}
       </View>)}
     </View>
