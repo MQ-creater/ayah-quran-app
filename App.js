@@ -99,6 +99,7 @@ function HomeScreen({ onNavigate, onPractice }) {
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
         <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
+        <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
@@ -374,6 +375,33 @@ function SettingsScreen({ themeName, onSelectTheme, language, onSelectLanguage, 
   </>;
 }
 
+function ProgressScreen({ practiceCount, dailyGoal, language, onLearn, onSettings }) {
+  const goalReached = practiceCount >= 1;
+  return <>
+    <Header eyebrow="YOUR JOURNEY" title="My learning progress" />
+    <View style={styles.infoCard}>
+      <Text style={styles.cardEyebrow}>PRACTICE ACTIVITY</Text>
+      <Text style={styles.quizScore}>{practiceCount}</Text>
+      <Text style={styles.sectionTitle}>Completed memorization sessions</Text>
+      <Text style={styles.progressHint}>This count reflects sessions completed since opening this app preview. It is not yet saved to an account.</Text>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Your daily learning goal</Text>
+      <Text style={styles.progressHint}>Your selected target is {dailyGoal} minutes per day. The app does not yet measure active study time, so it will not claim that this goal has been reached.</Text>
+      <View style={styles.progressTrack}><View style={[styles.progressFill,{width:goalReached ? "100%" : "0%"}]} /></View>
+      <Text style={styles.reference}>{goalReached ? "You've completed a practice session today in this preview." : "Complete a memorization session to record activity here."}</Text>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Learning preferences</Text>
+      <Text style={styles.progressHint}>Preferred guidance language: {language}</Text>
+      <Text style={styles.progressHint}>Next up: build your Arabic alphabet skills and continue with short, steady practice.</Text>
+      <Button title="Continue learning" onPress={onLearn} />
+      <Button title="Update preferences" secondary onPress={onSettings} />
+    </View>
+    <Text style={styles.tinyNote}>Streaks, daily minutes, memorized ayahs, quiz history and cross-device progress will appear after secure accounts and saved progress are connected.</Text>
+  </>;
+}
+
 function ReviewScreen() {
   const [show, setShow] = useState(false);
   return <><Header eyebrow="REVIEW" title="Strengthen your recall" /><View style={styles.infoCard}><Text style={styles.cardEyebrow}>REVIEW CARD</Text><Text style={styles.dailyArabic} writingDirection="rtl">{PRACTICE.arabic}</Text>{show && <Text style={styles.translation}>{PRACTICE.translation}</Text>}<Text style={styles.reference}>{PRACTICE.reference}</Text><Button title={show ? "Hide translation" : "Show translation"} secondary onPress={() => setShow(!show)} /></View><Text style={styles.progressHint}>A personal review schedule and saved memorization history will be added in a later milestone.</Text></>;
@@ -464,6 +492,7 @@ export default function App() {
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
+  else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
   const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
@@ -485,6 +514,7 @@ const createStyles = (p) => StyleSheet.create({
   header:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginTop:14,marginBottom:23},eyebrow:{color:p.accent,fontSize:10,letterSpacing:2,fontWeight:"700",marginBottom:7},
   heading:{color:p.text,fontSize:22,fontWeight:"700"},pageHeader:{marginTop:18,marginBottom:23},pageTitle:{color:p.text,fontSize:27,fontWeight:"700"},
   progressCard:{backgroundColor:p.panel,borderRadius:18,padding:18,borderWidth:1,borderColor:p.border,marginBottom:24},
+  progressTrack:{height:12,backgroundColor:p.surface,borderRadius:8,overflow:"hidden",marginTop:16},progressFill:{height:12,backgroundColor:p.accent,borderRadius:8},
   sectionTitle:{color:p.text,fontSize:17,fontWeight:"700",marginBottom:10},progressHint:{color:p.muted,fontSize:12,marginTop:9,lineHeight:19},
   actionGrid:{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",marginTop:4},actionTile:{width:"48%",backgroundColor:p.panel,borderRadius:18,padding:15,marginBottom:12,borderWidth:1,borderColor:p.border,minHeight:118},
   tileTop:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},actionIcon:{color:p.accent,fontSize:23,marginBottom:10},lock:{color:p.accent,fontSize:9,letterSpacing:1,fontWeight:"800"},
