@@ -90,6 +90,7 @@ function HomeScreen({ onNavigate, onPractice }) {
       <Text style={styles.sectionTitle}>Your tools</Text>
       <View style={styles.actionGrid}>
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
+        <ActionTile icon="ا" title="Arabic lessons" subtitle="Start learning Arabic" onPress={() => onNavigate("arabic")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
@@ -160,6 +161,47 @@ function MemorizeScreen({ onPracticed }) {
       <Text style={styles.tinyNote}>This guided practice is interactive, but audio playback and automatic recitation checking are not connected yet. Please check Qur’an text and pronunciation with a trusted mushaf or qualified teacher.</Text>
     </>
   );
+}
+const ARABIC_LESSON = [
+  { word: "كِتَابٌ", transliteration: "kitābun", meaning: "a book", example: "هَذَا كِتَابٌ", exampleMeaning: "This is a book." },
+  { word: "قَلَمٌ", transliteration: "qalamun", meaning: "a pen", example: "هَذَا قَلَمٌ", exampleMeaning: "This is a pen." },
+  { word: "بَابٌ", transliteration: "bābun", meaning: "a door", example: "هَذَا بَابٌ", exampleMeaning: "This is a door." }
+];
+function ArabicLessonsScreen({ onPremium }) {
+  const [index, setIndex] = useState(0);
+  const [revealed, setRevealed] = useState(false);
+  const [completed, setCompleted] = useState(false);
+  const item = ARABIC_LESSON[index];
+  const next = () => {
+    if (index === ARABIC_LESSON.length - 1) {
+      setCompleted(true);
+    } else {
+      setIndex(n => n + 1);
+      setRevealed(false);
+    }
+  };
+  return <>
+    <Header eyebrow="ARABIC LEARNING" title="Learn Arabic, step by step" />
+    <View style={styles.freeLessonBadge}><Text style={styles.freeLessonBadgeText}>FREE STARTER LESSON</Text></View>
+    <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>LESSON 1 · EVERYDAY WORDS</Text>
+      <Text style={styles.dailyArabic} writingDirection="rtl">{item.word}</Text>
+      <Text style={styles.translation}>{item.transliteration}</Text>
+      <View style={styles.practicePrompt}><Text style={styles.practicePromptText}>{revealed ? item.meaning : "Try to guess the meaning, then reveal it."}</Text></View>
+      <Button title={revealed ? "Hide meaning" : "Reveal meaning"} secondary onPress={() => setRevealed(v => !v)} />
+      {revealed && <View style={styles.exampleBox}><Text style={styles.exampleArabic} writingDirection="rtl">{item.example}</Text><Text style={styles.progressHint}>{item.exampleMeaning}</Text></View>}
+      <Text style={styles.reference}>Word {index + 1} of {ARABIC_LESSON.length}</Text>
+    </View>
+    <View style={styles.stepDots}>{ARABIC_LESSON.map((x,i) => <View key={x.word} style={[styles.stepDot, i <= index && styles.stepDotActive]} />)}</View>
+    {completed ? <View style={styles.infoCard}><Text style={styles.sectionTitle}>Starter lesson complete!</Text><Text style={styles.progressHint}>You reviewed three everyday Arabic words. Keep practising them at your own pace.</Text><Button title="Review lesson" onPress={() => {setIndex(0);setRevealed(false);setCompleted(false);}} /></View> : <Button title={index === ARABIC_LESSON.length - 1 ? "Finish starter lesson" : "Next word"} onPress={next} />}
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Unlock the full Arabic course</Text>
+      <Text style={styles.progressHint}>Ayah Plus is planned to include structured lessons in reading, vocabulary, grammar, sentence building and guided practice.</Text>
+      <Text style={styles.lockedLabel}>AYAH PLUS · PLANNED</Text>
+      <Button title="Explore Ayah Plus" onPress={onPremium} secondary />
+    </View>
+    <Text style={styles.tinyNote}>This starter lesson is a small learning preview. More lessons will be reviewed for accuracy before release.</Text>
+  </>;
 }
 function ReviewScreen() {
   const [show, setShow] = useState(false);
@@ -239,6 +281,7 @@ export default function App() {
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
   if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} />;
+  else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
