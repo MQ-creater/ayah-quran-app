@@ -161,7 +161,7 @@ const PRACTICE_PASSAGES = [
   { id: "ikhlas1", surah: "Al-Ikhlas", verse: "1", arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ", translation: "Say, He is Allah, the One.", reference: "Surah Al-Ikhlas · 112:1" },
   { id: "asr1", surah: "Al-Asr", verse: "1", arabic: "وَالْعَصْرِ", translation: "By time.", reference: "Surah Al-Asr · 103:1" }
 ];
-function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, savedIds, onToggleSave, onSaved, onRateReview, reviewRecords }) {
+function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, onBuildSession, savedIds, onToggleSave, onSaved, onRateReview, reviewRecords }) {
   const [selectedId, setSelectedId] = useState("fatiha2");
   const [stage, setStage] = useState(0);
   const [done, setDone] = useState(false);
@@ -178,6 +178,7 @@ function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, savedI
       <Header eyebrow="MEMORIZATION" title="Your learning session" />
       <View style={styles.infoCard}>
         <Text style={styles.sectionTitle}>Choose a practice ayah</Text>
+        <Button title="Build a session from any surah" secondary onPress={onBuildSession}/>
         <Text style={styles.progressHint}>Start with one ayah. More surahs and passage ranges will be added as the verified Qur’an text library grows.</Text>
         {PRACTICE_PASSAGES.map(item => (
           <Pressable key={item.id} onPress={() => choosePassage(item.id)} style={[styles.choice, selectedId === item.id && styles.choiceSelected]}>
@@ -218,6 +219,121 @@ function MemorizeScreen({ onPracticed, onPracticeCompleted, onSyncRating, savedI
     </>
   );
 }
+function BuildMemorizationSessionScreen({ onBack, onProgressUpdate }) {
+  const [chapters, setChapters] = useState([]);
+  const [chapterId, setChapterId] = useState("1");
+  const [startVerse, setStartVerse] = useState("1");
+  const [endVerse, setEndVerse] = useState("5");
+  const [verses, setVerses] = useState([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [stage, setStage] = useState(0);
+  const [showAyah, setShowAyah] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [completed, setCompleted] = useState(false);
+  const [chapterLoading, setChapterLoading] = useState(false);
+  const base = AYAH_API_BASE ? (AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE) : "";
+  useEffect(() => {
+    if (!base) return;
+    let active = true;
+    setChapterLoading(true);
+    fetch(base + "/chapters")
+      .then(response => { if (!response.ok) throw new Error("Unable to load surahs"); return response.json(); })
+      .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
+      .catch(() => { if (active) setError("The verified Qur’an library could not load. Please try again later."); })
+      .finally(() => { if (active) setChapterLoading(false); });
+    return () => { active = false; };
+  }, []);
+  const selectedChapter = chapters.find(item => String(item.id) === String(chapterId));
+  const currentVerse = verses[currentIndex];
+  const cleanText = value => String(value || "").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim();
+  const loadSession = async () => {
+    const first = Number(startVerse);
+    const last = Number(endVerse);
+    const total = Number(selectedChapter?.verses_count || 0);
+    if (!base) { setError("The verified Qur’an content server is not configured yet."); return; }
+    if (!selectedChapter || !Number.isInteger(first) || !Number.isInteger(last) || first < 1 || last < first || last > total || last-first+1 > 50) {
+      setError("Choose a valid ayah range of up to 50 ayahs within this surah."); return;
+    }
+    setLoading(true); setError(""); setVerses([]); setCurrentIndex(0); setStage(0); setShowAyah(false); setCompleted(false);
+    try {
+      const firstPage = Math.floor((first - 1) / 50) + 1;
+      const lastPage = Math.floor((last - 1) / 50) + 1;
+      let all = [];
+      for (let page = firstPage; page <= lastPage; page++) {
+        const url = base + "/chapters/" + chapterId + "/verses?page=" + page + "&per_page=50&translation_id=131&script=uthmani&language=en";
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Unable to load the selected ayahs.");
+        const data = await response.json();
+        if (Array.isArray(data.verses)) all = all.concat(data.verses);
+      }
+      const selected = all.filter(item => {
+        const key = String(item.verse_key || "");
+        const number = Number(key.split(":")[1]);
+        return number >= first && number <= last;
+      }).map(item => ({
+        key: item.verse_key,
+        number: Number(String(item.verse_key || "").split(":")[1]),
+        arabic: item.text_uthmani || item.text || "",
+        translation: cleanText(item.translations?.[0]?.text || "")
+      }));
+      if (selected.length !== last-first+1 || selected.some(item => !item.arabic)) throw new Error("The server did not return every ayah in that range. Try again.");
+      setVerses(selected);
+    } catch (e) {
+      setError(e.message || "Could not build this session.");
+    } finally { setLoading(false); }
+  };
+  const markCurrent = status => {
+    if (currentVerse?.key) onProgressUpdate?.(chapterId, String(currentVerse.number), status);
+  };
+  const finishVerse = () => {
+    markCurrent("learning");
+    if (currentIndex >= verses.length - 1) setCompleted(true);
+    else { setCurrentIndex(index => index + 1); setStage(0); setShowAyah(false); }
+  };
+  return <>
+    <Header eyebrow="GUIDED HIDHFH" title="Build a memorization session" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Choose your surah and ayah range</Text>
+      <Text style={styles.progressHint}>Choose a surah, then enter the first and last ayah. Ayah loads the Arabic and translation from the connected verified content service.</Text>
+      {chapterLoading ? <ActivityIndicator color={GOLD} /> : null}
+      <Text style={styles.reference}>Surah</Text>
+      <View style={styles.languageGrid}>
+        {chapters.map(item => <Pressable key={item.id} onPress={() => { setChapterId(String(item.id)); setVerses([]); setError(""); setStartVerse("1"); setEndVerse(String(Math.min(5, Number(item.verses_count || 5)))); }} style={[styles.goalChoice, String(item.id) === String(chapterId) && styles.choiceSelected]}><Text style={[styles.choiceText, String(item.id) === String(chapterId) && styles.choiceTextSelected]}>{item.id}. {item.name_simple}</Text></Pressable>)}
+      </View>
+      {selectedChapter ? <Text style={styles.reference}>{selectedChapter.name_simple} · {selectedChapter.verses_count} ayahs</Text> : null}
+      <Text style={styles.reference}>First ayah</Text>
+      <TextInput value={startVerse} onChangeText={setStartVerse} keyboardType="number-pad" placeholder="1" placeholderTextColor={MUTED} style={styles.emailInput}/>
+      <Text style={styles.reference}>Last ayah (maximum 50 ayahs per session)</Text>
+      <TextInput value={endVerse} onChangeText={setEndVerse} keyboardType="number-pad" placeholder="5" placeholderTextColor={MUTED} style={styles.emailInput}/>
+      <Button title={loading ? "Loading ayahs…" : "Load my session"} onPress={loadSession} disabled={loading || chapterLoading || !selectedChapter}/>
+      {error ? <Text style={styles.progressHint}>{error}</Text> : null}
+    </View>
+    {currentVerse && !completed ? <>
+      <View style={styles.lessonCard}>
+        <Text style={styles.cardEyebrow}>AYAH {currentIndex+1} OF {verses.length} · {currentVerse.key}</Text>
+        <Text style={styles.sectionTitle}>{stage === 0 ? "Read and become familiar" : stage === 1 ? "Recall from memory" : "Check your memorization"}</Text>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{stage === 1 && !showAyah ? "••••••••••••" : currentVerse.arabic}</Text>
+        {stage !== 1 || showAyah ? <Text style={styles.translation}>{currentVerse.translation}</Text> : null}
+        {stage === 2 ? <Button title={showAyah ? "Hide ayah" : "Reveal ayah"} secondary onPress={() => setShowAyah(value => !value)}/> : null}
+        <Text style={styles.progressHint}>{stage === 0 ? "Read slowly and listen to a qualified reciter or teacher if available." : stage === 1 ? "Try to recall the ayah without looking at the text." : "Compare your recall with the verified text, then continue."}</Text>
+      </View>
+      <View style={styles.rowButtons}>
+        <View style={styles.rowButtonCell}><Button title="Previous step" secondary disabled={stage===0} onPress={() => {setStage(value=>Math.max(0,value-1));setShowAyah(false);}}/></View>
+        <View style={styles.rowButtonCell}><Button title={stage===2 ? "Complete ayah" : "Next step"} onPress={() => stage===2 ? finishVerse() : setStage(value=>value+1)}/></View>
+      </View>
+    </> : null}
+    {completed ? <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>SESSION COMPLETE</Text>
+      <Text style={styles.sectionTitle}>You worked through {verses.length} ayahs.</Text>
+      <Text style={styles.progressHint}>Each completed ayah has been marked Learning in your tracker. You can review and update each status there.</Text>
+      <Button title="Build another session" onPress={() => {setVerses([]);setCompleted(false);setCurrentIndex(0);setStage(0);}}/>
+    </View> : null}
+    <Button title="Back to memorization" secondary onPress={onBack}/>
+    <Text style={styles.tinyNote}>This guided session records that you completed a practice step. It does not automatically judge tajwid or verify that an ayah has been memorized.</Text>
+  </>;
+}
+
 function SmartRevisionScreen({ records, onRateReview, onStartPractice }) {
   const now = Date.now();
   const items = PRACTICE_PASSAGES.map(passage => ({ ...passage, record: records?.[passage.id] || null }))
@@ -897,7 +1013,8 @@ export default function App() {
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} onRateReview={saveReviewRating} onStartPractice={() => setTab("memorize")} />;
   else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} practiceCount={practiceCount} />;
-  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
+  else if (tab === "buildSession") screen = <BuildMemorizationSessionScreen onBack={() => setTab("memorize")} onProgressUpdate={(surahId, verse, status) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: status } }))} />;
+  else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onBuildSession={() => setTab("buildSession")} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
