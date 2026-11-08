@@ -27,6 +27,11 @@ if (!environments[environment]) {
 }
 
 const qf = environments[environment];
+const isProduction = process.env.NODE_ENV === "production";
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").map(value => value.trim()).filter(Boolean);
+if (isProduction && allowedOrigins.length === 0) {
+  throw new Error("ALLOWED_ORIGINS must contain the deployed app origins when NODE_ENV=production.");
+}
 let cachedToken = null;
 let tokenExpiresAt = 0;
 let cachedTafsirToken = null;
@@ -34,11 +39,9 @@ let tafsirTokenExpiresAt = 0;
 
 app.disable("x-powered-by");
 app.use(helmet());
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "")
-  .split(",").map(value => value.trim()).filter(Boolean);
 app.use(cors({
   origin(origin, callback) {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.includes(origin) || (!isProduction && allowedOrigins.length === 0)) {
       return callback(null, true);
     }
     return callback(new Error("Origin is not allowed."));
@@ -69,9 +72,10 @@ async function getAccessToken(includeTafsir = false) {
     body: new URLSearchParams({
       grant_type: "client_credentials",
       scope: includeTafsir ? "content.tafsirs.read" : "content.quran.read content.translations.read content.audio.read"
-    })
+    }),
+    signal: AbortSignal.timeout(15000)
   });
-  if (!response.ok) throw new Error("Quran Foundation authentication failed.");
+  if (!response.ok) { const error=new Error("Quran Foundation authentication failed.");error.status=502;throw error; }
   const data = await response.json();
   if (!data.access_token) throw new Error("The content provider returned no access token.");
   const expiry = Date.now() + Number(data.expires_in || 3600) * 1000;
@@ -83,12 +87,16 @@ async function getAccessToken(includeTafsir = false) {
 
 async function qfGet(path, includeTafsir = false) {
   const token = await getAccessToken(includeTafsir);
-  const response = await fetch(qf.api + "/content/api/v4" + path, {
-    headers: {
-      "x-auth-token": token,
-      "x-client-id": clientId
-    }
-  });
+  let response;
+  try {
+    response = await fetch(qf.api + "/content/api/v4" + path, {
+      headers: { "x-auth-token": token, "x-client-id": clientId },
+      signal: AbortSignal.timeout(15000)
+    });
+  } catch (error) {
+    if (error?.name === "TimeoutError" || error?.name === "AbortError") error.status = 504;
+    throw error;
+  }
   if (!response.ok) {
     const error = new Error("The Qur’an content provider request failed.");
     error.status = response.status;
@@ -97,7 +105,14 @@ async function qfGet(path, includeTafsir = false) {
   return response.json();
 }
 
-app.get("/health", (_req, res) => res.json({ ok: true, service: "ayah-content-api" }));
+app.get("/health", (_req, res) => res.json({ ok: true, service: "ayah-content-api", providerConfigured: Boolean(clientId && clientSecret), environment }));
+
+app.get("/api/status", (_req, res) => res.json({
+  service: "ayah-content-api",
+  environment,
+  providerConfigured: Boolean(clientId && clientSecret),
+  endpoints: ["chapters", "verses", "translations", "search", "chapter-audio", "tafsir"]
+}));
 
 app.get("/api/audio/reciters", async (req, res) => {
   try {
