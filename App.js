@@ -167,6 +167,44 @@ const ARABIC_LESSON = [
   { word: "قَلَمٌ", transliteration: "qalamun", meaning: "a pen", example: "هَذَا قَلَمٌ", exampleMeaning: "This is a pen." },
   { word: "بَابٌ", transliteration: "bābun", meaning: "a door", example: "هَذَا بَابٌ", exampleMeaning: "This is a door." }
 ];
+const ARABIC_STARTER_QUIZ = [
+  { prompt: "What does كِتَابٌ mean?", options: ["A door", "A book", "A pen"], answer: "A book", explanation: "كِتَابٌ (kitābun) means “a book.”" },
+  { prompt: "Which Arabic word means “a pen”?", options: ["قَلَمٌ", "بَابٌ", "كِتَابٌ"], answer: "قَلَمٌ", explanation: "قَلَمٌ (qalamun) means “a pen.”" },
+  { prompt: "What does بَابٌ mean?", options: ["A book", "A pen", "A door"], answer: "A door", explanation: "بَابٌ (bābun) means “a door.”" }
+];
+function ArabicStarterQuiz({ onReview }) {
+  const [question, setQuestion] = useState(0);
+  const [answer, setAnswer] = useState("");
+  const [score, setScore] = useState(0);
+  const [finished, setFinished] = useState(false);
+  const item = ARABIC_STARTER_QUIZ[question];
+  const submit = () => {
+    if (!answer) return;
+    if (answer === item.answer) setScore(n => n + 1);
+    if (question === ARABIC_STARTER_QUIZ.length - 1) setFinished(true);
+    else { setQuestion(n => n + 1); setAnswer(""); }
+  };
+  const retry = () => { setQuestion(0); setAnswer(""); setScore(0); setFinished(false); };
+  if (finished) return <View style={styles.infoCard}>
+    <Text style={styles.cardEyebrow}>MILESTONE CHECKPOINT</Text>
+    <Text style={styles.sectionTitle}>Starter lesson quiz complete!</Text>
+    <Text style={styles.quizScore}>{score} / {ARABIC_STARTER_QUIZ.length}</Text>
+    <Text style={styles.progressHint}>{score === 3 ? "Excellent work! You got every question right." : "Good effort. Review the words and try again whenever you're ready."}</Text>
+    <Button title="Try the quiz again" secondary onPress={retry} />
+    <Button title="Review the lesson" onPress={onReview} />
+  </View>;
+  return <View style={styles.infoCard}>
+    <Text style={styles.cardEyebrow}>MILESTONE CHECKPOINT · QUESTION {question + 1} OF {ARABIC_STARTER_QUIZ.length}</Text>
+    <Text style={styles.sectionTitle}>Test what you've learned</Text>
+    <Text style={styles.quizPrompt}>{item.prompt}</Text>
+    {item.options.map(option => <Pressable key={option} onPress={() => setAnswer(option)} style={[styles.choice, answer === option && styles.choiceSelected]}>
+      <Text style={[styles.choiceText, answer === option && styles.choiceTextSelected]}>{option}</Text>
+      <Text style={styles.choiceMark}>{answer === option ? "✓" : "○"}</Text>
+    </Pressable>)}
+    <Button title={question === ARABIC_STARTER_QUIZ.length - 1 ? "Finish quiz" : "Next question"} disabled={!answer} onPress={submit} />
+    <Text style={styles.tinyNote}>This short checkpoint reviews the three words in the starter lesson. It is practice, not a formal language proficiency test.</Text>
+  </View>;
+}
 function ArabicLessonsScreen({ onPremium }) {
   const [index, setIndex] = useState(0);
   const [revealed, setRevealed] = useState(false);
@@ -193,7 +231,7 @@ function ArabicLessonsScreen({ onPremium }) {
       <Text style={styles.reference}>Word {index + 1} of {ARABIC_LESSON.length}</Text>
     </View>
     <View style={styles.stepDots}>{ARABIC_LESSON.map((x,i) => <View key={x.word} style={[styles.stepDot, i <= index && styles.stepDotActive]} />)}</View>
-    {completed ? <View style={styles.infoCard}><Text style={styles.sectionTitle}>Starter lesson complete!</Text><Text style={styles.progressHint}>You reviewed three everyday Arabic words. Keep practising them at your own pace.</Text><Button title="Review lesson" onPress={() => {setIndex(0);setRevealed(false);setCompleted(false);}} /></View> : <Button title={index === ARABIC_LESSON.length - 1 ? "Finish starter lesson" : "Next word"} onPress={next} />}
+    {completed ? <ArabicStarterQuiz onReview={() => {setIndex(0);setRevealed(false);setCompleted(false);}} /> : <Button title={index === ARABIC_LESSON.length - 1 ? "Finish starter lesson" : "Next word"} onPress={next} />}
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Unlock the full Arabic course</Text>
       <Text style={styles.progressHint}>Ayah Plus is planned to include structured lessons in reading, vocabulary, grammar, sentence building and guided practice.</Text>
@@ -322,6 +360,7 @@ const styles = StyleSheet.create({
   trialCard:{backgroundColor:PANEL,borderRadius:20,padding:18,borderWidth:1,borderColor:GOLD,marginBottom:14},
   languageGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginTop:12},languageChoice:{backgroundColor:"#24354C",borderRadius:12,paddingVertical:10,paddingHorizontal:13},
   practicePrompt:{backgroundColor:"#24354C",borderRadius:14,padding:15,marginTop:10},practicePromptText:{color:GOLD,fontSize:14,fontWeight:"600",textAlign:"center",lineHeight:22},
+  quizPrompt:{color:"#FFF",fontSize:17,fontWeight:"700",lineHeight:25,marginTop:14,marginBottom:6},quizScore:{color:GOLD,fontSize:36,fontWeight:"800",textAlign:"center",marginVertical:12},
   freeLessonBadge:{backgroundColor:"#24354C",borderRadius:12,padding:10,alignSelf:"flex-start",borderWidth:1,borderColor:GOLD,marginBottom:8},freeLessonBadgeText:{color:GOLD,fontSize:10,fontWeight:"800",letterSpacing:1.2},
   exampleBox:{backgroundColor:"#24354C",borderRadius:14,padding:14,marginTop:14,alignItems:"center"},exampleArabic:{color:"#FFF",fontSize:24,lineHeight:42,textAlign:"center"},
   navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:NAVY},
