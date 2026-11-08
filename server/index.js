@@ -65,7 +65,7 @@ async function getAccessToken() {
     },
     body: new URLSearchParams({
       grant_type: "client_credentials",
-      scope: "content.quran.read content.translations.read content.audio.read"
+      scope: "content.quran.read content.translations.read content.audio.read content.tafsirs.read"
     })
   });
   if (!response.ok) throw new Error("Quran Foundation authentication failed.");
@@ -134,6 +134,41 @@ app.get("/api/translations", async (req, res) => {
   } catch (error) {
     console.error("Translation resources request failed:", error.message);
     res.status(error.status || 503).json({ error: "Translation choices are temporarily unavailable." });
+  }
+});
+
+app.get("/api/tafsirs", async (req, res) => {
+  const language = String(req.query.language || "en").toLowerCase();
+  if (!/^[a-z]{2}$/.test(language)) {
+    return res.status(400).json({ error: "Language must be a two-letter language code." });
+  }
+  try {
+    const data = await qfGet("/resources/tafsirs?language=" + encodeURIComponent(language));
+    res.json({ tafsirs: data.tafsirs || [] });
+  } catch (error) {
+    console.error("Tafsir resources request failed:", error.message);
+    res.status(error.status || 503).json({ error: "Tafsir sources are temporarily unavailable. Confirm that the server app has the content.tafsirs.read permission." });
+  }
+});
+
+app.get("/api/tafsirs/:resourceId/ayah/:surah/:ayah", async (req, res) => {
+  const resourceId = Number(req.params.resourceId);
+  const surah = Number(req.params.surah);
+  const ayah = Number(req.params.ayah);
+  if (!Number.isInteger(resourceId) || resourceId < 1 ||
+      !Number.isInteger(surah) || surah < 1 || surah > 114 ||
+      !Number.isInteger(ayah) || ayah < 1 || ayah > 286) {
+    return res.status(400).json({ error: "Choose a valid Tafsir source and ayah reference." });
+  }
+  try {
+    const data = await qfGet("/tafsirs/" + resourceId + "/by_ayah/" + surah + ":" + ayah);
+    if (!data.tafsir || typeof data.tafsir.text !== "string" || !data.tafsir.text.trim()) {
+      return res.status(404).json({ error: "No commentary was returned for this source and ayah." });
+    }
+    res.json({ tafsir: data.tafsir });
+  } catch (error) {
+    console.error("Tafsir passage request failed:", error.message);
+    res.status(error.status || 503).json({ error: "This Tafsir passage is temporarily unavailable. Check the source permissions and try again." });
   }
 });
 
