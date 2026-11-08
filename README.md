@@ -11,6 +11,7 @@ A Qur’an learning platform for Android-first development, combining a Qur’an
 - Saved ayah bookmarks (session-only; persistent sync is not connected)
 - Qur’an Library screen with surah search and chapter navigation UI
 - Qur’an reader screen designed for Uthmani Arabic and translations
+- Ayah Plus Tafsir library UI with source catalogue, author attribution, and ayah-level commentary retrieval
 - Arabic starter vocabulary lesson, alphabet classroom, and quizzes
 - AI teacher preview with Hamza/Maryam selection and language picker (no live AI/audio yet)
 - Ayah Plus preview; no billing or trial is active
@@ -66,7 +67,18 @@ The Library and Reader UI are in place, but they intentionally do not invent or 
 - `GET /translations?language=en` → `{ "translations": [{ "id": 131, "name": "Dr. Mustafa Khattab, the Clear Quran", "author_name": "Dr. Mustafa Khattab", "language_name": "english" }] }` (the actual list is supplied by Quran Foundation and varies by language)
 - `GET /chapters/:id/verses?page=1&per_page=50&translation_id=131&script=uthmani&language=en` → verses with selected Arabic text, full-ayah translation, and verified `words` entries containing word text, transliteration, translation, position, and word-audio asset path. The app currently displays word meanings and transliteration; word audio playback is the next milestone.
 
-Start the backend with `cd server && npm install && npm start`. Copy `server/.env.example` to `server/.env` and fill in credentials obtained for your own Quran Foundation backend app. Keep `server/.env` private. The backend obtains and caches Quran Foundation Content API access tokens on the server. Never put a Quran Foundation client secret or private API token in this Expo app, source control, or an `EXPO_PUBLIC_` variable. New Quran Foundation integrations require a backend/server app and approved Content API access; their pre-live dataset is limited to Al-Fatihah and Al-Baqarah. Production access is needed for the complete Qur’an dataset. The example backend requests the granular `content.quran.read`, `content.translations.read`, and `content.audio.read` scopes; existing credentials may require the `content` scope configured for that app. Your Developer Console app must be approved for audio access. Existing credentials may need their approved scope list updated before audio requests work. See the [Quran Foundation API quickstart](https://api-docs.quran.com/docs/quickstart/) and [verses-by-chapter reference](https://api-docs.quran.com/docs/content_apis_versioned/4.0.0/verses-by-chapter-number/).
+Start the backend with `cd server && npm install && npm start`. Copy `server/.env.example` to `server/.env` and fill in credentials obtained for your own Quran Foundation backend app. Keep `server/.env` private. The backend obtains and caches Quran Foundation Content API access tokens on the server. Never put a Quran Foundation client secret or private API token in this Expo app, source control, or an `EXPO_PUBLIC_` variable. New Quran Foundation integrations require a backend/server app and approved Content API access; their pre-live dataset is limited to Al-Fatihah and Al-Baqarah. Production access is needed for the complete Qur’an dataset. The example backend requests the granular `content.quran.read`, `content.translations.read`, `content.audio.read`, and `content.tafsirs.read` scopes; existing credentials may require the `content` scope configured for that app. Your Developer Console app must be approved for audio and Tafsir access. Existing credentials may need their approved scope list updated before these requests work. See the [Quran Foundation API quickstart](https://api-docs.quran.com/docs/quickstart/) and [verses-by-chapter reference](https://api-docs.quran.com/docs/content_apis_versioned/4.0.0/verses-by-chapter-number/).
+
+## Tafsir library (Ayah Plus)
+
+The Ayah Plus Tafsir screen loads the available Tafsir catalogue and retrieves commentary for one selected ayah. The backend exposes:
+
+- `GET /api/tafsirs?language=en` → available source IDs, titles, authors, and language metadata.
+- `GET /api/tafsirs/:resourceId/ayah/:surah/:ayah` → source-attributed commentary for the requested ayah.
+
+These routes proxy Quran Foundation Content API v4 resources and ayah-level Tafsir endpoints. The backend requests the granular `content.tafsirs.read` scope; that permission must be approved for the backend app in the Quran Foundation Developer Console. If token creation fails after adding the scope, check the approved scopes for that client rather than putting credentials in the mobile app. Commentary is displayed with the source and author metadata supplied by the catalogue. The app strips HTML for readable text; rich formatting and cross-source comparison are future improvements. Tafsir content licensing and attribution requirements must be reviewed before public release.
+
+See the [Quran Foundation Tafsir catalogue reference](https://api-docs.quran.foundation/docs/content_apis_versioned/4.0.0/tafsirs/) and [ayah-level Tafsir reference](https://api-docs.quran.foundation/docs/content_apis_versioned/4.0.0/list-ayah-tafsirs/).
 
 ## Recitation audio
 
