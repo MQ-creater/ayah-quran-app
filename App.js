@@ -265,6 +265,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
   const [arabicSize, setArabicSize] = useState(29);
   const [showArabic, setShowArabic] = useState(true);
   const [showTranslation, setShowTranslation] = useState(true);
+  const [showWordByWord, setShowWordByWord] = useState(false);
   const [arabicScript, setArabicScript] = useState("Uthmani");
   const [arabicFontReady, setArabicFontReady] = useState(false);
   const [arabicFontError, setArabicFontError] = useState("");
@@ -320,7 +321,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
     let active = true;
     setLoading(true); setError("");
     const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
-    fetch(base + "/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=" + encodeURIComponent(translationId) + "&script=" + (arabicScript === "IndoPak" ? "indopak" : "uthmani"))
+    fetch(base + "/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=" + encodeURIComponent(translationId) + "&script=" + (arabicScript === "IndoPak" ? "indopak" : "uthmani") + "&language=" + encodeURIComponent(translationLanguage))
       .then(response => { if (!response.ok) throw new Error("Server returned " + response.status); return response.json(); })
       .then(data => {
         if (!active) return;
@@ -330,7 +331,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
       .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [chapter?.id, page, translationId, arabicScript]);
+  }, [chapter?.id, page, translationId, arabicScript, translationLanguage]);
   return <>
     <Header eyebrow={"SURAH " + chapter.id} title={chapter.name_simple} />
     <View style={styles.infoCard}>
@@ -350,6 +351,9 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
         <View style={styles.readerToggleRow}>
           <Pressable accessibilityRole="button" onPress={() => setShowArabic(value => !value)} style={[styles.readerToggle, showArabic && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showArabic && styles.readerToggleTextActive]}>{showArabic ? "✓ Arabic shown" : "Show Arabic"}</Text></Pressable>
           <Pressable accessibilityRole="button" onPress={() => setShowTranslation(value => !value)} style={[styles.readerToggle, showTranslation && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showTranslation && styles.readerToggleTextActive]}>{showTranslation ? "✓ Translation shown" : "Show translation"}</Text></Pressable>
+        </View>
+        <View style={styles.readerToggleRow}>
+          <Pressable accessibilityRole="button" onPress={() => setShowWordByWord(value => !value)} style={[styles.readerToggle, showWordByWord && styles.readerToggleActive]}><Text style={[styles.readerToggleText, showWordByWord && styles.readerToggleTextActive]}>{showWordByWord ? "✓ Word study on" : "Word-by-word study"}</Text></Pressable>
         </View>
         <Text style={styles.readerToolLabel}>Translation language</Text>
         <View style={styles.readerToggleRow}>
@@ -390,6 +394,22 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
           <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
           {showArabic ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
+          {showWordByWord ? <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 12 }}>
+            <Text style={styles.readerToolLabel}>Word-by-word study</Text>
+            <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 9 }}>
+              {(verse.words || []).filter(word => word.char_type_name === "word").map(word => {
+                const wordArabic = arabicScript === "IndoPak" ? (word.text_indopak_nastaleeq || word.text_uthmani || "") : (word.text_qpc_hafs || word.text_uthmani || "");
+                const wordMeaning = (word.translation?.text || "").replace(/<[^>]*>/g, "");
+                const wordPronunciation = word.transliteration?.text || "";
+                return <View key={word.id || word.position} style={{ minWidth: 88, maxWidth: 150, backgroundColor: PANEL, borderColor: BORDER, borderWidth: 1, borderRadius: 12, padding: 9, alignItems: "center" }}>
+                  <Text style={{ color: TEXT, fontSize: 22, textAlign: "center", writingDirection: "rtl", fontFamily: arabicFontReady ? (arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs") : undefined }}>{wordArabic}</Text>
+                  <Text style={{ color: GOLD, fontSize: 12, textAlign: "center", marginTop: 5 }}>{wordPronunciation || "Pronunciation unavailable"}</Text>
+                  <Text style={{ color: TEXT, fontSize: 13, textAlign: "center", marginTop: 4 }}>{wordMeaning || "Meaning unavailable"}</Text>
+                </View>;
+              })}
+            </View>
+            <Text style={styles.tinyNote}>Word meanings and transliterations are supplied by Quran Foundation. Transliteration is a reading aid, not a replacement for learning pronunciation from a qualified teacher.</Text>
+          </View> : null}
         </View>;
       })}
       {loading ? <ActivityIndicator color={GOLD} size="small" /> : null}
