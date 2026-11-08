@@ -824,6 +824,29 @@ function QuranLibraryScreen({ onOpenChapter }) {
   </>;
 }
 function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition }) {
+  const audioStatus = useAudioPlayerStatus(wordPlayer);
+  const [activeAudioKey,setActiveAudioKey] = useState(null);
+  const [repeatCount,setRepeatCount] = usePersistentState("recitationRepeatCount",3);
+  const [repeatsRemaining,setRepeatsRemaining] = useState(0);
+  const playVerseAudio = (verse,key) => {
+    const audioUrl = verse.audio?.url || verse.audio_url || verse.audio?.audio_url;
+    if (!audioUrl) { Alert.alert("Audio unavailable","A recitation recording is not available for this ayah in the current content response."); return; }
+    const url = /^https?:\\/\\//i.test(audioUrl) ? audioUrl : "https://audio.qurancdn.com/" + String(audioUrl).replace(/^\\/+/, "");
+    setActiveAudioKey(key);
+    setRepeatsRemaining(Math.max(0,Number(repeatCount)-1));
+    wordPlayer.replace(url);
+    wordPlayer.play();
+  };
+  useEffect(() => {
+    if (audioStatus?.didJustFinish && repeatsRemaining > 0) {
+      setRepeatsRemaining(value=>Math.max(0,value-1));
+      wordPlayer.seekTo(0);
+      wordPlayer.play();
+    } else if (audioStatus?.didJustFinish) {
+      setActiveAudioKey(null);
+    }
+  }, [audioStatus?.didJustFinish,repeatsRemaining]);
+
   const wordPlayer = useAudioPlayer(null);
   const [verses, setVerses] = useState([]);
   const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : Math.floor((Number(initialAyah || 1) - 1) / 50) + 1);
@@ -990,6 +1013,16 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
           <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
           {showArabic ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
+          <View style={styles.verseAudioControls}>
+            <Pressable accessibilityRole="button" onPress={() => playVerseAudio(verse,key)} style={[styles.readerToggle,activeAudioKey===key&&styles.readerToggleActive]}>
+              <Text style={[styles.readerToggleText,activeAudioKey===key&&styles.readerToggleTextActive]}>{activeAudioKey===key&&audioStatus?.playing?"Ⅱ Playing":"▶ Play ayah"}</Text>
+            </Pressable>
+            <Text style={styles.reference}>Repeat</Text>
+            {[1,3,5].map(count=><Pressable key={count} accessibilityRole="button" onPress={()=>setRepeatCount(count)} style={[styles.readerToggle,Number(repeatCount)===count&&styles.readerToggleActive]}>
+              <Text style={[styles.readerToggleText,Number(repeatCount)===count&&styles.readerToggleTextActive]}>{count}×</Text>
+            </Pressable>)}
+          </View>
+          {activeAudioKey===key&&repeatsRemaining>0?<Text style={styles.reference}>{repeatsRemaining} repeat{repeatsRemaining===1?"":"s"} remaining</Text>:null}
           <View style={{marginTop:12,borderTopWidth:1,borderTopColor:BORDER,paddingTop:10}}>
             <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center"}}>
               <Text style={styles.readerToolLabel}>{notes?.[key] ? "Personal note saved" : "Personal note"}</Text>
@@ -1649,7 +1682,7 @@ const createStyles = (p) => StyleSheet.create({
   readerToggleActive:{borderColor:p.accent},
   readerToggleText:{color:p.muted,fontSize:10,fontWeight:"600",textAlign:"center"},
   readerToggleTextActive:{color:p.accent},
-  apiNotice:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14},chapterRow:{flexDirection:"row",alignItems:"center",paddingVertical:13,borderBottomWidth:1,borderBottomColor:p.border,gap:11},chapterNumber:{width:34,height:34,borderRadius:10,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"},chapterNumberText:{color:p.accent,fontWeight:"800"},chapterDetails:{flex:1},chapterArabic:{color:p.text,fontSize:19},chapterArabicLarge:{color:p.text,fontSize:34,textAlign:"center",marginVertical:12},verseCard:{backgroundColor:p.surface,borderRadius:15,padding:14,marginTop:14},verseMeta:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},verseNumber:{color:p.accent,fontWeight:"800"},verseBookmark:{color:p.accent,fontSize:12,fontWeight:"700"},verseArabic:{color:p.text,fontSize:27,lineHeight:54,textAlign:"right",marginTop:13},
+  apiNotice:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14},chapterRow:{flexDirection:"row",alignItems:"center",paddingVertical:13,borderBottomWidth:1,borderBottomColor:p.border,gap:11},chapterNumber:{width:34,height:34,borderRadius:10,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"},chapterNumberText:{color:p.accent,fontWeight:"800"},chapterDetails:{flex:1},chapterArabic:{color:p.text,fontSize:19},chapterArabicLarge:{color:p.text,fontSize:34,textAlign:"center",marginVertical:12},verseAudioControls:{flexDirection:"row",alignItems:"center",flexWrap:"wrap",gap:7,marginTop:12},verseCard:{backgroundColor:p.surface,borderRadius:15,padding:14,marginTop:14},verseMeta:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},verseNumber:{color:p.accent,fontWeight:"800"},verseBookmark:{color:p.accent,fontSize:12,fontWeight:"700"},verseArabic:{color:p.text,fontSize:27,lineHeight:54,textAlign:"right",marginTop:13},
   navIcon:{color:p.muted,fontSize:19,marginBottom:3},navLabel:{color:p.muted,fontSize:10},navSelected:{color:p.accent,fontWeight:"700"},
   stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
   rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1},
