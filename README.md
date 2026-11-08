@@ -1,20 +1,35 @@
 # Ayah
 
-A Qur’an learning platform for Android-first development, combining a Qur’an reader and study experience with guided memorization, Arabic learning, and a planned AI teacher.
+Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and study prototype. It is being built around verified Qur’an content, a focused hifdh workflow, thoughtful study tools, and a clearly separated future Ayah Plus experience.
 
 ## Current prototype features
 
-- Navy-and-gold home screen and Ayah of the Day
-- Auto, Light, Dark, and Sepia appearance themes
-- Guided memorization practice using a small reviewed sample set
-- Session-only practice counter and progress dashboard
-- Saved ayah bookmarks (session-only; persistent sync is not connected)
-- Qur’an Library screen with surah search and chapter navigation UI
-- Qur’an reader screen designed for Uthmani Arabic and translations
-- Ayah Plus Tafsir library UI with source catalogue, author attribution, and ayah-level commentary retrieval
-- Arabic starter vocabulary lesson, alphabet classroom, and quizzes
-- AI teacher preview with Hamza/Maryam selection and language picker (no live AI/audio yet)
-- Ayah Plus preview; no billing or trial is active
+- Navy-and-gold home screen with Ayah of the Day and quick access to learning tools
+- Auto, Light, Dark, and Sepia themes
+- Qur’an library, surah navigation, Uthmani/QPC Hafs and IndoPak reader modes, translations, word-by-word study, personal notes, bookmarks, collections, and search
+- Reader preferences and last-reading position saved locally
+- Chapter recitation library, preferred reciter, full-surah playback, repeat controls, position resume, and ayah audio controls when supplied by the content response
+- Ayah timestamp highlighting and seek-to-ayah when the selected chapter recording actually includes compatible timing metadata
+- Ayah-by-ayah practice queue with per-ayah repeat, selected-page queue, pause/resume, and recall mode that hides the Arabic on screen
+- Guided memorization sessions for selected surah ranges, up to 50 ayahs per session
+- Memorization planner, full-surah progress tracker, Smart Revision queue, and suggested review intervals based on the learner's own check-ins
+- Adjustable daily reading and memorization targets; reading activity counts only when the learner explicitly marks an ayah as read
+- Local practice-session history, seven-day insights, tracker summaries, and recent sessions
+- JSON backup through the device share sheet, plus a clear-local-data control
+- Arabic starter vocabulary, alphabet classroom, and quizzes
+- Ayah Plus Tafsir catalogue and commentary UI, subject to provider access approval and content licensing
+- AI Teacher and Ayah Plus previews; live AI, user accounts, subscriptions, and billing are not connected
+
+## Current product-quality improvements
+
+- Local preference loading now resets malformed saved JSON safely instead of parsing it twice or leaving an unreadable value in place.
+- Verse keys stay tied to their original ayah numbers when the reader's notes-only filter is active.
+- Opening a page no longer automatically counts all displayed ayahs as read. Learners explicitly mark ayahs as read, making daily reading goals more meaningful.
+- Full-surah and individual-ayah players stop one another when switching playback modes. Individual ayah audio has pause/resume and a stop control for selected-range queues.
+- Completed guided sessions are stored in a bounded local history (up to 250 entries) and appear in the Learning Insights screen.
+- Daily targets can be changed from the Goals screen.
+- Backup and privacy tools explain what is stored locally and allow the user to export or clear local learning data.
+- The backend includes a status endpoint, bounded upstream request timeouts, and a production CORS allowlist requirement.
 
 ## Product direction
 
@@ -65,7 +80,7 @@ The Library and Reader UI are in place, but they intentionally do not invent or 
 
 - `GET /chapters` → `{ "chapters": [{ "id": 1, "name_simple": "Al-Fatihah", "name_arabic": "الفاتحة", "translated_name": { "name": "The Opener" }, "verses_count": 7, "revelation_place": "makkah" }] }`
 - `GET /translations?language=en` → `{ "translations": [{ "id": 131, "name": "Dr. Mustafa Khattab, the Clear Quran", "author_name": "Dr. Mustafa Khattab", "language_name": "english" }] }` (the actual list is supplied by Quran Foundation and varies by language)
-- `GET /chapters/:id/verses?page=1&per_page=50&translation_id=131&script=uthmani&language=en` → verses with selected Arabic text, full-ayah translation, and verified `words` entries containing word text, transliteration, translation, position, and word-audio asset path. The app currently displays word meanings and transliteration; word audio playback is the next milestone.
+- `GET /chapters/:id/verses?page=1&per_page=50&translation_id=131&script=uthmani&language=en` → verses with selected Arabic text, full-ayah translation, and verified `words` entries containing word text, transliteration, translation, position, and word-audio asset path. The app displays word meanings and transliteration and provides word-audio controls when a word audio asset is returned.
 
 Start the backend with `cd server && npm install && npm start`. Copy `server/.env.example` to `server/.env` and fill in credentials obtained for your own Quran Foundation backend app. Keep `server/.env` private. The backend obtains and caches Quran Foundation Content API access tokens on the server. Never put a Quran Foundation client secret or private API token in this Expo app, source control, or an `EXPO_PUBLIC_` variable. New Quran Foundation integrations require a backend/server app and approved Content API access; their pre-live dataset is limited to Al-Fatihah and Al-Baqarah. Production access is needed for the complete Qur’an dataset. The example backend requests the granular `content.quran.read`, `content.translations.read`, and `content.audio.read` scopes for existing reader/audio features. Tafsir uses a separate cached token requesting only `content.tafsirs.read`, so missing Tafsir approval does not block the other content features. Your Developer Console backend app must be approved for Tafsir access before the Tafsir catalogue and commentary endpoints can work. Existing credentials may require their approved scope list to be updated. See the [Quran Foundation API quickstart](https://api-docs.quran.com/docs/quickstart/) and [verses-by-chapter reference](https://api-docs.quran.com/docs/content_apis_versioned/4.0.0/verses-by-chapter-number/).
 
@@ -96,15 +111,17 @@ Audio metadata is retrieved server-side using the distinct chapter-reciter resou
 
 The Expo app uses `expo-audio`. After pulling the changes in Codespaces, run `npm install` and restart Expo. Test playback on a device/browser with audio output; this code has not yet been integration-tested against live credentials.
 
-## Still to build
+## Still to build and verify before release
 
-- Secure backend and verified full Qur’an data connection
-- Persistent accounts, bookmarks, notes, collections, and progress sync
-- Tafsir, related ayahs, search, and reflection tools
-- Ayah-level recitation timing, advanced playback queue, background controls, and offline support
-- Recitation recognition and word-level memorization feedback
-- Full revision plans, streaks, and analytics
-- Live AI teacher and reviewed Arabic curriculum
-- Notifications, subscription billing, and one-time trial enforcement
+- Secure account authentication and cloud sync across devices
+- Runtime and device testing of all reader, audio, storage, and navigation flows
+- Provider-approved production Qur’an content access, verified translation choices, and audio availability
+- Confirmation of the actual timestamp shape for chapter recordings; highlighting is conditional on compatible timestamp data
+- Real recitation recognition with carefully validated Arabic pronunciation and tajwid evaluation; current self-ratings are not AI accuracy scores
+- Reviewed, complete Arabic curriculum with lesson progression and assessment content
+- Live AI Teacher, with safety, source grounding, and usage-cost controls
+- Push notifications and working reminder scheduling
+- Store-compliant subscriptions, trial enforcement, and entitlement checks for Ayah Plus
+- Accessibility, performance, privacy, security, licensing, and app-store release review
 
-Qur’an text, translations, tafsir, and audio must be checked against trusted sources and usage permissions before release. Authentication, AI, audio, billing, notifications, and permanent storage are not connected yet. Current practice and bookmark data reset when the app restarts.
+Qur’an text, translations, tafsir, fonts, and audio must be checked against trusted sources and usage permissions before release. Authentication, cloud sync, live AI, push notifications, and billing are not connected. Audio and Tafsir require a configured backend and approved provider access. Local data can be lost when device storage is cleared, so users should export a backup before resetting or changing devices.
