@@ -100,6 +100,7 @@ function HomeScreen({ onNavigate, onPractice }) {
         <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
+        <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
@@ -125,7 +126,7 @@ const PRACTICE_PASSAGES = [
   { id: "ikhlas1", surah: "Al-Ikhlas", verse: "1", arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ", translation: "Say, He is Allah, the One.", reference: "Surah Al-Ikhlas · 112:1" },
   { id: "asr1", surah: "Al-Asr", verse: "1", arabic: "وَالْعَصْرِ", translation: "By time.", reference: "Surah Al-Asr · 103:1" }
 ];
-function MemorizeScreen({ onPracticed }) {
+function MemorizeScreen({ onPracticed, savedIds, onToggleSave, onSaved }) {
   const [selectedId, setSelectedId] = useState("fatiha2");
   const [stage, setStage] = useState(0);
   const [done, setDone] = useState(false);
@@ -156,6 +157,7 @@ function MemorizeScreen({ onPracticed }) {
         <Text style={styles.dailyArabic} writingDirection="rtl">{stage === 1 && !showMeaning ? "••••••••••••" : passage.arabic}</Text>
         <Text style={styles.progressHint}>{stages[stage].detail}</Text>
         {(stage !== 1 || showMeaning) && <Text style={styles.reference}>{passage.reference}</Text>}
+        <Button title={savedIds.includes(passage.id) ? "★ Saved to bookmarks" : "☆ Save this ayah"} secondary onPress={() => onToggleSave(passage.id)} />
         {stage === 2 && <Button title={showMeaning ? "Hide ayah" : "Reveal ayah"} secondary onPress={() => setShowMeaning(!showMeaning)} />}
         {stage === 0 && <Text style={styles.translation}>{passage.translation}</Text>}
       </View>
@@ -167,6 +169,7 @@ function MemorizeScreen({ onPracticed }) {
         <View style={styles.rowButtonCell}><Button title={stage === 2 ? "Start again" : "Next step"} onPress={() => { if (stage === 2) { setStage(0); setShowMeaning(false); setDone(false); } else { setStage(n => n + 1); setShowMeaning(false); } }} /></View>
       </View>
       <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); } }} disabled={done} />
+      <Button title="View saved ayahs" secondary onPress={onSaved} />
       <Text style={styles.tinyNote}>This guided practice is interactive, but audio playback and automatic recitation checking are not connected yet. Please check Qur’an text and pronunciation with a trusted mushaf or qualified teacher.</Text>
     </>
   );
@@ -213,6 +216,23 @@ function ArabicStarterQuiz({ onReview }) {
     <Button title={question === ARABIC_STARTER_QUIZ.length - 1 ? "Finish quiz" : "Next question"} disabled={!answer} onPress={submit} />
     <Text style={styles.tinyNote}>This short checkpoint reviews the three words in the starter lesson. It is practice, not a formal language proficiency test.</Text>
   </View>;
+}
+function SavedAyahsScreen({ savedIds, onToggleSave, onLearn }) {
+  const saved = PRACTICE_PASSAGES.filter(item => savedIds.includes(item.id));
+  return <>
+    <Header eyebrow="YOUR COLLECTION" title="Saved ayahs" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Your bookmarks</Text>
+      <Text style={styles.progressHint}>Keep ayahs you want to revisit. Bookmarks currently last only while this app session stays open.</Text>
+      {saved.length === 0 ? <><Text style={styles.progressHint}>No saved ayahs yet. Open memorization practice and tap “Save this ayah”.</Text><Button title="Go to memorization" onPress={onLearn} /></> : saved.map(item => <View key={item.id} style={styles.savedAyah}>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic}</Text>
+        <Text style={styles.translation}>{item.translation}</Text>
+        <Text style={styles.reference}>{item.reference}</Text>
+        <Button title="Remove bookmark" secondary onPress={() => onToggleSave(item.id)} />
+      </View>)}
+    </View>
+    <Button title="Back to learning" onPress={onLearn} />
+  </>;
 }
 function ArabicLessonsScreen({ onPremium }) {
   const [index, setIndex] = useState(0);
@@ -462,6 +482,7 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = useState(0);
+  const [savedIds, setSavedIds] = useState([]);
   const [themeName, setThemeName] = useState("auto");
   const [learningLanguage, setLearningLanguage] = useState("English");
   const [dailyGoal, setDailyGoal] = useState(10);
@@ -486,7 +507,8 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} />;
+  if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} />;
+  else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.filter(x => x !== id))} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
@@ -536,6 +558,7 @@ const createStyles = (p) => StyleSheet.create({
   freeLessonBadge:{backgroundColor:p.surface,borderRadius:12,padding:10,alignSelf:"flex-start",borderWidth:1,borderColor:GOLD,marginBottom:8},freeLessonBadgeText:{color:p.accent,fontSize:10,fontWeight:"800",letterSpacing:1.2},
   exampleBox:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14,alignItems:"center"},exampleArabic:{color:p.text,fontSize:24,lineHeight:42,textAlign:"center"},
   navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:p.bg},
+  savedAyah:{backgroundColor:p.surface,borderRadius:15,padding:13,marginTop:12},
   navIcon:{color:p.muted,fontSize:19,marginBottom:3},navLabel:{color:p.muted,fontSize:10},navSelected:{color:p.accent,fontWeight:"700"},
   stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
   rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1},
