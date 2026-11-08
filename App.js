@@ -14,11 +14,11 @@ function usePersistentState(key, initialValue) {
   const [hydrated, setHydrated] = useState(false);
   useEffect(() => {
     let active = true;
-    AsyncStorage.getItem(PREFERENCES_KEY).then(raw => {
+    AsyncStorage.getItem(PREFERENCES_KEY + ":" + key).then(raw => {
       if (!active) return;
       if (raw) {
         const saved = JSON.parse(raw);
-        if (Object.prototype.hasOwnProperty.call(saved, key)) setValue(saved[key]);
+        setValue(JSON.parse(raw));
       }
     }).catch(error => {
       console.warn("Could not load saved Ayah preferences:", error);
@@ -29,11 +29,7 @@ function usePersistentState(key, initialValue) {
   }, [key]);
   useEffect(() => {
     if (!hydrated) return;
-    AsyncStorage.getItem(PREFERENCES_KEY).then(raw => {
-      const saved = raw ? JSON.parse(raw) : {};
-      saved[key] = value;
-      return AsyncStorage.setItem(PREFERENCES_KEY, JSON.stringify(saved));
-    }).catch(error => console.warn("Could not save Ayah preferences:", error));
+    AsyncStorage.setItem(PREFERENCES_KEY + ":" + key, JSON.stringify(value)).catch(error => console.warn("Could not save Ayah preferences:", error));
   }, [key, value, hydrated]);
   return [value, setValue, hydrated];
 }
