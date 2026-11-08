@@ -90,9 +90,9 @@ function HomeScreen({ onNavigate, onPractice }) {
       <Text style={styles.sectionTitle}>Your tools</Text>
       <View style={styles.actionGrid}>
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
-        <ActionTile icon="↻" title="Review" subtitle="Strengthen recall" onPress={() => onNavigate("review")} />
-        <ActionTile icon="♫" title="Listen" subtitle="Choose a reciter" onPress={() => onNavigate("listen")} />
-        <ActionTile icon="✧" title="Hamza / Maryam" subtitle="Premium AI teacher" locked onPress={() => onNavigate("teacher")} />
+        <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
+        <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
+        <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
       </View>
       <View style={styles.premiumBanner}>
         <Text style={styles.premiumTitle}>Go deeper with Ayah Plus</Text>
@@ -153,6 +153,13 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = useState(0);
+  const navigate = key => {
+    if (["review", "listen", "teacher"].includes(key)) {
+      setTab("premium");
+    } else {
+      setTab(key);
+    }
+  };
   const continueEmail = email => {
     if (typeof email === "string" && email && !/^\S+@\S+\.\S+$/.test(email)) {
       Alert.alert("Check your email", "Please enter a valid email address.");
@@ -164,13 +171,11 @@ export default function App() {
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
   if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} />;
-  else if (tab === "review") screen = <ReviewScreen />;
-  else if (tab === "listen") screen = <ListenScreen />;
-  else if (tab === "teacher") screen = <TeacherScreen onPremium={() => setTab("premium")} />;
+  else if (tab === "review" || tab === "listen" || tab === "teacher") screen = <PremiumScreen onBack={() => setTab("home")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} />;
-  else screen = <HomeScreen onNavigate={setTab} onPractice={() => setTab("memorize")} />;
-  const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["review", "↻", "Review"], ["teacher", "✧", "Teacher"]];
-  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={NAVY} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => setTab(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
+  else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
+  const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["premium", "✧", "Ayah Plus"]];
+  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={NAVY} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
 const styles = StyleSheet.create({
   safeArea:{flex:1,backgroundColor:NAVY}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1},
