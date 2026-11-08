@@ -139,6 +139,7 @@ function HomeScreen({ onNavigate, onPractice }) {
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
+        <ActionTile icon="۞" title="Tafsir library" subtitle="Verse explanations · Plus" locked onPress={() => onNavigate("premium")} />
       </View>
       <View style={styles.premiumBanner}>
         <Text style={styles.premiumTitle}>Go deeper with Ayah Plus</Text>
@@ -928,6 +929,154 @@ function ArabicAlphabetScreen({ onPremium }) {
 }
 
 
+function TafsirLibraryScreen({ onBack }) {
+  const [sources, setSources] = useState([]);
+  const [resourceId, setResourceId] = useState("");
+  const [surah, setSurah] = useState("1");
+  const [ayah, setAyah] = useState("1");
+  const [commentary, setCommentary] = useState(null);
+  const [loadingSources, setLoadingSources] = useState(false);
+  const [loadingText, setLoadingText] = useState(false);
+  const [error, setError] = useState("");
+  const base = AYAH_API_BASE ? (AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE) : "";
+  useEffect(() => {
+    if (!base) return;
+    let active = true;
+    setLoadingSources(true);
+    fetch(base + "/tafsirs?language=en")
+      .then(response => { if (!response.ok) throw new Error("Tafsir catalogue request failed."); return response.json(); })
+      .then(data => {
+        if (!active) return;
+        const items = Array.isArray(data.tafsirs) ? data.tafsirs : [];
+        setSources(items);
+        if (items.length) setResourceId(String(items[0].id));
+      })
+      .catch(() => { if (active) setError("The Tafsir catalogue could not load. Check the backend connection and its approved Tafsir permission."); })
+      .finally(() => { if (active) setLoadingSources(false); });
+    return () => { active = false; };
+  }, []);
+  const selectedSource = sources.find(item => String(item.id) === resourceId);
+  const cleanHtml = value => String(value || "")
+    .replace(/<script[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<\/(p|div|li|h[1-6]|blockquote|tr)>/gi, "\n\n")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&#(\d+);/g, (_match, code) => String.fromCodePoint(Number(code)))
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  const loadCommentary = async () => {
+    const chapterNumber = Number(surah), verseNumber = Number(ayah);
+    if (!base) { setError("The secure Ayah backend is not configured yet."); return; }
+    if (!selectedSource || !Number.isInteger(chapterNumber) || chapterNumber < 1 || chapterNumber > 114 ||
+        !Number.isInteger(verseNumber) || verseNumber < 1 || verseNumber > 286) {
+      setError("Enter a valid surah number (1–114) and ayah number."); return;
+    }
+    setLoadingText(true); setError(""); setCommentary(null);
+    try {
+      const response = await fetch(base + "/tafsirs/" + resourceId + "/ayah/" + chapterNumber + "/" + verseNumber);
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || "This commentary could not be loaded.");
+      if (!data.tafsir?.text) throw new Error("No commentary was returned for this selection.");
+      setCommentary({ ...data.tafsir, displayText: cleanHtml(data.tafsir.text), surah:chapterNumber, ayah:verseNumber, author:selectedSource.author_name || "Author information not supplied" });
+    } catch (e) {
+      setError(e.message || "Unable to load this commentary. Please try again.");
+    } finally { setLoadingText(false); }
+  };
+  return <>
+    <Header eyebrow="AYAH PLUS · TAFSIR" title="Explore Tafsir" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>A library of recognized commentary</Text>
+      <Text style={styles.progressHint}>Choose a Tafsir source and an ayah reference. Commentary is retrieved from Quran Foundation, with the source and author shown alongside the passage.</Text>
+      {!base ? <View style={styles.apiNotice}><Text style={styles.sectionTitle}>Secure content connection needed</Text><Text style={styles.progressHint}>Set EXPO_PUBLIC_AYAH_API_URL to your deployed Ayah backend. The server also needs the approved content.tafsirs.read permission.</Text></View> : null}
+      <Text style={styles.settingLabel}>Tafsir source</Text>
+      {loadingSources ? <ActivityIndicator color={GOLD}/> : sources.length ? sources.map(item => <Pressable key={item.id} onPress={() => {setResourceId(String(item.id));setCommentary(null);setError("");}} style={[styles.choice,resourceId===String(item.id)&&styles.choiceSelected]}><View style={{flex:1}}><Text style={[styles.choiceText,resourceId===String(item.id)&&styles.choiceTextSelected]}>{item.translated_name?.name || item.name}</Text><Text style={styles.reference}>{item.author_name || "Author not listed"} · {item.language_name || "Language not listed"}</Text></View><Text style={styles.choiceMark}>{resourceId===String(item.id)?"✓":"○"}</Text></Pressable>) : <Text style={styles.progressHint}>Available sources will appear here when the backend is connected.</Text>}
+      <Text style={styles.settingLabel}>Surah number</Text>
+      <TextInput value={surah} onChangeText={value=>{setSurah(value);setCommentary(null);}} keyboardType="number-pad" style={styles.emailInput} placeholder="1" placeholderTextColor={MUTED}/>
+      <Text style={styles.settingLabel}>Ayah number</Text>
+      <TextInput value={ayah} onChangeText={value=>{setAyah(value);setCommentary(null);}} keyboardType="number-pad" style={styles.emailInput} placeholder="1" placeholderTextColor={MUTED}/>
+      <Button title={loadingText ? "Loading commentary…" : "Read Tafsir"} onPress={loadCommentary} disabled={!base||!selectedSource||loadingSources||loadingText}/>
+      {error ? <Text style={styles.progressHint}>{error}</Text> : null}
+    </View>
+    {commentary ? <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>SOURCE-ATTRIBUTED COMMENTARY</Text>
+      <Text style={styles.sectionTitle}>{commentary.translated_name?.name || commentary.resource_name || selectedSource?.name}</Text>
+      <Text style={styles.reference}>Author: {commentary.author} · {commentary.language_name || selectedSource?.language_name}</Text>
+      <Text style={styles.reference}>Reference: {commentary.surah}:{commentary.ayah}</Text>
+      <Text style={[styles.stepText,{marginTop:16}]}>{commentary.displayText || "The source returned no readable text."}</Text>
+      <Text style={styles.tinyNote}>This is commentary from the named source, not a new interpretation generated by Ayah. Where scholars differ, their views should be presented separately and attributed.</Text>
+    </View> : null}
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>How Ayah handles Tafsir</Text>
+      <Text style={styles.progressHint}>• Preserve the source name and author attribution.</Text>
+      <Text style={styles.progressHint}>• Do not invent reasons for revelation or scholarly positions.</Text>
+      <Text style={styles.progressHint}>• Add comparisons only when each source is retrieved and clearly identified.</Text>
+      <Text style={styles.progressHint}>• Respect provider and publisher licensing before public release.</Text>
+    </View>
+    <Button title="Back to Ayah Plus" secondary onPress={onBack}/>
+  </>;
+}
+
+function PremiumScreen({ onBack, onTeacher, onTafsir }) {
+  return <>
+    <Header eyebrow="AYAH PLUS" title="Go deeper in your Qur’an journey" />
+    <View style={styles.premiumHero}>
+      <Text style={styles.premiumKicker}>AYAH PLUS · EXPANDED LEARNING</Text>
+      <Text style={styles.premiumBig}>More guidance. More depth. More ways to learn.</Text>
+      <Text style={styles.progressHint}>Ayah Plus is being built as an expanded learning experience. The Qur’an itself remains accessible in the free version.</Text>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Tafsir Plus</Text>
+      <Text style={styles.progressHint}>Explore recognized commentary by ayah, see author attribution, and compare sources as the library grows.</Text>
+      <Text style={styles.lockedLabel}>PREMIUM FEATURE · IN DEVELOPMENT</Text>
+      <Button title="Explore Tafsir library" onPress={onTafsir}/>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Teacher Plus</Text>
+      <Text style={styles.progressHint}>A guided repeat-after-me learning experience with selectable learning languages is planned.</Text>
+      <Button title="Preview AI teacher" secondary onPress={onTeacher}/>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>More Ayah Plus pillars</Text>
+      {["Hifdh Plus · personalized revision","Arabic Plus · expanded lessons and tests","Insights Plus · detailed learning progress","Recitation Plus · expanded listening tools"].map(item=><Text key={item} style={styles.progressHint}>• {item}</Text>)}
+    </View>
+    <Text style={styles.tinyNote}>Subscriptions, trials, and payments are not active. Prices and plan details will be finalized after service costs and store requirements are reviewed.</Text>
+    <Button title="Back to home" secondary onPress={onBack}/>
+  </>;
+}
+
+function TeacherPreviewScreen({ onBack, onPremium }) {
+  const [teacher, setTeacher] = useState("Hamza");
+  const [language, setLanguage] = useState("English");
+  return <>
+    <Header eyebrow="TEACHER PLUS · PREVIEW" title="Meet your learning guide" />
+    <View style={styles.teacherCard}>
+      <View style={styles.teacherAvatar}><Text style={styles.teacherAvatarText}>{teacher === "Hamza" ? "ح" : "م"}</Text></View>
+      <Text style={styles.teacherName}>{teacher}</Text>
+      <Text style={styles.progressHint}>A calm, original learning-guide concept. This preview does not generate speech or imitate a real reciter.</Text>
+      <View style={styles.assistantChoices}>
+        {["Hamza","Maryam"].map(name=><Pressable key={name} onPress={()=>setTeacher(name)} style={[styles.nameChoice,teacher===name&&styles.choiceSelected]}><Text style={styles.choiceText}>{name}</Text></Pressable>)}
+      </View>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Learning language</Text>
+      <View style={styles.languageGrid}>{["English","Arabic","Urdu","Bengali","Turkish","French","Bahasa Indonesia"].map(item=><Pressable key={item} onPress={()=>setLanguage(item)} style={[styles.languageChoice,language===item&&styles.choiceSelected]}><Text style={styles.choiceText}>{item}</Text></Pressable>)}</View>
+      <Text style={styles.reference}>Selected language: {language}</Text>
+      <Text style={styles.progressHint}>The live AI tutor and generated voice are not connected yet. Qur’an recitation audio will use authorized reciter recordings, not voice imitation.</Text>
+      <Button title="Explore Ayah Plus" onPress={onPremium}/>
+    </View>
+    <Button title="Back" secondary onPress={onBack}/>
+  </>;
+}
+
 function SettingsScreen({ themeName, onSelectTheme, language, onSelectLanguage, dailyGoal, onSelectGoal, remindersEnabled, onToggleReminders, practiceCount, onBack }) {
   const options = [
     { id:"auto", name:"Auto", note:"Follow your device appearance" },
@@ -1142,11 +1291,12 @@ export default function App() {
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
-  else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
-  else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
+  else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("premium")} onPremium={() => setTab("premium")} />;
+  else if (tab === "tafsir") screen = <TafsirLibraryScreen onBack={() => setTab("premium")} />;
+  else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
-  else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
+  else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
   const tabs = [["home", "⌂", "Home"], ["library", "📖", "Qur’an"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
   return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
