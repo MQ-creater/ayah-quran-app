@@ -229,7 +229,7 @@ function QuranLibraryScreen({ onOpenChapter }) {
     if (!AYAH_API_BASE) return;
     let active = true;
     setLoading(true); setError("");
-    fetch(`${AYAH_API_BASE.replace(/\\/$/, "")}/chapters`)
+    fetch(`${(AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE)}/chapters`)
       .then(response => { if (!response.ok) throw new Error(`Server returned ${response.status}`); return response.json(); })
       .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
       .catch(() => { if (active) setError("We could not load the surah list. Please check the Ayah content server connection."); })
@@ -264,7 +264,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
     if (!AYAH_API_BASE || !chapter?.id) return;
     let active = true;
     setLoading(true); setError(""); setVerses([]);
-    fetch(`${AYAH_API_BASE.replace(/\\/$/, "")}/chapters/${chapter.id}/verses?page=1&per_page=50&translation_id=131`)
+    fetch(`${(AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE)}/chapters/${chapter.id}/verses?page=1&per_page=50&translation_id=131`)
       .then(response => { if (!response.ok) throw new Error(`Server returned ${response.status}`); return response.json(); })
       .then(data => { if (active) setVerses(Array.isArray(data.verses) ? data.verses : []); })
       .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
