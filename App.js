@@ -147,6 +147,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="✦" title="For you" subtitle="Personalized learning recommendations" onPress={() => onNavigate("recommendations")} />
         <ActionTile icon="◷" title="Learning insights" subtitle="Sessions, practice and progress" onPress={() => onNavigate("insights")} />
         <ActionTile icon="▣" title="Backup & privacy" subtitle="Export or clear this device’s data" onPress={() => onNavigate("data")} />
+        <ActionTile icon="⌁" title="Connection status" subtitle="Check the Qur’an content service" onPress={() => onNavigate("backend")} />
         <ActionTile icon="▦" title="Learning calendar" subtitle="Monthly reading and hifdh schedule" onPress={() => onNavigate("calendar")} />
         <ActionTile icon="☆" title="Saved ayahs" subtitle="Your bookmarked verses" onPress={() => onNavigate("saved")} />
         <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
@@ -809,6 +810,46 @@ function DailyGoalsScreen({ activity, onBack, readingTarget, memorizationTarget,
   </>;
 }
 
+
+
+function BackendStatusScreen({ onBack }) {
+  const [status,setStatus] = useState("checking");
+  const [details,setDetails] = useState(null);
+  const [error,setError] = useState("");
+  const check = async () => {
+    if(!AYAH_API_BASE){setStatus("missing");setDetails(null);setError("The EXPO_PUBLIC_AYAH_API_URL setting is empty. Configure it to point to your deployed Ayah API and include /api at the end.");return;}
+    setStatus("checking");setError("");
+    const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
+    try {
+      const response=await fetch(base+"/status");
+      if(!response.ok)throw new Error("The server returned HTTP "+response.status+".");
+      const data=await response.json();
+      setDetails(data);setStatus("connected");
+    } catch(err) {setDetails(null);setStatus("unavailable");setError(err.message||"The Ayah API could not be reached.");}
+  };
+  useEffect(()=>{check();},[]);
+  return <>
+    <Header eyebrow="APP CONNECTION" title="Backend status" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Qur’an content service</Text>
+      <Text style={styles.quizScore}>{status==="checking"?"…":status==="connected"?"✓":status==="missing"?"—":"!"}</Text>
+      <Text style={styles.sectionTitle}>{status==="checking"?"Checking connection…":status==="connected"?"Ayah API is reachable":status==="missing"?"Backend URL not configured":"Could not connect"}</Text>
+      {status==="connected"?<>
+        <Text style={styles.progressHint}>Environment: {details?.environment||"Not reported"}</Text>
+        <Text style={styles.progressHint}>Server credentials: {details?.providerConfigured?"Configured":"Not configured"}</Text>
+        <Text style={styles.progressHint}>Available routes: {(details?.endpoints||[]).join(", ")||"Not reported"}</Text>
+        <Text style={styles.tinyNote}>A reachable server does not guarantee that the provider approved every API permission. Tafsir, audio, and production Qur’an access must be confirmed separately.</Text>
+      </>:<Text style={styles.progressHint}>{error||"The app is checking the configured backend."}</Text>}
+      <Button title={status==="checking"?"Checking…":"Check connection again"} onPress={check} disabled={status==="checking"}/>
+    </View>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>What this check confirms</Text>
+      <Text style={styles.progressHint}>It checks whether the Ayah API responds and whether server credentials are present. It never displays or sends private credentials to the app.</Text>
+      <Text style={styles.progressHint}>For production, configure NODE_ENV=production and set ALLOWED_ORIGINS to the exact origins allowed to use the backend.</Text>
+    </View>
+    <Button title="Back to home" secondary onPress={onBack}/>
+  </>;
+}
 
 function LearningInsightsScreen({ practiceHistory = [], activity = {}, progress = {}, reviewRecords = {}, onBack, onNavigate }) {
   const sessions = Array.isArray(practiceHistory) ? practiceHistory : [];
@@ -1866,6 +1907,7 @@ export default function App() {
   else if (tab === "calendar") screen = <PersonalLearningCalendarScreen plan={memorizationPlan} activity={dailyActivity} onStartAssignment={assignment=>{setActiveAssignment(assignment);setTab("buildSession");}} onBack={destination=>setTab(destination||"home")} />;
   else if (tab === "recommendations") screen = <LearningRecommendationsScreen progress={memorizationProgress} reviewRecords={reviewRecords} activity={dailyActivity} onStartVerse={(chapterId,verse)=>{setActiveAssignment({chapterId,startVerse:Number(verse),endVerse:Number(verse),revision:true});setTab("buildSession");}} onStartPractice={mode=>setTab(mode==="revision"?"revision":"memorize")} onOpenPlan={()=>setTab("tracking")} onBack={()=>setTab("home")} />;
   else if (tab === "goals") screen = <DailyGoalsScreen activity={dailyActivity} readingTarget={dailyTargets?.reading??5} memorizationTarget={dailyTargets?.memorization??1} onSetReadingTarget={value=>setDailyTargets(current=>({...current,reading:value}))} onSetMemorizationTarget={value=>setDailyTargets(current=>({...current,memorization:value}))} onBack={() => setTab("home")} />;
+  else if (tab === "backend") screen = <BackendStatusScreen onBack={()=>setTab("home")} />;
   else if (tab === "insights") screen = <LearningInsightsScreen practiceHistory={practiceHistory} activity={dailyActivity} progress={memorizationProgress} reviewRecords={reviewRecords} onNavigate={navigate} onBack={()=>setTab("home")} />;
   else if (tab === "data") screen = <DataPrivacyScreen stats={{sessions:(Array.isArray(practiceHistory)?practiceHistory.length:0),bookmarks:savedIds.length,notes:Object.keys(readerNotes||{}).length}} onBack={()=>setTab("home")} onExport={async()=>{try{const backup={app:"Ayah",schemaVersion:1,exportedAt:new Date().toISOString(),data:{practiceCount,practiceHistory,memorizationPlan,dailyTargets,reviewRecords,memorizationProgress,savedIds,favoriteReciterIds,preferredReciterId,preferredReciterName,savedVerseDetails,readerNotes,ayahCollections,lastReadPosition,themeName,learningLanguage,dailyGoal,dailyActivity,remindersEnabled}};await Share.share({title:"Ayah study backup",message:JSON.stringify(backup,null,2)});}catch(error){Alert.alert("Backup unavailable","Your device could not open the share sheet. Please try again.");}}} onReset={()=>Alert.alert("Clear local Ayah data?","This removes your saved learning progress, notes, bookmarks, settings and session history from this device. This cannot be undone unless you exported a backup.",[{text:"Cancel",style:"cancel"},{text:"Clear data",style:"destructive",onPress:async()=>{try{const keys=await AsyncStorage.getAllKeys();await AsyncStorage.multiRemove(keys.filter(key=>key.startsWith(PREFERENCES_KEY+":")));setPracticeCount(0);setPracticeHistory([]);setDailyTargets({reading:5,memorization:1});setMemorizationPlan({dailyTarget:1,daysPerWeek:5,focus:"balanced"});setReviewRecords({});setMemorizationProgress({});setSavedIds([]);setFavoriteReciterIds([]);setPreferredReciterId("");setPreferredReciterName("");setSavedVerseDetails({});setReaderNotes({});setAyahCollections({});setLastReadPosition(null);setThemeName("auto");setLearningLanguage("English");setDailyGoal(10);setDailyActivity({});setRemindersEnabled(false);setSelectedChapter(null);setActiveAssignment(null);setTab("home");Alert.alert("Local data cleared","Ayah is ready for a fresh start.");}catch(error){Alert.alert("Could not clear data","Please try again.");}}}])} />;
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
