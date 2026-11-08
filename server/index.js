@@ -63,18 +63,24 @@ async function getAccessToken(includeTafsir = false) {
   if (!includeTafsir && cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
 
   const credentials = Buffer.from(clientId + ":" + clientSecret).toString("base64");
-  const response = await fetch(qf.auth + "/oauth2/token", {
-    method: "POST",
-    headers: {
-      Authorization: "Basic " + credentials,
-      "Content-Type": "application/x-www-form-urlencoded"
-    },
-    body: new URLSearchParams({
-      grant_type: "client_credentials",
-      scope: includeTafsir ? "content.tafsirs.read" : "content.quran.read content.translations.read content.audio.read"
-    }),
-    signal: AbortSignal.timeout(15000)
-  });
+  let response;
+  try {
+    response = await fetch(qf.auth + "/oauth2/token", {
+      method: "POST",
+      headers: {
+        Authorization: "Basic " + credentials,
+        "Content-Type": "application/x-www-form-urlencoded"
+      },
+      body: new URLSearchParams({
+        grant_type: "client_credentials",
+        scope: includeTafsir ? "content.tafsirs.read" : "content.quran.read content.translations.read content.audio.read"
+      }),
+      signal: AbortSignal.timeout(15000)
+    });
+  } catch (error) {
+    if (error?.name === "TimeoutError" || error?.name === "AbortError") error.status = 504;
+    throw error;
+  }
   if (!response.ok) { const error=new Error("Quran Foundation authentication failed.");error.status=502;throw error; }
   const data = await response.json();
   if (!data.access_token) throw new Error("The content provider returned no access token.");
