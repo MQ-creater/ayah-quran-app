@@ -110,27 +110,54 @@ function ActionTile({ icon, title, subtitle, onPress, locked = false }) {
     </Pressable>
   );
 }
+const PRACTICE_PASSAGES = [
+  { id: "fatiha2", surah: "Al-Fatihah", verse: "2", arabic: "الْحَمْدُ لِلَّهِ رَبِّ الْعَالَمِينَ", translation: "All praise is for Allah—Lord of all worlds.", reference: "Surah Al-Fatihah · 1:2" },
+  { id: "ikhlas1", surah: "Al-Ikhlas", verse: "1", arabic: "قُلْ هُوَ اللَّهُ أَحَدٌ", translation: "Say, He is Allah, the One.", reference: "Surah Al-Ikhlas · 112:1" },
+  { id: "asr1", surah: "Al-Asr", verse: "1", arabic: "وَالْعَصْرِ", translation: "By time.", reference: "Surah Al-Asr · 103:1" }
+];
 function MemorizeScreen({ onPracticed }) {
-  const [revealed, setRevealed] = useState(false);
+  const [selectedId, setSelectedId] = useState("fatiha2");
+  const [stage, setStage] = useState(0);
   const [done, setDone] = useState(false);
+  const [showMeaning, setShowMeaning] = useState(false);
+  const passage = PRACTICE_PASSAGES.find(item => item.id === selectedId) || PRACTICE_PASSAGES[0];
+  const stages = [
+    { title: "Read and become familiar", detail: "Read the ayah slowly a few times. Notice where each word begins and ends." },
+    { title: "Repeat from memory", detail: "Look away from the text and try to recite what you remember. Take your time." },
+    { title: "Check your recall", detail: "Reveal the ayah and compare carefully. Return to the beginning if you want another round." }
+  ];
+  const choosePassage = id => { setSelectedId(id); setStage(0); setDone(false); setShowMeaning(false); };
   return (
     <>
-      <Header eyebrow="MEMORIZATION" title="Learn one ayah" />
-      <View style={styles.lessonCard}>
-        <Text style={styles.cardEyebrow}>YOUR PRACTICE AYAH</Text>
-        <Text style={styles.dailyArabic} writingDirection="rtl">{PRACTICE.arabic}</Text>
-        {revealed ? <Text style={styles.translation}>{PRACTICE.translation}</Text> : <Text style={styles.progressHint}>Try reading it, then reveal the meaning.</Text>}
-        <Text style={styles.reference}>{PRACTICE.reference}</Text>
-      </View>
-      <Button title={revealed ? "Hide meaning" : "Reveal meaning"} secondary onPress={() => setRevealed(!revealed)} />
+      <Header eyebrow="MEMORIZATION" title="Your learning session" />
       <View style={styles.infoCard}>
-        <Text style={styles.sectionTitle}>A simple practice method</Text>
-        <Text style={styles.stepText}>1. Read slowly while looking at the ayah.</Text>
-        <Text style={styles.stepText}>2. Listen to a trusted recitation and follow along.</Text>
-        <Text style={styles.stepText}>3. Cover the text and try to recall it.</Text>
-        <Text style={styles.stepText}>4. Check carefully and repeat calmly.</Text>
+        <Text style={styles.sectionTitle}>Choose a practice ayah</Text>
+        <Text style={styles.progressHint}>Start with one ayah. More surahs and passage ranges will be added as the verified Qur’an text library grows.</Text>
+        {PRACTICE_PASSAGES.map(item => (
+          <Pressable key={item.id} onPress={() => choosePassage(item.id)} style={[styles.choice, selectedId === item.id && styles.choiceSelected]}>
+            <View><Text style={[styles.choiceText, selectedId === item.id && styles.choiceTextSelected]}>{item.surah}</Text><Text style={styles.reference}>Ayah {item.verse}</Text></View>
+            <Text style={styles.choiceMark}>{selectedId === item.id ? "✓" : "○"}</Text>
+          </Pressable>
+        ))}
       </View>
-      <Button title={done ? "Practice recorded" : "I practiced this ayah"} onPress={() => { if (!done) { setDone(true); onPracticed(); } }} disabled={done} />
+      <View style={styles.lessonCard}>
+        <Text style={styles.cardEyebrow}>PRACTICE · STEP {stage + 1} OF 3</Text>
+        <Text style={styles.sectionTitle}>{stages[stage].title}</Text>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{stage === 1 && !showMeaning ? "••••••••••••" : passage.arabic}</Text>
+        <Text style={styles.progressHint}>{stages[stage].detail}</Text>
+        {(stage !== 1 || showMeaning) && <Text style={styles.reference}>{passage.reference}</Text>}
+        {stage === 2 && <Button title={showMeaning ? "Hide ayah" : "Reveal ayah"} secondary onPress={() => setShowMeaning(!showMeaning)} />}
+        {stage === 0 && <Text style={styles.translation}>{passage.translation}</Text>}
+      </View>
+      <View style={styles.stepDots}>
+        {stages.map((item, index) => <View key={item.title} style={[styles.stepDot, index <= stage && styles.stepDotActive]} />)}
+      </View>
+      <View style={styles.rowButtons}>
+        <View style={styles.rowButtonCell}><Button title="Previous" secondary disabled={stage === 0} onPress={() => { setStage(n => Math.max(0, n - 1)); setShowMeaning(false); }} /></View>
+        <View style={styles.rowButtonCell}><Button title={stage === 2 ? "Start again" : "Next step"} onPress={() => { if (stage === 2) { setStage(0); setShowMeaning(false); setDone(false); } else { setStage(n => n + 1); setShowMeaning(false); } }} /></View>
+      </View>
+      <Button title={done ? "Session completed" : "Finish this practice"} onPress={() => { if (!done) { setDone(true); onPracticed(); } }} disabled={done} />
+      <Text style={styles.tinyNote}>This guided practice is interactive, but audio playback and automatic recitation checking are not connected yet. Please check Qur’an text and pronunciation with a trusted mushaf or qualified teacher.</Text>
     </>
   );
 }
@@ -253,5 +280,7 @@ const styles = StyleSheet.create({
   languageGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginTop:12},languageChoice:{backgroundColor:"#24354C",borderRadius:12,paddingVertical:10,paddingHorizontal:13},
   practicePrompt:{backgroundColor:"#24354C",borderRadius:14,padding:15,marginTop:10},practicePromptText:{color:GOLD,fontSize:14,fontWeight:"600",textAlign:"center",lineHeight:22},
   navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:NAVY},
-  navIcon:{color:MUTED,fontSize:19,marginBottom:3},navLabel:{color:MUTED,fontSize:10},navSelected:{color:GOLD,fontWeight:"700"}
+  navIcon:{color:MUTED,fontSize:19,marginBottom:3},navLabel:{color:MUTED,fontSize:10},navSelected:{color:GOLD,fontWeight:"700"},
+  stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
+  rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1}
 });
