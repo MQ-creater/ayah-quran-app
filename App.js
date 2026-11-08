@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import * as Font from "expo-font";
 import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
   Pressable, TextInput, ImageBackground, Alert, ActivityIndicator
@@ -265,6 +266,8 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
   const [showArabic, setShowArabic] = useState(true);
   const [showTranslation, setShowTranslation] = useState(true);
   const [arabicScript, setArabicScript] = useState("Uthmani");
+  const [arabicFontReady, setArabicFontReady] = useState(false);
+  const [arabicFontError, setArabicFontError] = useState("");
   const [translationFont, setTranslationFont] = useState("Sans");
   const [translationLanguage, setTranslationLanguage] = useState("en");
   const [translationOptions, setTranslationOptions] = useState([]);
@@ -278,6 +281,20 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
     setPage(1);
     setError("");
   }, [chapter?.id]);
+  useEffect(() => {
+    let active = true;
+    setArabicFontReady(false);
+    setArabicFontError("");
+    const fontName = arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs";
+    const fontUri = arabicScript === "IndoPak"
+      ? "https://verses.quran.foundation/fonts/quran/hafs/nastaleeq/indopak/indopak-nastaleeq-waqf-lazim-v4.2.1.ttf"
+      : "https://verses.quran.foundation/fonts/quran/hafs/uthmanic_hafs/UthmanicHafs1Ver18.ttf";
+    Font.loadAsync({ [fontName]: { uri: fontUri } })
+      .then(() => { if (active) setArabicFontReady(true); })
+      .catch(() => { if (active) setArabicFontError("The selected Qur’an font could not be loaded. Check your connection and try again."); });
+    return () => { active = false; };
+  }, [arabicScript]);
+
   useEffect(() => {
     if (!AYAH_API_BASE) return;
     let active = true;
@@ -303,7 +320,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
     let active = true;
     setLoading(true); setError("");
     const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
-    fetch(base + "/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=" + encodeURIComponent(translationId))
+    fetch(base + "/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=" + encodeURIComponent(translationId) + "&script=" + (arabicScript === "IndoPak" ? "indopak" : "uthmani"))
       .then(response => { if (!response.ok) throw new Error("Server returned " + response.status); return response.json(); })
       .then(data => {
         if (!active) return;
@@ -313,7 +330,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
       .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [chapter?.id, page, translationId]);
+  }, [chapter?.id, page, translationId, arabicScript]);
   return <>
     <Header eyebrow={"SURAH " + chapter.id} title={chapter.name_simple} />
     <View style={styles.infoCard}>
@@ -355,9 +372,9 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
         })}
         <Text style={styles.readerToolLabel}>Arabic script edition</Text>
         <View style={styles.readerToggleRow}>
-          {["Uthmani", "IndoPak", "Imla’i"].map(option => <Pressable key={option} accessibilityRole="button" onPress={() => setArabicScript(option)} style={[styles.readerToggle, arabicScript === option && styles.readerToggleActive]}><Text style={[styles.readerToggleText, arabicScript === option && styles.readerToggleTextActive]}>{option}</Text></Pressable>)}
+          {["Uthmani", "IndoPak"].map(option => <Pressable key={option} accessibilityRole="button" onPress={() => setArabicScript(option)} style={[styles.readerToggle, arabicScript === option && styles.readerToggleActive]}><Text style={[styles.readerToggleText, arabicScript === option && styles.readerToggleTextActive]}>{option}</Text></Pressable>)}
         </View>
-        {arabicScript !== "Uthmani" ? <Text style={styles.tinyNote}>Your {arabicScript} preference is selected. This content connection currently supplies Uthmani text only, so the displayed ayahs remain Uthmani until the matching verified text edition is connected.</Text> : null}
+        <Text style={styles.tinyNote}>Each option uses its matching Qur’an text field and compatible font. Fonts are provided by Quran Foundation.</Text>
         <Text style={styles.readerToolLabel}>Translation font</Text>
         <View style={styles.readerToggleRow}>
           {["Sans", "Serif", "Monospace"].map(option => <Pressable key={option} accessibilityRole="button" onPress={() => setTranslationFont(option)} style={[styles.readerToggle, translationFont === option && styles.readerToggleActive]}><Text style={[styles.readerToggleText, translationFont === option && styles.readerToggleTextActive]}>{option}</Text></Pressable>)}
@@ -371,7 +388,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave }) {
         const plainTranslation = translation.replace(/<[^>]*>/g, "");
         return <View key={key} style={styles.verseCard}>
           <View style={styles.verseMeta}><Text style={styles.verseNumber}>{key}</Text><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View>
-          {showArabic ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2) }]} writingDirection="rtl">{verse.text_uthmani || ""}</Text> : null}
+          {showArabic ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {showTranslation ? <Text style={[styles.translation, translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
         </View>;
       })}
