@@ -697,7 +697,7 @@ function PersonalLearningCalendarScreen({ plan, activity, onStartAssignment, onB
 }
 
 
-function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPreferredId, onBack }) {
+function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPreferredId, setPreferredName, onBack }) {
   const player=useAudioPlayer(null),status=useAudioPlayerStatus(player);
   const [reciters,setReciters]=useState([]),[loading,setLoading]=useState(false),[error,setError]=useState("");
   const [language,setLanguage]=useState("en"),[selectedChapter,setSelectedChapter]=useState("1"),[playingId,setPlayingId]=useState(null),[search,setSearch]=useState("");
@@ -723,7 +723,7 @@ function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPre
       if(!response.ok)throw new Error("A preview is not available for this reciter and surah.");
       const data=await response.json(),url=data.audio?.url;
       if(!url)throw new Error("The provider did not return an audio file.");
-      setPreferredId(id);setPlayingId(id);player.replace(url);player.play();
+      setPreferredId(id);setPreferredName?.(getName(item));setPlayingId(id);player.replace(url);player.play();
     }catch(err){Alert.alert("Unable to play preview",err.message||"Please try again.");}
   };
   return <>
@@ -743,7 +743,7 @@ function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPre
     {filtered.map(item=>{const id=getId(item),name=getName(item),favorite=favoriteIds.includes(id),selected=preferredId===id;return <View key={id||name} style={styles.infoCard}>
       <View style={styles.reciterRow}><View style={{flex:1}}><Text style={styles.sectionTitle}>{name}</Text><Text style={styles.reference}>{item.style||item.recitation_style||item.translated_name?.name||"Qur’an recitation"}</Text>{selected?<Text style={styles.lockedLabel}>YOUR PREFERRED RECITER</Text>:null}</View>
       <Pressable onPress={()=>toggleFavorite(id)} style={styles.readerToggle}><Text style={styles.readerToggleText}>{favorite?"★ Saved":"☆ Favorite"}</Text></Pressable></View>
-      <View style={styles.readerToggleRow}><Pressable onPress={()=>setPreferredId(id)} style={[styles.readerToggle,selected&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,selected&&styles.readerToggleTextActive]}>{selected?"✓ Preferred":"Set as preferred"}</Text></Pressable><Pressable onPress={()=>preview(item)} style={[styles.readerToggle,playingId===id&&status?.playing&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,playingId===id&&status?.playing&&styles.readerToggleTextActive]}>{playingId===id&&status?.playing?"Ⅱ Playing":"▶ Preview surah"}</Text></Pressable></View>
+      <View style={styles.readerToggleRow}><Pressable onPress={()=>{setPreferredId(id);setPreferredName?.(name);}} style={[styles.readerToggle,selected&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,selected&&styles.readerToggleTextActive]}>{selected?"✓ Preferred":"Set as preferred"}</Text></Pressable><Pressable onPress={()=>preview(item)} style={[styles.readerToggle,playingId===id&&status?.playing&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,playingId===id&&status?.playing&&styles.readerToggleTextActive]}>{playingId===id&&status?.playing?"Ⅱ Playing":"▶ Preview surah"}</Text></Pressable></View>
     </View>;})}
     <Text style={styles.tinyNote}>Reciter availability and recording rights depend on the content provider. Favorites and preferred reciter are saved on this device. Preview uses the selected surah's recording; it is not a short sample.</Text>
     <Button title="Back to home" secondary onPress={onBack}/>
@@ -877,8 +877,27 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
   </>;
 }
-function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition }) {
+function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName }) {
   const audioStatus = useAudioPlayerStatus(wordPlayer);
+  const chapterPlayer = useAudioPlayer(null);
+  const chapterAudioStatus = useAudioPlayerStatus(chapterPlayer);
+  const [chapterAudioLoading,setChapterAudioLoading] = useState(false);
+  const [chapterAudioError,setChapterAudioError] = useState("");
+  const playPreferredReciter = async () => {
+    if (!preferredReciterId) { Alert.alert("Choose a reciter first","Open the Recitation Library and choose your preferred reciter."); return; }
+    if (!AYAH_API_BASE) { Alert.alert("Backend required","Connect the Ayah content backend to play chapter recitations."); return; }
+    try {
+      setChapterAudioLoading(true);setChapterAudioError("");
+      const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
+      const response=await fetch(base+"/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+chapter.id);
+      const data=await response.json();
+      if (!response.ok) throw new Error(data.error || "This recording is unavailable.");
+      if (!data.audio?.url) throw new Error("The provider did not return an audio file.");
+      chapterPlayer.replace(data.audio.url);chapterPlayer.play();
+    } catch(error) {
+      const message=error.message||"Please try again.";setChapterAudioError(message);Alert.alert("Unable to play recitation",message);
+    } finally { setChapterAudioLoading(false); }
+  };
   const [activeAudioKey,setActiveAudioKey] = useState(null);
   const [repeatCount,setRepeatCount] = usePersistentState("recitationRepeatCount",3);
   const [repeatsRemaining,setRepeatsRemaining] = useState(0);
@@ -985,6 +1004,16 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
     <Header eyebrow={"SURAH " + chapter.id} title={chapter.name_simple} />
     <View style={styles.infoCard}>
       <Text style={styles.chapterArabicLarge}>{chapter.name_arabic || ""}</Text>
+      <Text style={styles.readerToolLabel}>PREFERRED RECITER</Text>
+      <Text style={styles.progressHint}>{preferredReciterName || (preferredReciterId ? "Selected reciter" : "No preferred reciter selected")}</Text>
+      <View style={styles.readerToggleRow}>
+        <Pressable accessibilityRole="button" disabled={chapterAudioLoading} onPress={playPreferredReciter} style={[styles.readerToggle,styles.readerToggleActive,chapterAudioLoading&&styles.disabled]}>
+          <Text style={[styles.readerToggleText,styles.readerToggleTextActive]}>{chapterAudioLoading?"Loading recitation…":chapterAudioStatus?.playing?"Play again · Surah":"▶ Play surah"}</Text>
+        </Pressable>
+        {chapterAudioStatus?.playing?<Pressable accessibilityRole="button" onPress={()=>chapterPlayer.pause()} style={styles.readerToggle}><Text style={styles.readerToggleText}>Ⅱ Pause</Text></Pressable>:null}
+        {chapterAudioStatus?.paused?<Pressable accessibilityRole="button" onPress={()=>chapterPlayer.play()} style={styles.readerToggle}><Text style={styles.readerToggleText}>▶ Resume</Text></Pressable>:null}
+      </View>
+      {chapterAudioError?<Text style={styles.tinyNote}>{chapterAudioError}</Text>:null}
       <Text style={styles.reference}>{chapter.translated_name?.name || ""} · {chapter.verses_count} ayahs · {chapter.revelation_place || ""}</Text>
       <Button title="Back to surah list" secondary onPress={onBack} />
       <View style={styles.readerTools}>
@@ -1627,6 +1656,7 @@ export default function App() {
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [favoriteReciterIds,setFavoriteReciterIds] = usePersistentState("favoriteReciterIds", []);
   const [preferredReciterId,setPreferredReciterId] = usePersistentState("preferredReciterId", "");
+  const [preferredReciterName,setPreferredReciterName] = usePersistentState("preferredReciterName", "");
   const [savedVerseDetails, setSavedVerseDetails] = usePersistentState("savedVerseDetails", {});
   const [readerNotes, setReaderNotes] = usePersistentState("readerNotes", {});
   const [ayahCollections, setAyahCollections] = usePersistentState("ayahCollections", {});
@@ -1661,7 +1691,7 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication will be connected in a later development step. You can use the preview for now.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen chapter={selectedChapter} initialAyah={searchInitialAyah} onRecordReading={keys => recordDailyActivity("readingAyahs",keys)} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} chapter={selectedChapter} initialAyah={searchInitialAyah} onRecordReading={keys => recordDailyActivity("readingAyahs",keys)} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
@@ -1677,7 +1707,7 @@ export default function App() {
   else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
   else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} language={learningLanguage} onSelectLanguage={setLearningLanguage} dailyGoal={dailyGoal} onSelectGoal={setDailyGoal} remindersEnabled={remindersEnabled} onToggleReminders={() => setRemindersEnabled(v => !v)} practiceCount={practiceCount} onBack={() => setTab("home")} />;
-  else if (tab === "reciters") screen = <ReciterLibraryScreen favoriteIds={favoriteReciterIds} setFavoriteIds={setFavoriteReciterIds} preferredId={preferredReciterId} setPreferredId={setPreferredReciterId} onBack={() => setTab("home")} />;
+  else if (tab === "reciters") screen = <ReciterLibraryScreen favoriteIds={favoriteReciterIds} setFavoriteIds={setFavoriteReciterIds} preferredId={preferredReciterId} setPreferredId={setPreferredReciterId} setPreferredName={setPreferredReciterName} onBack={() => setTab("home")} />;
   else if (tab === "calendar") screen = <PersonalLearningCalendarScreen plan={memorizationPlan} activity={dailyActivity} onStartAssignment={assignment=>{setActiveAssignment(assignment);setTab("buildSession");}} onBack={destination=>setTab(destination||"home")} />;
   else if (tab === "recommendations") screen = <LearningRecommendationsScreen progress={memorizationProgress} reviewRecords={reviewRecords} activity={dailyActivity} onStartVerse={(chapterId,verse)=>{setActiveAssignment({chapterId,startVerse:Number(verse),endVerse:Number(verse),revision:true});setTab("buildSession");}} onStartPractice={mode=>setTab(mode==="revision"?"revision":"memorize")} onOpenPlan={()=>setTab("tracking")} onBack={()=>setTab("home")} />;
   else if (tab === "goals") screen = <DailyGoalsScreen activity={dailyActivity} readingTarget={5} memorizationTarget={1} onBack={() => setTab("home")} />;
