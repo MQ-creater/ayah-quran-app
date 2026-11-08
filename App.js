@@ -702,7 +702,7 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafs
       .then(data => {
         if (!active) return;
         const incoming = Array.isArray(data.verses) ? data.verses : [];
-        setVerses(current => page === 1 ? incoming : [...current, ...incoming]);
+        setVerses(incoming);
       })
       .catch(() => { if (active) setError("Unable to load this surah right now. Please try again later."); })
       .finally(() => { if (active) setLoading(false); });
@@ -829,7 +829,6 @@ function QuranReaderScreen({ chapter, onBack, savedIds, onToggleSave, onOpenTafs
       })}
       {loading ? <ActivityIndicator color={GOLD} size="small" /> : null}
       {error ? <Text style={styles.progressHint}>{error}</Text> : null}
-      {AYAH_API_BASE && verses.length < Number(chapter.verses_count || 0) ? <Button title="Load next ayahs" secondary disabled={loading} onPress={() => setPage(current => current + 1)} /> : null}
       <View style={styles.readerToggleRow}>
         <Pressable accessibilityRole="button" disabled={page <= 1 || loading} onPress={() => setPage(value => Math.max(1,value-1))} style={[styles.readerToggle,page <= 1 && styles.disabled]}><Text style={styles.readerToggleText}>← Previous page</Text></Pressable>
         <Pressable accessibilityRole="button" disabled={page * 50 >= Number(chapter.verses_count || 0) || loading} onPress={() => setPage(value => value+1)} style={[styles.readerToggle,page * 50 >= Number(chapter.verses_count || 0) && styles.disabled]}><Text style={styles.readerToggleText}>Next page →</Text></Pressable>
