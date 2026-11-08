@@ -322,6 +322,8 @@ const styles = StyleSheet.create({
   trialCard:{backgroundColor:PANEL,borderRadius:20,padding:18,borderWidth:1,borderColor:GOLD,marginBottom:14},
   languageGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginTop:12},languageChoice:{backgroundColor:"#24354C",borderRadius:12,paddingVertical:10,paddingHorizontal:13},
   practicePrompt:{backgroundColor:"#24354C",borderRadius:14,padding:15,marginTop:10},practicePromptText:{color:GOLD,fontSize:14,fontWeight:"600",textAlign:"center",lineHeight:22},
+  freeLessonBadge:{backgroundColor:"#24354C",borderRadius:12,padding:10,alignSelf:"flex-start",borderWidth:1,borderColor:GOLD,marginBottom:8},freeLessonBadgeText:{color:GOLD,fontSize:10,fontWeight:"800",letterSpacing:1.2},
+  exampleBox:{backgroundColor:"#24354C",borderRadius:14,padding:14,marginTop:14,alignItems:"center"},exampleArabic:{color:"#FFF",fontSize:24,lineHeight:42,textAlign:"center"},
   navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:NAVY},
   navIcon:{color:MUTED,fontSize:19,marginBottom:3},navLabel:{color:MUTED,fontSize:10},navSelected:{color:GOLD,fontWeight:"700"},
   stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
