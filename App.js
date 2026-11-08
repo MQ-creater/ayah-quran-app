@@ -888,6 +888,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
   const [chapterList,setChapterList] = useState([]);
   const [lastAudioPosition,setLastAudioPosition] = usePersistentState("lastAudioPosition_"+String(chapter?.id||""),0);
   const [autoAdvance,setAutoAdvance] = useState(true);
+  const [resumeAfterLoad,setResumeAfterLoad] = useState(false);
   useEffect(()=>{if(!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;fetch(base+"/chapters").then(r=>{if(!r.ok)throw new Error("Surah list unavailable");return r.json();}).then(data=>{if(active)setChapterList(Array.isArray(data.chapters)?data.chapters:[]);}).catch(()=>{if(active)setChapterAudioError("Surah navigation is unavailable until the content service responds.");});return()=>{active=false;};},[]);
   const playPreferredReciter = async () => {
     if (!preferredReciterId) { Alert.alert("Choose a reciter first","Open the Recitation Library and choose your preferred reciter."); return; }
@@ -899,12 +900,14 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
       const data=await response.json();
       if (!response.ok) throw new Error(data.error || "This recording is unavailable.");
       if (!data.audio?.url) throw new Error("The provider did not return an audio file.");
-      chapterPlayer.replace(data.audio.url);chapterPlayer.play();
+      chapterPlayer.replace(data.audio.url);
+      if (Number(lastAudioPosition)>3) setResumeAfterLoad(true); else chapterPlayer.play();
     } catch(error) {
       const message=error.message||"Please try again.";setChapterAudioError(message);Alert.alert("Unable to play recitation",message);
     } finally { setChapterAudioLoading(false); }
   };
   useEffect(()=>{if(chapterAudioStatus?.currentTime!=null&&chapterAudioStatus.playing)setLastAudioPosition(chapterAudioStatus.currentTime);},[chapterAudioStatus?.currentTime,chapterAudioStatus?.playing]);
+  useEffect(()=>{if(resumeAfterLoad&&chapterAudioStatus?.isLoaded){chapterPlayer.seekTo(Number(lastAudioPosition)||0);chapterPlayer.play();setResumeAfterLoad(false);}},[resumeAfterLoad,chapterAudioStatus?.isLoaded]);
   useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||!autoAdvance)return;const next=chapterList.find(item=>Number(item.id)===Number(chapter.id)+1);if(!next||!preferredReciterId||!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;fetch(base+"/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+next.id).then(r=>{if(!r.ok)throw new Error("Next surah audio unavailable");return r.json();}).then(data=>{if(!active||!data.audio?.url)return;onChangeChapter?.(next);chapterPlayer.replace(data.audio.url);chapterPlayer.play();}).catch(()=>{if(active)setChapterAudioError("The next surah could not be loaded. You can continue manually.");});return()=>{active=false;};},[chapterAudioStatus?.didJustFinish,autoAdvance,chapterList,chapter.id,preferredReciterId]);
   const navigateSurah=direction=>{const target=chapterList.find(item=>Number(item.id)===Number(chapter.id)+direction);if(target){chapterPlayer.pause();onChangeChapter?.(target);}};
   const restartSurah=()=>{chapterPlayer.seekTo(0);chapterPlayer.play();setLastAudioPosition(0);};
@@ -1022,7 +1025,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onRecordReading, onBack, 
       </View>
       <View style={styles.readerToggleRow}>
         <Pressable accessibilityRole="button" disabled={chapterAudioLoading} onPress={playPreferredReciter} style={[styles.readerToggle,styles.readerToggleActive,chapterAudioLoading&&styles.disabled]}>
-          <Text style={[styles.readerToggleText,styles.readerToggleTextActive]}>{chapterAudioLoading?"Loading recitation…":chapterAudioStatus?.playing?"Play again · Surah":"▶ Play surah"}</Text>
+          <Text style={[styles.readerToggleText,styles.readerToggleTextActive]}>{chapterAudioLoading?"Loading recitation…":chapterAudioStatus?.playing?"Play again · Surah":Number(lastAudioPosition)>3?"▶ Resume surah":"▶ Play surah"}</Text>
         </Pressable>
         {chapterAudioStatus?.playing?<Pressable accessibilityRole="button" onPress={()=>chapterPlayer.pause()} style={styles.readerToggle}><Text style={styles.readerToggleText}>Ⅱ Pause</Text></Pressable>:null}
         {chapterAudioStatus?.paused?<Pressable accessibilityRole="button" onPress={()=>chapterPlayer.play()} style={styles.readerToggle}><Text style={styles.readerToggleText}>▶ Resume</Text></Pressable>:null}
