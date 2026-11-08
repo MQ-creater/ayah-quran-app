@@ -29,7 +29,7 @@ Planned reader/study capabilities include all 114 surahs, multiple verified tran
 
 ## Run in GitHub Codespaces
 
-Open this repository in a Codespace, then run:
+Open this repository in a Codespace. The included `.devcontainer/devcontainer.json` installs dependencies, starts the Expo web preview, and forwards port 8081 automatically. When Codespaces shows port 8081, open the forwarded address in the browser. If it does not start automatically, run:
 
 ```bash
 npm install
