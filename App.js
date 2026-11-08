@@ -8,6 +8,12 @@ const GOLD = "#D9B96E";
 const NAVY = "#101C2D";
 const PANEL = "#1B2A40";
 const MUTED = "#AAB6C7";
+
+const THEME_PALETTES = {
+  dark: { bg:"#101C2D",panel:"#1B2A40",surface:"#24354C",text:"#FFFFFF",soft:"#E1E6ED",muted:"#AAB6C7",accent:"#D9B96E",border:"#34445B",navyText:"#101C2D" },
+  light: { bg:"#F5F7FA",panel:"#FFFFFF",surface:"#EAF0F6",text:"#142238",soft:"#26364A",muted:"#66758A",accent:"#A87924",border:"#D7E0EA",navyText:"#FFFFFF" },
+  sepia: { bg:"#E8DDC8",panel:"#F5EBD8",surface:"#E3D3B8",text:"#332819",soft:"#51412D",muted:"#78694F",accent:"#8A672E",border:"#D0BD9D",navyText:"#332819" }
+};
 const DAILY = {
   arabic: "وَقُل رَّبِّ زِدْنِي عِلْمًا",
   translation: "My Lord, increase me in knowledge.",
@@ -79,6 +85,7 @@ function HomeScreen({ onNavigate, onPractice }) {
     <>
       <View style={styles.header}>
         <View><Text style={styles.eyebrow}>ASSALAMU ALAIKUM</Text><Text style={styles.heading}>Your Qur’an journey</Text></View>
+        <Pressable accessibilityRole="button" onPress={() => onNavigate("settings")} style={styles.settingsButton}><Text style={styles.settingsButtonText}>⚙  Appearance</Text></Pressable>
         <View style={styles.logo}><Text style={styles.logoArabic}>آيَة</Text></View>
       </View>
       <DailyAyah />
@@ -90,7 +97,8 @@ function HomeScreen({ onNavigate, onPractice }) {
       <Text style={styles.sectionTitle}>Your tools</Text>
       <View style={styles.actionGrid}>
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
-        <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />\n        <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
+        <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
+        <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="↻" title="Smart review" subtitle="Guided revision · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="More reciters · Plus" locked onPress={() => onNavigate("premium")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
@@ -322,7 +330,35 @@ function ArabicAlphabetScreen({ onPremium }) {
     </View>
   </>;
 }
-\nfunction ReviewScreen() {
+
+
+function SettingsScreen({ themeName, onSelectTheme, onBack }) {
+  const options = [
+    { id:"auto", name:"Auto", note:"Follow your device appearance" },
+    { id:"light", name:"Light", note:"Bright background and dark text" },
+    { id:"sepia", name:"Sepia", note:"Warm cream and golden-brown tones" },
+    { id:"dark", name:"Dark", note:"Deep navy background and light text" }
+  ];
+  return <>
+    <Header eyebrow="APP SETTINGS" title="Appearance" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Choose your colors</Text>
+      <Text style={styles.progressHint}>Select the look that feels comfortable. Auto follows your iPad or phone system setting; it may look the same as Dark when your device is set to dark mode.</Text>
+      {options.map(option => <Pressable key={option.id} onPress={() => onSelectTheme(option.id)} style={[styles.themeOption, themeName === option.id && styles.choiceSelected]}>
+        <View style={styles.themeSwatches}>
+          <View style={[styles.swatch,{backgroundColor:option.id==="sepia"?"#E8DDC8":option.id==="light"?"#F5F7FA":"#101C2D"}]} />
+          <View style={[styles.swatch,{backgroundColor:option.id==="sepia"?"#8A672E":option.id==="light"?"#A87924":"#D9B96E"}]} />
+          <View style={[styles.swatch,{backgroundColor:option.id==="sepia"?"#F5EBD8":option.id==="light"?"#FFFFFF":"#1B2A40"}]} />
+        </View>
+        <View style={styles.themeTextWrap}><Text style={styles.choiceText}>{option.name}</Text><Text style={styles.themeNote}>{option.note}</Text></View>
+        <Text style={styles.choiceMark}>{themeName === option.id ? "✓" : "○"}</Text>
+      </Pressable>)}
+    </View>
+    <Button title="Back to Ayah" secondary onPress={onBack} />
+  </>;
+}
+
+function ReviewScreen() {
   const [show, setShow] = useState(false);
   return <><Header eyebrow="REVIEW" title="Strengthen your recall" /><View style={styles.infoCard}><Text style={styles.cardEyebrow}>REVIEW CARD</Text><Text style={styles.dailyArabic} writingDirection="rtl">{PRACTICE.arabic}</Text>{show && <Text style={styles.translation}>{PRACTICE.translation}</Text>}<Text style={styles.reference}>{PRACTICE.reference}</Text><Button title={show ? "Hide translation" : "Show translation"} secondary onPress={() => setShow(!show)} /></View><Text style={styles.progressHint}>A personal review schedule and saved memorization history will be added in a later milestone.</Text></>;
 }
@@ -382,6 +418,7 @@ export default function App() {
   const [signedIn, setSignedIn] = useState(false);
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = useState(0);
+  const [themeName, setThemeName] = useState("dark");
   const navigate = key => {
     if (["review", "listen", "teacher"].includes(key)) {
       setTab("premium");
@@ -400,52 +437,57 @@ export default function App() {
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
   if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} />;
-  else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;\n  else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
+  else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
+  else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("home")} onPremium={() => setTab("premium")} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
+  else if (tab === "settings") screen = <SettingsScreen themeName={themeName} onSelectTheme={setThemeName} onBack={() => setTab("home")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} />;
-  const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["premium", "✧", "Ayah Plus"]];
+  const tabs = [["home", "⌂", "Home"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Appearance"], ["premium", "✧", "Ayah Plus"]];
   return <SafeAreaView style={styles.safeArea}><StatusBar barStyle="light-content" backgroundColor={NAVY} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
-const styles = StyleSheet.create({
-  safeArea:{flex:1,backgroundColor:NAVY}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1},
+const createStyles = (p) => StyleSheet.create({
+  safeArea:{flex:1,backgroundColor:p.bg}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1},
   welcomeBackground:{flex:1,justifyContent:"center"}, welcomeShade:{flex:1,backgroundColor:"rgba(8,17,30,0.68)",padding:20,justifyContent:"center"},
-  welcomeTop:{alignItems:"center",marginBottom:18}, logo:{width:54,height:54,borderRadius:18,backgroundColor:PANEL,borderWidth:1,borderColor:"#53617A",alignItems:"center",justifyContent:"center",marginBottom:8},
-  logoArabic:{color:GOLD,fontSize:24,fontWeight:"700"},brand:{color:"#FFF",fontSize:17,fontWeight:"800",letterSpacing:5},tagline:{color:"#D5DCE6",fontSize:12,marginTop:7,textAlign:"center"},
+  welcomeTop:{alignItems:"center",marginBottom:18}, logo:{width:54,height:54,borderRadius:18,backgroundColor:p.panel,borderWidth:1,borderColor:"#53617A",alignItems:"center",justifyContent:"center",marginBottom:8},
+  logoArabic:{color:p.accent,fontSize:24,fontWeight:"700"},brand:{color:p.text,fontSize:17,fontWeight:"800",letterSpacing:5},tagline:{color:"#D5DCE6",fontSize:12,marginTop:7,textAlign:"center"},
   dailyCard:{backgroundColor:"rgba(27,42,64,0.88)",borderRadius:24,padding:20,borderWidth:1,borderColor:"rgba(217,185,110,0.38)",marginBottom:16},
-  dailyCardCompact:{marginBottom:14},cardEyebrow:{color:GOLD,fontSize:10,letterSpacing:2,fontWeight:"700",textAlign:"center"},
-  dailyArabic:{color:"#FFF",fontSize:29,lineHeight:58,textAlign:"center",marginTop:14,marginBottom:9},translation:{color:"#E1E6ED",fontSize:14,textAlign:"center",lineHeight:23,marginBottom:7},
-  reference:{color:MUTED,fontSize:11,textAlign:"center",marginTop:7},signInCard:{backgroundColor:"rgba(16,28,45,0.94)",borderRadius:22,padding:18,borderWidth:1,borderColor:"#34445B"},
-  signInTitle:{color:"#FFF",fontSize:19,fontWeight:"700",textAlign:"center"},signInCopy:{color:MUTED,fontSize:12,textAlign:"center",lineHeight:19,marginTop:7},
-  emailArea:{marginTop:12},emailInput:{backgroundColor:"#24354C",borderWidth:1,borderColor:"#53617A",borderRadius:12,padding:13,color:"#FFF",fontSize:14},
-  tinyNote:{color:MUTED,fontSize:10,lineHeight:16,textAlign:"center",marginTop:12},button:{backgroundColor:GOLD,borderRadius:14,paddingVertical:14,paddingHorizontal:16,alignItems:"center",marginTop:12},
-  buttonSecondary:{backgroundColor:"transparent",borderWidth:1,borderColor:GOLD},buttonText:{color:NAVY,fontWeight:"700",fontSize:13},buttonTextSecondary:{color:GOLD},disabled:{opacity:0.55},pressed:{opacity:0.76},
-  header:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginTop:14,marginBottom:23},eyebrow:{color:GOLD,fontSize:10,letterSpacing:2,fontWeight:"700",marginBottom:7},
-  heading:{color:"#FFF",fontSize:22,fontWeight:"700"},pageHeader:{marginTop:18,marginBottom:23},pageTitle:{color:"#FFF",fontSize:27,fontWeight:"700"},
-  progressCard:{backgroundColor:PANEL,borderRadius:18,padding:18,borderWidth:1,borderColor:"#34445B",marginBottom:24},
-  sectionTitle:{color:"#FFF",fontSize:17,fontWeight:"700",marginBottom:10},progressHint:{color:MUTED,fontSize:12,marginTop:9,lineHeight:19},
-  actionGrid:{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",marginTop:4},actionTile:{width:"48%",backgroundColor:PANEL,borderRadius:18,padding:15,marginBottom:12,borderWidth:1,borderColor:"#34445B",minHeight:118},
-  tileTop:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},actionIcon:{color:GOLD,fontSize:23,marginBottom:10},lock:{color:GOLD,fontSize:9,letterSpacing:1,fontWeight:"800"},
-  actionTitle:{color:"#FFF",fontSize:14,fontWeight:"700",marginBottom:5},actionSubtitle:{color:MUTED,fontSize:11},
-  premiumBanner:{backgroundColor:"#25364B",borderRadius:18,padding:17,borderWidth:1,borderColor:"#8D784B",marginTop:8},premiumTitle:{color:GOLD,fontSize:17,fontWeight:"700"},
-  lessonCard:{backgroundColor:PANEL,borderRadius:22,padding:20,borderWidth:1,borderColor:"#34445B",marginBottom:15},infoCard:{backgroundColor:PANEL,borderRadius:20,padding:18,borderWidth:1,borderColor:"#34445B",marginTop:16,marginBottom:16},
-  stepText:{color:"#E1E6ED",fontSize:13,lineHeight:21,marginBottom:9},choice:{backgroundColor:"#24354C",borderRadius:13,padding:14,marginTop:9,flexDirection:"row",justifyContent:"space-between",alignItems:"center"},
-  choiceSelected:{borderWidth:1,borderColor:GOLD},choiceText:{color:"#E1E6ED",fontSize:13},choiceTextSelected:{color:GOLD,fontWeight:"700"},choiceMark:{color:GOLD,fontSize:17},
-  teacherCard:{backgroundColor:PANEL,borderRadius:22,padding:20,alignItems:"center",borderWidth:1,borderColor:"#8D784B"},
+  dailyCardCompact:{marginBottom:14},cardEyebrow:{color:p.accent,fontSize:10,letterSpacing:2,fontWeight:"700",textAlign:"center"},
+  dailyArabic:{color:p.text,fontSize:29,lineHeight:58,textAlign:"center",marginTop:14,marginBottom:9},translation:{color:p.soft,fontSize:14,textAlign:"center",lineHeight:23,marginBottom:7},
+  reference:{color:p.muted,fontSize:11,textAlign:"center",marginTop:7},signInCard:{backgroundColor:"rgba(16,28,45,0.94)",borderRadius:22,padding:18,borderWidth:1,borderColor:p.border},
+  signInTitle:{color:p.text,fontSize:19,fontWeight:"700",textAlign:"center"},signInCopy:{color:p.muted,fontSize:12,textAlign:"center",lineHeight:19,marginTop:7},
+  emailArea:{marginTop:12},emailInput:{backgroundColor:p.surface,borderWidth:1,borderColor:"#53617A",borderRadius:12,padding:13,color:p.text,fontSize:14},
+  tinyNote:{color:p.muted,fontSize:10,lineHeight:16,textAlign:"center",marginTop:12},button:{backgroundColor:GOLD,borderRadius:14,paddingVertical:14,paddingHorizontal:16,alignItems:"center",marginTop:12},
+  buttonSecondary:{backgroundColor:"transparent",borderWidth:1,borderColor:GOLD},buttonText:{color:p.navyText,fontWeight:"700",fontSize:13},buttonTextSecondary:{color:p.accent},disabled:{opacity:0.55},pressed:{opacity:0.76},
+  header:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginTop:14,marginBottom:23},eyebrow:{color:p.accent,fontSize:10,letterSpacing:2,fontWeight:"700",marginBottom:7},
+  heading:{color:p.text,fontSize:22,fontWeight:"700"},pageHeader:{marginTop:18,marginBottom:23},pageTitle:{color:p.text,fontSize:27,fontWeight:"700"},
+  progressCard:{backgroundColor:p.panel,borderRadius:18,padding:18,borderWidth:1,borderColor:p.border,marginBottom:24},
+  sectionTitle:{color:p.text,fontSize:17,fontWeight:"700",marginBottom:10},progressHint:{color:p.muted,fontSize:12,marginTop:9,lineHeight:19},
+  actionGrid:{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",marginTop:4},actionTile:{width:"48%",backgroundColor:p.panel,borderRadius:18,padding:15,marginBottom:12,borderWidth:1,borderColor:p.border,minHeight:118},
+  tileTop:{flexDirection:"row",justifyContent:"space-between",alignItems:"center"},actionIcon:{color:p.accent,fontSize:23,marginBottom:10},lock:{color:p.accent,fontSize:9,letterSpacing:1,fontWeight:"800"},
+  actionTitle:{color:p.text,fontSize:14,fontWeight:"700",marginBottom:5},actionSubtitle:{color:p.muted,fontSize:11},
+  premiumBanner:{backgroundColor:"#25364B",borderRadius:18,padding:17,borderWidth:1,borderColor:"#8D784B",marginTop:8},premiumTitle:{color:p.accent,fontSize:17,fontWeight:"700"},
+  lessonCard:{backgroundColor:p.panel,borderRadius:22,padding:20,borderWidth:1,borderColor:p.border,marginBottom:15},infoCard:{backgroundColor:p.panel,borderRadius:20,padding:18,borderWidth:1,borderColor:p.border,marginTop:16,marginBottom:16},
+  stepText:{color:p.soft,fontSize:13,lineHeight:21,marginBottom:9},choice:{backgroundColor:p.surface,borderRadius:13,padding:14,marginTop:9,flexDirection:"row",justifyContent:"space-between",alignItems:"center"},
+  choiceSelected:{borderWidth:1,borderColor:GOLD},choiceText:{color:p.soft,fontSize:13},choiceTextSelected:{color:p.accent,fontWeight:"700"},choiceMark:{color:p.accent,fontSize:17},
+  teacherCard:{backgroundColor:p.panel,borderRadius:22,padding:20,alignItems:"center",borderWidth:1,borderColor:"#8D784B"},
   teacherAvatar:{width:76,height:76,borderRadius:38,backgroundColor:"#2C4059",alignItems:"center",justifyContent:"center",borderWidth:1,borderColor:GOLD},
-  teacherAvatarText:{color:GOLD,fontSize:34},teacherName:{color:"#FFF",fontSize:23,fontWeight:"700",marginTop:12},assistantChoices:{flexDirection:"row",gap:10,marginTop:15},
-  nameChoice:{paddingVertical:10,paddingHorizontal:22,borderRadius:12,backgroundColor:"#24354C"},lockedLabel:{color:GOLD,fontSize:10,fontWeight:"800",letterSpacing:1,marginTop:12},
+  teacherAvatarText:{color:p.accent,fontSize:34},teacherName:{color:p.text,fontSize:23,fontWeight:"700",marginTop:12},assistantChoices:{flexDirection:"row",gap:10,marginTop:15},
+  nameChoice:{paddingVertical:10,paddingHorizontal:22,borderRadius:12,backgroundColor:p.surface},lockedLabel:{color:p.accent,fontSize:10,fontWeight:"800",letterSpacing:1,marginTop:12},
   premiumHero:{backgroundColor:"#263A50",borderRadius:22,padding:22,borderWidth:1,borderColor:"#8D784B",marginBottom:16},
-  premiumKicker:{color:GOLD,fontSize:10,letterSpacing:1.5,fontWeight:"800"},premiumBig:{color:"#FFF",fontSize:25,fontWeight:"800",marginTop:14,marginBottom:10},
-  trialCard:{backgroundColor:PANEL,borderRadius:20,padding:18,borderWidth:1,borderColor:GOLD,marginBottom:14},
-  languageGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginTop:12},languageChoice:{backgroundColor:"#24354C",borderRadius:12,paddingVertical:10,paddingHorizontal:13},
-  practicePrompt:{backgroundColor:"#24354C",borderRadius:14,padding:15,marginTop:10},practicePromptText:{color:GOLD,fontSize:14,fontWeight:"600",textAlign:"center",lineHeight:22},
-  quizPrompt:{color:"#FFF",fontSize:17,fontWeight:"700",lineHeight:25,marginTop:14,marginBottom:6},quizScore:{color:GOLD,fontSize:36,fontWeight:"800",textAlign:"center",marginVertical:12},
-  freeLessonBadge:{backgroundColor:"#24354C",borderRadius:12,padding:10,alignSelf:"flex-start",borderWidth:1,borderColor:GOLD,marginBottom:8},freeLessonBadgeText:{color:GOLD,fontSize:10,fontWeight:"800",letterSpacing:1.2},
-  exampleBox:{backgroundColor:"#24354C",borderRadius:14,padding:14,marginTop:14,alignItems:"center"},exampleArabic:{color:"#FFF",fontSize:24,lineHeight:42,textAlign:"center"},
-  navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:NAVY},
-  navIcon:{color:MUTED,fontSize:19,marginBottom:3},navLabel:{color:MUTED,fontSize:10},navSelected:{color:GOLD,fontWeight:"700"},
+  premiumKicker:{color:p.accent,fontSize:10,letterSpacing:1.5,fontWeight:"800"},premiumBig:{color:p.text,fontSize:25,fontWeight:"800",marginTop:14,marginBottom:10},
+  trialCard:{backgroundColor:p.panel,borderRadius:20,padding:18,borderWidth:1,borderColor:GOLD,marginBottom:14},
+  languageGrid:{flexDirection:"row",flexWrap:"wrap",gap:8,marginTop:12},languageChoice:{backgroundColor:p.surface,borderRadius:12,paddingVertical:10,paddingHorizontal:13},
+  practicePrompt:{backgroundColor:p.surface,borderRadius:14,padding:15,marginTop:10},practicePromptText:{color:p.accent,fontSize:14,fontWeight:"600",textAlign:"center",lineHeight:22},
+  quizPrompt:{color:p.text,fontSize:17,fontWeight:"700",lineHeight:25,marginTop:14,marginBottom:6},quizScore:{color:p.accent,fontSize:36,fontWeight:"800",textAlign:"center",marginVertical:12},
+  freeLessonBadge:{backgroundColor:p.surface,borderRadius:12,padding:10,alignSelf:"flex-start",borderWidth:1,borderColor:GOLD,marginBottom:8},freeLessonBadgeText:{color:p.accent,fontSize:10,fontWeight:"800",letterSpacing:1.2},
+  exampleBox:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14,alignItems:"center"},exampleArabic:{color:p.text,fontSize:24,lineHeight:42,textAlign:"center"},
+  navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:p.bg},
+  navIcon:{color:p.muted,fontSize:19,marginBottom:3},navLabel:{color:p.muted,fontSize:10},navSelected:{color:p.accent,fontWeight:"700"},
   stepDots:{flexDirection:"row",justifyContent:"center",gap:9,marginTop:4,marginBottom:8},stepDot:{width:8,height:8,borderRadius:4,backgroundColor:"#43536A"},stepDotActive:{backgroundColor:GOLD},
-  rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1},\n  alphabetGrid:{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",marginTop:14},alphabetTile:{width:"23%",minHeight:82,backgroundColor:"#24354C",borderRadius:14,marginBottom:9,alignItems:"center",justifyContent:"center",padding:6},alphabetTileLetter:{color:"#FFF",fontSize:28,lineHeight:38},alphabetTileName:{color:MUTED,fontSize:9,marginTop:3},alphabetHeroLetter:{color:"#FFF",fontSize:76,lineHeight:104,textAlign:"center",marginTop:10},alphabetOption:{color:"#FFF",fontSize:30,lineHeight:38}
+  rowButtons:{flexDirection:"row",gap:10},rowButtonCell:{flex:1},
+  settingsButton:{backgroundColor:p.panel,borderWidth:1,borderColor:p.border,borderRadius:12,paddingVertical:9,paddingHorizontal:12,marginRight:8},settingsButtonText:{color:p.accent,fontSize:11,fontWeight:"700"},themeOption:{backgroundColor:p.surface,borderRadius:14,padding:13,marginTop:10,flexDirection:"row",alignItems:"center",gap:10},themeSwatches:{flexDirection:"row",gap:4},swatch:{width:15,height:28,borderRadius:5},themeTextWrap:{flex:1},themeNote:{color:p.muted,fontSize:10,marginTop:3},
+  alphabetGrid:{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",marginTop:14},alphabetTile:{width:"23%",minHeight:82,backgroundColor:p.surface,borderRadius:14,marginBottom:9,alignItems:"center",justifyContent:"center",padding:6},alphabetTileLetter:{color:p.text,fontSize:28,lineHeight:38},alphabetTileName:{color:p.muted,fontSize:9,marginTop:3},alphabetHeroLetter:{color:p.text,fontSize:76,lineHeight:104,textAlign:"center",marginTop:10},alphabetOption:{color:p.text,fontSize:30,lineHeight:38}
 });
+let styles = createStyles(THEME_PALETTES.dark);
