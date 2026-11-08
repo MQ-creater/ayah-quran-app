@@ -19,6 +19,8 @@ jobs:
           node-version: 22
       - name: Install app dependencies
         run: npm install
+      - name: Run project regression checks
+        run: npm run check
       - name: Export web preview
         run: npx expo export --platform web
 
