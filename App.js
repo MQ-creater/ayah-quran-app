@@ -257,7 +257,7 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSe
   const [showAyah, setShowAyah] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [completed, setCompleted] = useState(false);
+  const [completed, setCompleted] = useState(Boolean(progress.completed));
   const [chapterLoading, setChapterLoading] = useState(false);
   const base = AYAH_API_BASE ? (AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE) : "";
   useEffect(() => {
@@ -1470,7 +1470,7 @@ function ArabicLessonsScreen({ onPremium, progress = {}, onProgress }) {
       <Text style={styles.reference}>Word {index + 1} of {ARABIC_LESSON.length}</Text>
     </View>
     <View style={styles.stepDots}>{ARABIC_LESSON.map((x,i) => <View key={x.word} style={[styles.stepDot, i <= index && styles.stepDotActive]} />)}</View>
-    {completed ? <ArabicStarterQuiz onComplete={score=>onProgress?.(current=>({...current,bestQuizScore:Math.max(Number(current.bestQuizScore||0),score)}))} onReview={() => {setIndex(0);setRevealed(false);setCompleted(false);}} /> : <Button title={index === ARABIC_LESSON.length - 1 ? "Finish starter lesson" : "Next word"} onPress={next} />}
+    {completed ? <ArabicStarterQuiz onComplete={score=>onProgress?.(current=>({...current,bestQuizScore:Math.max(Number(current.bestQuizScore||0),score)}))} onReview={() => {setIndex(0);setRevealed(false);setCompleted(false);onProgress?.(current=>({...current,highestWord:0,completed:false}));}} /> : <Button title={index === ARABIC_LESSON.length - 1 ? "Finish starter lesson" : "Next word"} onPress={next} />}
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Unlock the full Arabic course</Text>
       <Text style={styles.progressHint}>Ayah Plus is planned to include structured lessons in reading, vocabulary, grammar, sentence building and guided practice.</Text>
@@ -1496,7 +1496,7 @@ const ALPHABET_LESSON = [
   { letter: "س", name: "Sīn", sound: "An s sound.", word: "سَمَكٌ", wordName: "samakun", meaning: "fish" }
 ];
 function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
-  const [selected, setSelected] = useState(Math.min(ALPHABET_LESSON.length-1,Number(progress.highestLetter||0)));
+  const [selected, setSelected] = useState(Math.min(ALPHABET_LESSON.length-1,Math.max(0,Number(progress.highestLetter||0)-1)));
   const [showWord, setShowWord] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
   const [quizAnswer, setQuizAnswer] = useState("");
@@ -1518,6 +1518,7 @@ function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
     <Header eyebrow="ARABIC ACADEMY · LEVEL 1" title="Meet the Arabic letters" />
     <View style={styles.infoCard}>
       <Text style={styles.cardEyebrow}>LETTER CLASSROOM · FIRST 12 LETTERS</Text>
+      <Text style={styles.progressHint}>Progress: {Math.min(12,Number(progress.highestLetter||0))} / 12 letters reached · Best quiz: {progress.bestQuizScore||0} / {quizLetters.length}</Text>
       <Text style={styles.progressHint}>Tap a letter to explore its name and a beginner example. Arabic letters can change shape when they join other letters; connected forms will be a later lesson.</Text>
       <View style={styles.alphabetGrid}>
         {ALPHABET_LESSON.map((entry, index) => <Pressable key={entry.letter} accessibilityRole="button" accessibilityLabel={entry.name} onPress={() => {moveToLetter(index);}} style={[styles.alphabetTile, selected === index && styles.choiceSelected]}>
