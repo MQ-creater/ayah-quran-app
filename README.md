@@ -16,7 +16,9 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Adjustable daily reading and memorization targets; reading activity counts only when the learner explicitly marks an ayah as read
 - Local practice-session history, seven-day insights, a 30-day activity heatmap, tracker summaries, and recent sessions
 - 30/60/90-day Khatmah planning with a daily pace estimate and progress based on explicitly marked unique ayahs
-- Browse Qur’an content by Juz or by a selected Mushaf page layout, with validated backend routes
+- Browse Qur’an content by Juz, Hizb, Rub al-Hizb, Manzil, Ruku, or a selected Mushaf page layout, with validated backend routes and random ayah discovery
+- Source-attributed Surah introductions with resource selection, subject to provider chapter-info coverage
+- Translation-reading layout that emphasizes the selected verified translation without displaying Arabic or word cards
 - Compare two source translations in the reader, pin up to two verses for study, and share an ayah from the reader
 - Multi-collection bookmarking: an ayah can belong to Favorites, Study, and Memorization at the same time
 - On-demand related-hadith panel, showing the source collection, reference, and any grading metadata returned by Quran Foundation
@@ -81,7 +83,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The source regression check verifies app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs eleven Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+The source regression check verifies app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs eighteen Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
