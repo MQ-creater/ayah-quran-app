@@ -1107,6 +1107,9 @@ function QuranLibraryScreen({ onOpenChapter, onOpenNavigation }) {
 function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
   const [mode,setMode] = useState("juz");
   const [target,setTarget] = useState("1");
+  const [randomVerse,setRandomVerse] = useState(null);
+  const [randomLoading,setRandomLoading] = useState(false);
+  const [randomError,setRandomError] = useState("");
   const [mushaf,setMushaf] = useState("1");
   const [pageDisplayMode,setPageDisplayMode] = useState("verses");
   const [resultPage,setResultPage] = useState(1);
@@ -1119,7 +1122,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
   useEffect(()=>()=>requestRef.current?.abort(),[]);
   const load = async (nextPage=1) => {
     const value=Number(target);
-    const ranges={juz:30,page:700,hizb:60,rub:240};
+    const ranges={juz:30,page:700,hizb:60,rub:240,manzil:7,ruku:558};
     const maximum=ranges[mode];
     if(!Number.isInteger(value)||value<1||value>maximum){setError("Enter a "+({juz:"Juz",page:"Mushaf page",hizb:"Hizb",rub:"Rub al-Hizb"}[mode])+" number from 1 to "+maximum+".");return;}
     if(!AYAH_API_BASE){setError("Connect the secure Ayah content backend to browse by Juz or Mushaf page.");return;}
@@ -1128,9 +1131,10 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     requestRef.current=controller;
     setLoading(true);setError("");setSearched(true);setVerses([]);
     const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
-    const params=new URLSearchParams({page:String(nextPage),per_page:"50",language:languageCodeFor(language),script:"uthmani"});
+    const useIndoPak=mode==="page"&&(mushaf==="6"||mushaf==="7");
+    const params=new URLSearchParams({page:String(nextPage),per_page:"50",language:languageCodeFor(language),script:useIndoPak?"indopak":"uthmani"});
     if(mode==="page")params.set("mushaf",mushaf);
-    const endpoint=({juz:"/verses/by-juz/",page:"/verses/by-page/",hizb:"/verses/by-hizb/",rub:"/verses/by-rub-al-hizb/"})[mode]+value;
+    const endpoint=({juz:"/verses/by-juz/",page:"/verses/by-page/",hizb:"/verses/by-hizb/",rub:"/verses/by-rub-al-hizb/",manzil:"/verses/by-manzil/",ruku:"/verses/by-ruku/"})[mode]+value;
     try{
       const response=await fetch(base+endpoint+"?"+params.toString(),{signal:controller.signal});
       const data=await response.json();
@@ -1147,7 +1151,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     const [chapterId,verseNumber]=reference.split(":").map(Number);
     if(chapterId>=1&&chapterId<=114&&verseNumber>=1)onOpenVerse?.({chapter_id:chapterId,verse_number:verseNumber,verse_key:reference});
   };
-  const title=({juz:"Juz ",page:"Mushaf page ",hizb:"Hizb ",rub:"Rub al-Hizb "})[mode]+target;
+  const title=({juz:"Juz ",page:"Mushaf page ",hizb:"Hizb ",rub:"Rub al-Hizb ",manzil:"Manzil ",ruku:"Ruku "})[mode]+target;
   const pageLineMap=new Map();
   if(mode==="page")verses.forEach(verse=>(verse.words||[]).forEach(word=>{if(!word.line_number)return;if(word.page_number&&Number(word.page_number)!==Number(target))return;const line=Number(word.line_number);if(!pageLineMap.has(line))pageLineMap.set(line,[]);pageLineMap.get(line).push({word,verseKey:verse.verse_key});}));
   const pageLines=[...pageLineMap.entries()].sort((a,b)=>a[0]-b[0]);
@@ -1155,12 +1159,12 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     <Header eyebrow="QUR’AN NAVIGATION" title="Browse Qur’an sections"/>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Choose your place in the Qur’an</Text>
-      <Text style={styles.progressHint}>Navigate by Juz, Hizb, Rub al-Hizb, or a printed Mushaf page. Page boundaries depend on the Mushaf edition you select.</Text>
+      <Text style={styles.progressHint}>Navigate by Juz, Hizb, Rub al-Hizb, Manzil, Ruku, or a printed Mushaf page. Page boundaries depend on the Mushaf edition you select.</Text>
       <View style={styles.readerToggleRow}>
-        {[{id:"juz",label:"Juz · 1–30"},{id:"hizb",label:"Hizb · 1–60"},{id:"rub",label:"Rub · 1–240"},{id:"page",label:"Mushaf page"}].map(option=><Pressable key={option.id} accessibilityRole="button" accessibilityState={{selected:mode===option.id}} onPress={()=>{setMode(option.id);setVerses([]);setError("");setSearched(false);setResultPage(1);}} style={[styles.readerToggle,mode===option.id&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,mode===option.id&&styles.readerToggleTextActive]}>{option.label}</Text></Pressable>)}
+        {[{id:"juz",label:"Juz · 1–30"},{id:"hizb",label:"Hizb · 1–60"},{id:"rub",label:"Rub · 1–240"},{id:"manzil",label:"Manzil · 1–7"},{id:"ruku",label:"Ruku · 1–558"},{id:"page",label:"Mushaf page"}].map(option=><Pressable key={option.id} accessibilityRole="button" accessibilityState={{selected:mode===option.id}} onPress={()=>{setMode(option.id);setVerses([]);setRandomVerse(null);setError("");setSearched(false);setResultPage(1);}} style={[styles.readerToggle,mode===option.id&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,mode===option.id&&styles.readerToggleTextActive]}>{option.label}</Text></Pressable>)}
       </View>
-      <Text style={styles.readerToolLabel}>{({juz:"Juz number",page:"Mushaf page number",hizb:"Hizb number",rub:"Rub al-Hizb number"})[mode]}</Text>
-      <TextInput accessibilityLabel={({juz:"Juz number",page:"Mushaf page number",hizb:"Hizb number",rub:"Rub al-Hizb number"})[mode]} value={target} onChangeText={setTarget} keyboardType="number-pad" placeholder={({juz:"1–30",page:"1–700",hizb:"1–60",rub:"1–240"})[mode]} placeholderTextColor={MUTED} style={styles.emailInput}/>
+      <Text style={styles.readerToolLabel}>{({juz:"Juz number",page:"Mushaf page number",hizb:"Hizb number",rub:"Rub al-Hizb number",manzil:"Manzil number",ruku:"Ruku number"})[mode]}</Text>
+      <TextInput accessibilityLabel={({juz:"Juz number",page:"Mushaf page number",hizb:"Hizb number",rub:"Rub al-Hizb number",manzil:"Manzil number",ruku:"Ruku number"})[mode]} value={target} onChangeText={value=>{setTarget(value);setRandomVerse(null);}} keyboardType="number-pad" placeholder={({juz:"1–30",page:"1–700",hizb:"1–60",rub:"1–240",manzil:"1–7",ruku:"1–558"})[mode]} placeholderTextColor={MUTED} style={styles.emailInput}/>
       {mode==="page"?<>
         <Text style={styles.readerToolLabel}>Mushaf edition</Text>
         <View style={styles.readerToggleRow}>
@@ -1168,6 +1172,9 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
         </View>
       </>:null}
       <Button title={loading?"Loading Qur’an section…":"Open "+title} onPress={()=>load(1)} disabled={loading}/>
+      <Button title={randomLoading?"Finding an ayah…":"Pick a random ayah"+(searched?" in this section":" from the Qur’an")} secondary disabled={randomLoading||loading} onPress={async()=>{setRandomLoading(true);setRandomError("");setRandomVerse(null);try{const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;const params=new URLSearchParams({language:languageCodeFor(language),script:mode==="page"&&(mushaf==="6"||mushaf==="7")?"indopak":"uthmani"});if(searched){const key=({juz:"juz_number",page:"page_number",hizb:"hizb_number",rub:"rub_el_hizb_number",manzil:"manzil_number",ruku:"ruku_number"})[mode];const value=Number(target);if(key&&Number.isInteger(value))params.set(key,String(value));}const response=await fetch(base+"/verses/random?"+params.toString());const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not find a random ayah.");if(!data.verse?.verse_key)throw new Error("The content source returned no verse.");setRandomVerse(data.verse);}catch(error){setRandomError(error.message||"Please try again.");}finally{setRandomLoading(false);}}}/>
+      {randomError?<Text style={styles.progressHint}>{randomError}</Text>:null}
+      {randomVerse?<Pressable accessibilityRole="button" onPress={()=>open(randomVerse)} style={styles.savedAyah}><Text style={styles.readerToolLabel}>A RANDOM AYAH · {randomVerse.verse_key}</Text><Text style={styles.dailyArabic} writingDirection="rtl">{randomVerse.text_qpc_hafs||randomVerse.text_uthmani||randomVerse.text_indopak_nastaleeq||""}</Text><Text style={styles.translation}>{String(randomVerse.translations?.[0]?.text||"").replace(/<[^>]*>/g,"")}</Text><Text style={styles.reference}>Tap to open in the Qur’an reader</Text></Pressable>:null}
       {error?<Text style={styles.progressHint}>{error}</Text>:null}
       {!AYAH_API_BASE?<Text style={styles.tinyNote}>The navigation interface is ready. It requires the secure Ayah backend and approved Qur’an content access.</Text>:null}
     </View>
@@ -1177,11 +1184,11 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
       {mode==="page"?<View style={styles.readerToggleRow}><Pressable accessibilityRole="button" accessibilityState={{selected:pageDisplayMode==="verses"}} onPress={()=>setPageDisplayMode("verses")} style={[styles.readerToggle,pageDisplayMode==="verses"&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,pageDisplayMode==="verses"&&styles.readerToggleTextActive]}>Verse list</Text></Pressable><Pressable accessibilityRole="button" accessibilityState={{selected:pageDisplayMode==="lines"}} onPress={()=>setPageDisplayMode("lines")} style={[styles.readerToggle,pageDisplayMode==="lines"&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,pageDisplayMode==="lines"&&styles.readerToggleTextActive]}>Mushaf lines</Text></Pressable></View>:null}
       {mode==="page"&&pageDisplayMode==="lines"?<>
         <Text style={styles.tinyNote}>Words are grouped using the selected Mushaf’s supplied line metadata. Exact printed-page spacing can differ from this responsive view.</Text>
-        {pageLines.length?pageLines.map(([lineNumber,items])=><View key={lineNumber} style={{flexDirection:"row-reverse",flexWrap:"wrap",justifyContent:"center",alignItems:"center",marginVertical:6,paddingVertical:8,borderBottomWidth:1,borderBottomColor:BORDER}}>{items.map((item,index)=>{const wordText=item.word.text_uthmani||item.word.text_indopak_nastaleeq||"";return <Pressable key={String(item.word.id||item.verseKey+"-"+index)} accessibilityRole="button" accessibilityLabel={"Open ayah "+item.verseKey} onPress={()=>open({verse_key:item.verseKey})} style={{paddingHorizontal:3,paddingVertical:2}}><Text style={[styles.dailyArabic,{fontSize:22,lineHeight:42}]} writingDirection="rtl">{wordText}</Text></Pressable>;})}</View>):<Text style={styles.progressHint}>The provider did not return line metadata for this page. Switch to Verse list to continue reading.</Text>}
+        {pageLines.length?pageLines.map(([lineNumber,items])=><View key={lineNumber} style={{flexDirection:"row-reverse",flexWrap:"wrap",justifyContent:"center",alignItems:"center",marginVertical:6,paddingVertical:8,borderBottomWidth:1,borderBottomColor:BORDER}}>{items.map((item,index)=>{const wordText=(mushaf==="6"||mushaf==="7")?(item.word.text_indopak_nastaleeq||item.word.text_uthmani||""):(item.word.text_uthmani||"");return <Pressable key={String(item.word.id||item.verseKey+"-"+index)} accessibilityRole="button" accessibilityLabel={"Open ayah "+item.verseKey} onPress={()=>open({verse_key:item.verseKey})} style={{paddingHorizontal:3,paddingVertical:2}}><Text style={[styles.dailyArabic,{fontSize:22,lineHeight:42}]} writingDirection="rtl">{wordText}</Text></Pressable>;})}</View>):<Text style={styles.progressHint}>The provider did not return line metadata for this page. Switch to Verse list to continue reading.</Text>}
       </>:null}
       {mode!=="page"||pageDisplayMode==="verses"?verses.map(verse=><Pressable key={verse.verse_key} accessibilityRole="button" onPress={()=>open(verse)} style={styles.savedAyah}>
         <Text style={styles.reference}>Surah {verse.chapter_id} · Ayah {verse.verse_number} · {verse.verse_key} {verse.page_number?"· Page "+verse.page_number:""}</Text>
-        <Text style={styles.dailyArabic} writingDirection="rtl">{verse.text_qpc_hafs||verse.text_uthmani||verse.text_indopak_nastaleeq||""}</Text>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{(mushaf==="6"||mushaf==="7")?(verse.text_indopak_nastaleeq||verse.text_uthmani||""):(verse.text_qpc_hafs||verse.text_uthmani||"")}</Text>
         <Text style={styles.translation}>{String(verse.translations?.[0]?.text||"Translation not available").replace(/<[^>]*>/g,"")}</Text>
         <Text style={styles.readerToolLabel}>Open this ayah in reader →</Text>
       </Pressable>):null}
