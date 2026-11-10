@@ -72,7 +72,7 @@ const QURAN_TOTAL_AYAHS = 6236;
 function normalizeAudioUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
-  if (/^https?:\/\//i.test(raw)) return raw;
+  if (/^https:\/\/(?:audio\.qurancdn\.com|verses\.quran\.foundation)\//i.test(raw)) return raw;
   if (/^(javascript|data):/i.test(raw) || raw.startsWith("//")) return "";
   return "https://audio.qurancdn.com/" + raw.replace(/^\/+/, "");
 }
