@@ -80,6 +80,11 @@ checks.push(...[  ["random ayah API rejects malformed verse keys instead of acce
   ["all six navigation modes have validation and endpoint mappings", app.includes("manzil:\"Manzil\"") && app.includes("ruku:\"Ruku\"") && server.includes("/api/verses/by-manzil/") && server.includes("/api/verses/by-ruku/")],
   ["Mushaf-aware page browsing requests layout metadata", server.includes("\"line_number\"") && server.includes("\"page_number\"") && app.includes("word.line_number")],]);
 
+checks.push(...[  ["Arabic starter lesson contains twelve reviewed vocabulary entries", app.includes('word: "مِفْتَاحٌ"') && app.includes('word: "مَدْرَسَةٌ"') && app.includes('prompt: "Which word means “a key”?"')],
+  ["Arabic alphabet classroom includes all 28 letters", app.includes('letter: "ي"') && app.includes('letter: "ش"') && app.includes("ALL 28 LETTERS")],
+  ["Arabic alphabet checkpoint samples twelve different letters", app.includes("const quizLetters = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 27]")],
+  ["Home screen contains only one Khatmah shortcut", (app.match(/title="Qur’an completion plan"/g)||[]).length === 1],]);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
