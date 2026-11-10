@@ -53,8 +53,8 @@ This plan tracks the next 57 engineering and release steps. “Built — verify�
 
 ## Arabic Academy and teacher experience
 
-41. **Arabic alphabet classroom** — Built — expand the lesson set and test letter forms in initial, medial, final, and isolated positions.
-42. **Beginner vocabulary lessons** — Partly built — build a reviewed, ordered curriculum with audio from permitted sources.
+41. **Arabic alphabet classroom** — Built — covers all 28 letter names, introductory sound descriptions, and example words; next add and verify connected forms in initial, medial, final, and isolated positions.
+42. **Beginner vocabulary lessons** — Partly built — the starter set now has 12 everyday words; build a reviewed, ordered curriculum with audio from permitted sources.
 43. **Arabic quizzes and milestone tests** — Partly built — add answer explanations, retries, and reliable progress recovery.
 44. **Grammar pathway** — Next — develop a staged beginner-to-intermediate syllabus reviewed by qualified Arabic educators.
 45. **Pronunciation practice** — Blocked — add microphone capture only with a clear privacy notice and a validated feedback service.
