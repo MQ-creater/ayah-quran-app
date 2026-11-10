@@ -6,7 +6,7 @@ export const BACKUP_PREFERENCE_KEYS = [
   "savedVerseDetails","readerNotes","ayahCollections","lastReadPosition","themeName",
   "learningLanguage","dailyGoal","dailyActivity","remindersEnabled","readerArabicSize",
   "readerShowArabic","readerShowTranslation","readerShowWordByWord","readerArabicScript",
-  "readerTranslationFont","readerTranslationLanguage","readerTranslationId","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
+  "readerTranslationFont","readerTranslationLanguage","readerTranslationId","recitationRepeatCount","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
   "arabicLessonProgress","arabicAlphabetProgress","recentSearches"
 ];
 
