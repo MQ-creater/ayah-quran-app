@@ -24,7 +24,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - On-demand related-hadith panel, showing the source collection, reference, and any grading metadata returned by Quran Foundation
 - JSON backup export, validated restore with a supported-key allowlist (including pinned verse comparisons and reading plans), and a clear-local-data control
 - Backend connection diagnostics for checking the configured content API and server credential presence without exposing secrets
-- Arabic starter vocabulary expanded to twelve everyday words, a 28-letter classroom, recognition quizzes, and locally saved lesson progress
+- Arabic starter vocabulary expanded to twelve everyday words, a 28-letter classroom with isolated/initial/medial/final shape guides, recognition quizzes, and locally saved lesson progress
 - Ayah Plus Tafsir catalogue and commentary UI, subject to provider access approval and content licensing
 - AI Teacher and Ayah Plus previews; live AI, user accounts, subscriptions, and billing are not connected
 
