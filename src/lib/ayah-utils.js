@@ -6,7 +6,7 @@ const BACKUP_PREFERENCE_KEYS = [
   "learningLanguage","dailyGoal","dailyActivity","remindersEnabled","readerArabicSize",
   "readerShowArabic","readerShowTranslation","readerShowWordByWord","readerArabicScript",
   "readerTranslationFont","readerTranslationLanguage","readerTranslationId","recitationRepeatCount","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
-  "arabicLessonProgress","arabicAlphabetProgress","recentSearches"
+  "arabicLessonProgress","arabicAlphabetProgress","recentSearches","compareTranslationId","khatmahPlan"
 ];
 function normalizeVerseKey(value) {
   const match = /^(\d{1,3}):(\d{1,3})$/.exec(String(value || "").trim());
@@ -63,4 +63,75 @@ function validateAyahBackup(value) {
   for (const [key, item] of Object.entries(data)) if (/^lastAudioPosition_\d+$/.test(key) && (!Number.isFinite(item) || item < 0 || item > 86400)) return { valid:false, error:"A saved audio position is invalid." };
   return { valid:true, data };
 }
-module.exports = { BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup };
+
+const QURAN_TOTAL_AYAHS = 6236;
+function normalizeTranslationIds(primary, secondary) {
+  const values = [primary, secondary].map(value => String(value ?? "").trim()).filter(value => /^\\d+$/.test(value));
+  return [...new Set(values)].slice(0, 2).join(",");
+}
+function normalizeCollectionNames(value, defaultFavorites = true) {
+  const values = Array.isArray(value) ? value : typeof value === "string" && value.trim() ? [value] : [];
+  const names = [...new Set(values.map(item => String(item || "").trim()).filter(item => item.length > 0 && item.length <= 32))];
+  return names.length || !defaultFavorites ? names : ["Favorites"];
+}
+function toggleCollectionMembership(existing, name) {
+  const target = String(name || "").trim();
+  if (!target || target.length > 32) return normalizeCollectionNames(existing);
+  const current = normalizeCollectionNames(existing);
+  return current.includes(target) ? current.filter(item => item !== target) : [...current, target];
+}
+function dateKey(value = new Date()) {
+  const date = value instanceof Date ? value : new Date(value);
+  return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
+}
+function dateKeyToUtc(value) {
+  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(String(value || ""));
+  return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : NaN;
+}
+function createKhatmahPlan(durationDays = 30, startDate = new Date()) {
+  const duration = [30, 60, 90].includes(Number(durationDays)) ? Number(durationDays) : 30;
+  return {
+    version: 1,
+    durationDays: duration,
+    totalAyahs: QURAN_TOTAL_AYAHS,
+    dailyAyahTarget: Math.ceil(QURAN_TOTAL_AYAHS / duration),
+    startDateKey: dateKey(startDate),
+    createdAt: (startDate instanceof Date ? startDate : new Date(startDate)).toISOString()
+  };
+}
+function summarizeKhatmahProgress(activity, plan, today = new Date()) {
+  if (!plan || ![30, 60, 90].includes(Number(plan.durationDays))) return null;
+  const start = dateKeyToUtc(plan.startDateKey);
+  const current = dateKeyToUtc(dateKey(today));
+  if (!Number.isFinite(start) || !Number.isFinite(current)) return null;
+  const duration = Number(plan.durationDays);
+  const elapsedDays = Math.max(0, Math.min(duration, Math.floor((current - start) / 86400000) + 1));
+  const completed = new Set();
+  for (const [key, day] of Object.entries(activity || {})) {
+    if (dateKeyToUtc(key) < start || !day || !Array.isArray(day.readingAyahs)) continue;
+    for (const reference of day.readingAyahs) {
+      const normalized = normalizeVerseKey(reference);
+      if (normalized) completed.add(normalized);
+    }
+  }
+  const completedAyahs = Math.min(QURAN_TOTAL_AYAHS, completed.size);
+  const todayKey = dateKey(today);
+  const todayRead = new Set((activity?.[todayKey]?.readingAyahs || []).map(normalizeVerseKey).filter(Boolean)).size;
+  const target = Math.min(Number(plan.dailyAyahTarget) || Math.ceil(QURAN_TOTAL_AYAHS / duration), QURAN_TOTAL_AYAHS - completedAyahs);
+  const dueByToday = Math.min(QURAN_TOTAL_AYAHS, Math.ceil(QURAN_TOTAL_AYAHS * elapsedDays / duration));
+  return {
+    totalAyahs: QURAN_TOTAL_AYAHS,
+    completedAyahs,
+    remainingAyahs: Math.max(0, QURAN_TOTAL_AYAHS - completedAyahs),
+    elapsedDays,
+    daysRemaining: Math.max(0, duration - elapsedDays),
+    dailyAyahTarget: target,
+    readToday: todayRead,
+    remainingToday: Math.max(0, target - todayRead),
+    dueByToday,
+    aheadOrBehind: completedAyahs - dueByToday,
+    percent: Math.round(completedAyahs / QURAN_TOTAL_AYAHS * 100)
+  };
+}
+
+module.exports = { QURAN_TOTAL_AYAHS, createKhatmahPlan, summarizeKhatmahProgress, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup };
