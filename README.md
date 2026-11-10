@@ -14,8 +14,13 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Guided memorization sessions for selected surah ranges, up to 50 ayahs per session
 - Memorization planner, full-surah progress tracker, Smart Revision queue, and suggested review intervals based on the learner's own check-ins
 - Adjustable daily reading and memorization targets; reading activity counts only when the learner explicitly marks an ayah as read
-- Local practice-session history, seven-day insights, tracker summaries, and recent sessions
-- JSON backup export, validated restore with a supported-key allowlist, and a clear-local-data control
+- Local practice-session history, seven-day insights, a 30-day activity heatmap, tracker summaries, and recent sessions
+- 30/60/90-day Khatmah planning with a daily pace estimate and progress based on explicitly marked unique ayahs
+- Browse Qur’an content by Juz or by a selected Mushaf page layout, with validated backend routes
+- Compare two source translations in the reader, pin up to two verses for study, and share an ayah from the reader
+- Multi-collection bookmarking: an ayah can belong to Favorites, Study, and Memorization at the same time
+- On-demand related-hadith panel, showing the source collection, reference, and any grading metadata returned by Quran Foundation
+- JSON backup export, validated restore with a supported-key allowlist (including pinned verse comparisons and reading plans), and a clear-local-data control
 - Backend connection diagnostics for checking the configured content API and server credential presence without exposing secrets
 - Arabic starter vocabulary expanded to six everyday words, a 12-letter classroom, recognition quizzes, and locally saved lesson progress
 - Ayah Plus Tafsir catalogue and commentary UI, subject to provider access approval and content licensing
@@ -30,7 +35,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Reader translation language and translation ID persist locally. Backup restore validates the Ayah schema and imports only known preference keys, including per-surah audio positions.
 - Arabic vocabulary and letter progress, plus best checkpoint scores, are saved locally and resume on return.
 - Opening a page no longer automatically counts all displayed ayahs as read. Learners explicitly mark ayahs as read, making daily reading goals more meaningful.
-- Full-surah and individual-ayah players stop one another when switching playback modes. Individual ayah audio has pause/resume and a stop control for selected-range queues.
+- Full-surah and individual-ayah players stop one another when switching playback modes. Individual ayah audio has pause/resume and a stop control for selected-range queues. Audio URLs are restricted to the supported Quran Foundation audio hosts.
 - Completed guided sessions are stored in a bounded local history (up to 250 entries) and appear in the Learning Insights screen.
 - Daily targets can be changed from the Goals screen.
 - Backup and privacy tools explain what is stored locally and allow the user to export or clear local learning data.
@@ -41,7 +46,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 
 Ayah aims to bring together the strengths of Quran.com-style reading, study, audio, search, and reflection with Tarteel-style memorization practice, recitation feedback, and learning analytics. It will also include the user's requested Arabic courses, milestone quizzes, selectable themes, Hamza/Maryam teaching assistants, and a clearly differentiated free and Plus experience.
 
-Planned reader/study capabilities include all 114 surahs, multiple verified translations, word-by-word meaning and pronunciation, tafsir, verse search, notes, collections, reading bookmarks, repeat controls, reciter audio, and reading goals. Planned memorization capabilities include guided hifdh, revision scheduling, recitation checking, voice-based ayah search, and surah-level progress. These are roadmap items, not claims that they already work.
+Planned reader/study capabilities include all 114 surahs, multiple verified translations, word-by-word meaning and pronunciation, tafsir, verse search, notes, collections, reading bookmarks, repeat controls, reciter audio, and reading goals. Planned memorization capabilities include guided hifdh, revision scheduling, recitation checking, voice-based ayah search, and surah-level progress. These are roadmap items, not claims that they already work. In particular, live recitation mistake detection, voice search, secure user accounts, cloud sync, offline audio downloads, and subscription billing need separate validated services and production setup.
 
 ## Technology
 
@@ -76,7 +81,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The source regression check verifies important app wiring, storage and reader behavior, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs five Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, and backup validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+The source regression check verifies app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs eleven Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
