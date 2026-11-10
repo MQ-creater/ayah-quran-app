@@ -158,7 +158,6 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="♫" title="Recitation library" subtitle="Browse and preview reciters" onPress={() => onNavigate("reciters")} />
         <ActionTile icon="◎" title="Qur’an completion plan" subtitle="Build a 30, 60 or 90-day Khatmah" onPress={() => onNavigate("khatmah")} />
         <ActionTile icon="▦" title="Browse Qur’an sections" subtitle="Juz, Hizb, Rub al-Hizb, and Mushaf pages" onPress={() => onNavigate("quranNavigation")} />
-        <ActionTile icon="◎" title="Qur’an completion plan" subtitle="Build a 30, 60 or 90-day Khatmah" onPress={() => onNavigate("khatmah")} />
         <ActionTile icon="۞" title="Tafsir library" subtitle="Verse explanations · Plus" locked onPress={() => onNavigate("premium")} />
       </View>
       <Text style={styles.settingLabel}>ARABIC & LEARNING</Text>
@@ -947,7 +946,6 @@ function KhatmahPlanScreen({ plan, activity, onSavePlan, onBack }) {
   const [duration, setDuration] = useState(String(plan?.durationDays || 30));
   const summary = summarizeKhatmahProgress(activity, plan);
   return <>
-    <Header eyebrow="READING JOURNEY" title="Qur’an completion plan" />
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Choose a pace that feels sustainable</Text>
       <Text style={styles.progressHint}>A Khatmah plan helps you pace your reading over time. Ayah counts only the verses you explicitly mark as read in the Qur’an reader. Your plan and progress remain on this device.</Text>
