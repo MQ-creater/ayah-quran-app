@@ -1,6 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import ayahUtils from "./src/lib/ayah-utils";
-const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup } = ayahUtils;
 import * as Font from "expo-font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -8,6 +6,9 @@ import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
   Pressable, TextInput, ImageBackground, Alert, ActivityIndicator, Share
 } from "react-native";
+import ayahUtils from "./src/lib/ayah-utils";
+
+const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup } = ayahUtils;
 
 const PREFERENCES_KEY = "@ayah/preferences-v1";
 const PRACTICE_HISTORY_LIMIT = 250;
@@ -970,7 +971,7 @@ function QuranSearchScreen({ onOpenResult, language, recentSearches = [], onSave
   const activeSearch = useRef(null);
   useEffect(() => () => activeSearch.current?.abort(), []);
   const search = async (requestedTerm = query) => {
-    const term = query.trim();
+    const term = String(requestedTerm || "").trim();
     if (term.length < 2) { setError("Enter at least two characters to search."); return; }
     if (!AYAH_API_BASE) { setError("Connect the Ayah content server to search the Qur’an."); return; }
     activeSearch.current?.abort();
@@ -1445,7 +1446,7 @@ function StudyNotebookScreen({ notes, savedIds, savedVerseDetails, collections, 
 function ArabicLessonsScreen({ onPremium, progress = {}, onProgress }) {
   const [index, setIndex] = useState(Math.min(ARABIC_LESSON.length-1,Number(progress.highestWord||0)));
   const [revealed, setRevealed] = useState(false);
-  const [completed, setCompleted] = useState(false);
+  const [completed, setCompleted] = useState(Boolean(progress.completed));
   const item = ARABIC_LESSON[index];
   const next = () => {
     if (index === ARABIC_LESSON.length - 1) {
@@ -1514,7 +1515,7 @@ function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
   };
   const restartQuiz = () => { setQuizIndex(0); setQuizAnswer(""); setQuizScore(0); setQuizDone(false); };
   const item = ALPHABET_LESSON[selected];
-  const moveToLetter = next => { const value=Math.max(0,Math.min(ALPHABET_LESSON.length-1,next));setSelected(value);setShowWord(false);onProgress?.(current=>({...current,highestLetter:Math.max(Number(current.highestLetter||0),value)})); };
+  const moveToLetter = next => { const value=Math.max(0,Math.min(ALPHABET_LESSON.length-1,next));setSelected(value);setShowWord(false);onProgress?.(current=>({...current,highestLetter:Math.max(Number(current.highestLetter||0),value+1)})); };
   return <>
     <Header eyebrow="ARABIC ACADEMY · LEVEL 1" title="Meet the Arabic letters" />
     <View style={styles.infoCard}>
