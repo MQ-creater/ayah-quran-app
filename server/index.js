@@ -36,6 +36,8 @@ let cachedToken = null;
 let tokenExpiresAt = 0;
 let cachedTafsirToken = null;
 let tafsirTokenExpiresAt = 0;
+let cachedHadithToken = null;
+let hadithTokenExpiresAt = 0;
 const responseCache = new Map();
 const RESPONSE_CACHE_LIMIT = 180;
 const RESPONSE_CACHE_TTL_MS = 60_000;
@@ -58,12 +60,13 @@ app.use("/api/", rateLimit({
   legacyHeaders: false
 }));
 
-async function getAccessToken(includeTafsir = false) {
+async function getAccessToken(includeTafsir = false, includeHadith = false) {
   if (!clientId || !clientSecret) {
     throw new Error("Quran Foundation server credentials are not configured.");
   }
   if (includeTafsir && cachedTafsirToken && Date.now() < tafsirTokenExpiresAt - 60_000) return cachedTafsirToken;
-  if (!includeTafsir && cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
+  if (includeHadith && cachedHadithToken && Date.now() < hadithTokenExpiresAt - 60_000) return cachedHadithToken;
+  if (!includeTafsir && !includeHadith && cachedToken && Date.now() < tokenExpiresAt - 60_000) return cachedToken;
 
   const credentials = Buffer.from(clientId + ":" + clientSecret).toString("base64");
   let response;
@@ -76,7 +79,7 @@ async function getAccessToken(includeTafsir = false) {
       },
       body: new URLSearchParams({
         grant_type: "client_credentials",
-        scope: includeTafsir ? "content.tafsirs.read" : "content.quran.read content.translations.read content.audio.read"
+        scope: includeTafsir ? "content.tafsirs.read" : includeHadith ? "content.hadith.read" : "content.quran.read content.translations.read content.audio.read"
       }),
       signal: AbortSignal.timeout(15000)
     });
@@ -89,17 +92,18 @@ async function getAccessToken(includeTafsir = false) {
   if (!data.access_token) throw new Error("The content provider returned no access token.");
   const expiry = Date.now() + Number(data.expires_in || 3600) * 1000;
   if (includeTafsir) { cachedTafsirToken = data.access_token; tafsirTokenExpiresAt = expiry; return cachedTafsirToken; }
+  if (includeHadith) { cachedHadithToken = data.access_token; hadithTokenExpiresAt = expiry; return cachedHadithToken; }
   cachedToken = data.access_token;
   tokenExpiresAt = expiry;
   return cachedToken;
 }
 
-async function qfGet(path, includeTafsir = false) {
-  const cacheKey = (includeTafsir ? "tafsir:" : "content:") + path;
+async function qfGet(path, includeTafsir = false, includeHadith = false) {
+  const cacheKey = (includeTafsir ? "tafsir:" : includeHadith ? "hadith:" : "content:") + path;
   const cached = responseCache.get(cacheKey);
   if (cached && cached.expiresAt > Date.now()) return cached.data;
   if (cached) responseCache.delete(cacheKey);
-  const token = await getAccessToken(includeTafsir);
+  const token = await getAccessToken(includeTafsir, includeHadith);
   let response;
   try {
     response = await fetch(qf.api + "/content/api/v4" + path, {
@@ -130,7 +134,7 @@ app.get("/api/status", (_req, res) => res.json({
   responseCacheTtlSeconds: RESPONSE_CACHE_TTL_MS / 1000,
   environment,
   providerConfigured: Boolean(clientId && clientSecret),
-  endpoints: ["chapters", "verses", "translations", "search", "chapter-audio", "tafsir"]
+  endpoints: ["chapters", "verses", "translations", "search", "chapter-audio", "tafsir", "hadith", "mushaf-pages", "juz"]
 }));
 
 app.get("/api/audio/reciters", async (req, res) => {
@@ -262,6 +266,27 @@ function buildVerseBrowseParams(req) {
     })
   };
 }
+
+
+app.get("/api/hadith/:surah/:ayah", async (req,res) => {
+  const surah = Number(req.params.surah);
+  const ayah = Number(req.params.ayah);
+  const page = Number(req.query.page || 1);
+  const limit = Number(req.query.limit || 4);
+  const language = String(req.query.language || "en").toLowerCase();
+  if (!Number.isInteger(surah) || surah < 1 || surah > 114 || !Number.isInteger(ayah) || ayah < 1 || ayah > 286) return res.status(400).json({ error:"Enter a valid surah and ayah reference." });
+  if (!Number.isInteger(page) || page < 1 || page > 100 || !Number.isInteger(limit) || limit < 1 || limit > 5) return res.status(400).json({ error:"Hadith page must be 1–100 and limit must be 1–5." });
+  if (!["en","ar"].includes(language)) return res.status(400).json({ error:"Related hadith can currently be requested in English or Arabic." });
+  try {
+    const params = new URLSearchParams({ language, page:String(page), limit:String(limit) });
+    const data = await qfGet("/hadiths/by_ayah/" + surah + ":" + ayah + "?" + params.toString(),false,true);
+    res.json({ hadiths:Array.isArray(data.hadiths)?data.hadiths:[], page:data.page||page, limit:data.limit||limit, has_more:Boolean(data.has_more), language:data.language||language, direction:data.direction||"ltr" });
+  } catch (error) {
+    console.error("Related hadith request failed:",error.message);
+    const message = error.providerStatus === 403 ? "Related hadith access is not enabled for the Quran Foundation credentials. Request the content.hadith.read permission." : "Related hadith are temporarily unavailable.";
+    res.status(error.status || 503).json({ error:message });
+  }
+});
 
 app.get("/api/chapters", async (_req, res) => {
   try {
