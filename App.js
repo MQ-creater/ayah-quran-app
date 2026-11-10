@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup } from "./src/lib/ayah-utils.mjs";
+import ayahUtils from "./src/lib/ayah-utils";
+const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup } = ayahUtils;
 import * as Font from "expo-font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
