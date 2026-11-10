@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup } from "./src/lib/ayah-utils.mjs";
 import * as Font from "expo-font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
@@ -923,8 +924,9 @@ function LearningInsightsScreen({ practiceHistory = [], activity = {}, progress 
   </>;
 }
 
-function DataPrivacyScreen({ onBack, onExport, onReset, stats }) {
+function DataPrivacyScreen({ onBack, onExport, onRestore, onReset, stats }) {
   const [backupPreview,setBackupPreview] = useState("");
+  const [restoreInput,setRestoreInput] = useState("");
   return <>
     <Header eyebrow="YOUR DEVICE · YOUR DATA" title="Backup & privacy" />
     <View style={styles.infoCard}>
@@ -938,6 +940,10 @@ function DataPrivacyScreen({ onBack, onExport, onReset, stats }) {
       <Button title="Export my Ayah backup" onPress={async()=>{const result=await onExport?.();if(typeof result==="string")setBackupPreview(result);}}/>
       {backupPreview?<View style={styles.savedAyah}><Text style={styles.sectionTitle}>Backup JSON · copyable text</Text><Text selectable style={[styles.choiceText,{fontSize:10,lineHeight:15}]}>{backupPreview}</Text><Button title="Hide backup text" secondary onPress={()=>setBackupPreview("")}/></View>:null}
       <Text style={styles.tinyNote}>The export includes every locally stored Ayah preference and learning record, including reader display choices and saved audio positions. Store it somewhere private. It does not contain your Quran Foundation server credentials.</Text>
+      <Text style={styles.settingLabel}>Restore from a backup</Text>
+      <Text style={styles.progressHint}>Paste the JSON from an earlier Ayah export. Restoring replaces the matching local settings and learning records on this device.</Text>
+      <TextInput multiline value={restoreInput} onChangeText={setRestoreInput} placeholder="Paste Ayah backup JSON here…" placeholderTextColor={MUTED} style={[styles.emailInput,{minHeight:110,textAlignVertical:"top",marginTop:10}]} />
+      <Button title="Validate and restore backup" secondary disabled={restoreInput.trim().length<10} onPress={()=>onRestore?.(restoreInput)} />
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Privacy and reset</Text>
@@ -948,34 +954,49 @@ function DataPrivacyScreen({ onBack, onExport, onReset, stats }) {
   </>;
 }
 
-function QuranSearchScreen({ onOpenResult, language }) {
+function QuranSearchScreen({ onOpenResult, language, recentSearches = [], onSaveRecentSearch }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
-  const search = async () => {
+  const activeSearch = useRef(null);
+  const search = async (requestedTerm = query) => {
     const term = query.trim();
     if (term.length < 2) { setError("Enter at least two characters to search."); return; }
     if (!AYAH_API_BASE) { setError("Connect the Ayah content server to search the Qur’an."); return; }
+    activeSearch.current?.abort();
+    const controller = new AbortController();
+    activeSearch.current = controller;
     setLoading(true); setError(""); setSearched(true); setResults([]);
+    onSaveRecentSearch?.(term);
     const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE;
     try {
-      const codes = {English:"en",Arabic:"ar",Urdu:"ur",Bengali:"bn",Turkish:"tr",French:"fr","Bahasa Indonesia":"id"};
-      const response = await fetch(base + "/search?q=" + encodeURIComponent(term) + "&language=" + (codes[language] || "en"));
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "Search could not be completed.");
-      setResults(Array.isArray(data.results) ? data.results : []);
-    } catch (e) { setError(e.message || "Search is temporarily unavailable."); }
-    finally { setLoading(false); }
+      const reference = normalizeVerseKey(term);
+      if (reference) {
+        const [surah,ayah] = reference.split(":").map(Number);
+        const response = await fetch(base + "/chapters/" + surah + "/verses?page=" + readerPageForAyah(ayah) + "&per_page=50", { signal:controller.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "That ayah could not be loaded.");
+        const verse = (data.verses || []).find(item => item.verse_key === reference);
+        setResults(verse ? [{verse_key:reference,chapter_id:surah,verse_number:ayah,arabic:verse.text_qpc_hafs || verse.text_uthmani || "",translation:verse.translations?.[0]?.text || ""}] : []);
+      } else {
+        const response = await fetch(base + "/search?q=" + encodeURIComponent(term) + "&language=" + languageCodeFor(language), { signal:controller.signal });
+        const data = await response.json();
+        if (!response.ok) throw new Error(data.error || "Search could not be completed.");
+        setResults(Array.isArray(data.results) ? data.results : []);
+      }
+    } catch (e) { if(e.name !== "AbortError")setError(e.message || "Search is temporarily unavailable."); }
+    finally { if(activeSearch.current===controller){activeSearch.current=null;setLoading(false);} }
   };
   return <>
     <Header eyebrow="EXPLORE THE QUR’AN" title="Search ayahs" />
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Find a passage</Text>
-      <Text style={styles.progressHint}>Search Arabic words, words from a translation, or a verse reference such as 2:255.</Text>
+      <Text style={styles.progressHint}>Search Arabic words, translation phrases, or enter a reference such as 2:255. A reference opens that exact ayah.</Text>
       <TextInput value={query} onChangeText={setQuery} onSubmitEditing={search} returnKeyType="search" placeholder="Search the Qur’an…" placeholderTextColor={MUTED} style={styles.emailInput}/>
-      <Button title="Search Qur’an" onPress={search} disabled={loading}/>
+      <Button title="Search Qur’an" onPress={()=>search()} disabled={loading}/>
+      {recentSearches.length>0?<View style={{marginTop:12}}><Text style={styles.readerToolLabel}>Recent searches</Text><View style={styles.languageGrid}>{recentSearches.map(item=><Pressable key={item} onPress={()=>{setQuery(item);search(item);}} style={styles.languageChoice}><Text style={styles.choiceText}>{item}</Text></Pressable>)}</View><Pressable accessibilityRole="button" onPress={()=>onSaveRecentSearch?.("")}><Text style={styles.verseBookmark}>Clear recent searches</Text></Pressable></View>:null}
       {loading ? <ActivityIndicator color={GOLD} size="large"/> : null}
       {error ? <Text style={styles.progressHint}>{error}</Text> : null}
       {searched && !loading && !error ? <Text style={styles.reference}>{results.length} matching ayahs</Text> : null}
@@ -1105,7 +1126,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
   }, [audioStatus?.didJustFinish,repeatsRemaining,audioQueueIndex,audioQueueKeys,verses,chapter.id]);
 
   const [verses, setVerses] = useState([]);
-  const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : Math.floor((Number(initialAyah || 1) - 1) / 50) + 1);
+  const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : readerPageForAyah(initialAyah));
   const [jumpAyah, setJumpAyah] = useState("");
   const [noteEditorKey, setNoteEditorKey] = useState(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -1120,16 +1141,16 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
   const [arabicFontReady, setArabicFontReady] = useState(false);
   const [arabicFontError, setArabicFontError] = useState("");
   const [translationFont, setTranslationFont] = usePersistentState("readerTranslationFont", "Sans");
-  const [translationLanguage, setTranslationLanguage] = useState("en");
+  const [translationLanguage, setTranslationLanguage] = usePersistentState("readerTranslationLanguage", "en");
   const [translationOptions, setTranslationOptions] = useState([]);
-  const [translationId, setTranslationId] = useState("131");
+  const [translationId, setTranslationId] = usePersistentState("readerTranslationId", "131");
   const [translationListLoading, setTranslationListLoading] = useState(false);
   const [translationListError, setTranslationListError] = useState("");
   const translationFontFamily = translationFont === "Serif" ? "serif" : translationFont === "Monospace" ? "monospace" : undefined;
   const translationLanguages = [{ code: "en", label: "English" }, { code: "ur", label: "Urdu" }, { code: "ar", label: "Arabic" }, { code: "bn", label: "Bengali" }, { code: "tr", label: "Turkish" }, { code: "fr", label: "French" }, { code: "id", label: "Indonesian" }];
   useEffect(() => {
     setVerses([]);
-    setPage(lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : Math.floor((Number(initialAyah || 1) - 1) / 50) + 1);
+    setPage(lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : readerPageForAyah(initialAyah));
     setError("");
   }, [chapter?.id]);
   useEffect(() => {
@@ -1276,7 +1297,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
         <View style={styles.readerToggleRow}>
           {["Sans", "Serif", "Monospace"].map(option => <Pressable key={option} accessibilityRole="button" onPress={() => setTranslationFont(option)} style={[styles.readerToggle, translationFont === option && styles.readerToggleActive]}><Text style={[styles.readerToggleText, translationFont === option && styles.readerToggleTextActive]}>{option}</Text></Pressable>)}
         </View>
-        <Text style={styles.tinyNote}>Font and display choices apply to this reading session. Preferences are not saved between app launches yet.</Text>
+        <Text style={styles.tinyNote}>Font, script, translation, and display choices are saved locally on this device.</Text>
       </View>
       {!AYAH_API_BASE ? <Text style={styles.progressHint}>Connect the verified Qur’an content backend to read this surah.</Text> : null}
       <View style={{marginTop:14,padding:12,backgroundColor:PANEL,borderRadius:14,borderWidth:1,borderColor:BORDER}}>
@@ -1359,7 +1380,7 @@ function SavedAyahsScreen({ savedIds, savedVerseDetails, onToggleSave, onLearn }
     <Header eyebrow="YOUR COLLECTION" title="Saved ayahs" />
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Your bookmarks</Text>
-      <Text style={styles.progressHint}>Keep ayahs you want to revisit. Bookmarks currently last only while this app session stays open.</Text>
+      <Text style={styles.progressHint}>Keep ayahs you want to revisit. Bookmarks are saved locally on this device; cloud sync is not connected yet.</Text>
       {saved.length === 0 && savedVerses.length === 0 ? <><Text style={styles.progressHint}>No saved ayahs yet. Save one during memorization practice or from the Qur’an reader.</Text><Button title="Go to memorization" onPress={onLearn} /></> : <>{saved.map(item => <View key={item.id} style={styles.savedAyah}>
         <Text style={styles.dailyArabic} writingDirection="rtl">{item.arabic}</Text><Text style={styles.translation}>{item.translation}</Text><Text style={styles.reference}>{item.reference}</Text>
         <Button title="Remove bookmark" secondary onPress={() => onToggleSave(item.id)} />
@@ -1706,7 +1727,7 @@ function SettingsScreen({ themeName, onSelectTheme, language, onSelectLanguage, 
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Learning preferences</Text>
-      <Text style={styles.progressHint}>Choose the language for app guidance and your daily learning target. These preferences are currently kept while the app stays open.</Text>
+      <Text style={styles.progressHint}>Choose the language for app guidance and your daily learning target. These preferences are saved locally on this device.</Text>
       <Text style={styles.settingLabel}>Preferred language</Text>
       <View style={styles.languageGrid}>{languages.map(item => <Pressable key={item} onPress={() => onSelectLanguage(item)} style={[styles.languageChoice, language === item && styles.choiceSelected]}><Text style={[styles.choiceText, language === item && styles.choiceTextSelected]}>{item}</Text></Pressable>)}</View>
       <Text style={styles.settingLabel}>Daily learning goal</Text>
@@ -1715,7 +1736,7 @@ function SettingsScreen({ themeName, onSelectTheme, language, onSelectLanguage, 
     </View>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Your learning</Text>
-      <Text style={styles.progressHint}>Practice sessions completed in this app session: {practiceCount}</Text>
+      <Text style={styles.progressHint}>Practice sessions recorded on this device: {practiceCount}</Text>
       <Text style={styles.tinyNote}>Account sign-in, cloud syncing, saved preferences and cross-device progress will be connected after secure authentication is set up.</Text>
     </View>
     <Button title="Back to Ayah" secondary onPress={onBack} />
@@ -1853,6 +1874,9 @@ export default function App() {
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = usePersistentState("practiceCount", 0);
   const [practiceHistory,setPracticeHistory] = usePersistentState("practiceHistory",[]);
+  const [recentSearches,setRecentSearches] = usePersistentState("recentSearches",[]);
+  const [arabicLessonProgress,setArabicLessonProgress] = usePersistentState("arabicLessonProgress",{highestWord:0,bestQuizScore:0,completed:false});
+  const [arabicAlphabetProgress,setArabicAlphabetProgress] = usePersistentState("arabicAlphabetProgress",{highestLetter:0,bestQuizScore:0});
   const [dailyTargets,setDailyTargets] = usePersistentState("dailyTargets",{reading:5,memorization:1});
   const [memorizationPlan, setMemorizationPlan] = usePersistentState("memorizationPlan", { dailyTarget: 1, daysPerWeek: 5, focus: "balanced" });
   const [activeAssignment, setActiveAssignment] = useState(null);
@@ -1899,7 +1923,7 @@ export default function App() {
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
   if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} onChangeChapter={setSelectedChapter} chapter={selectedChapter} initialAyah={searchInitialAyah} onMarkAyahRead={key=>recordDailyActivity("readingAyahs",[key])} readTodayIds={dailyActivity?.[localDateKey()]?.readingAyahs||[]} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
-  else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
+  else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} recentSearches={recentSearches} onSaveRecentSearch={query=>setRecentSearches(current=>query?mergeRecentSearches(current,query):[])} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} progress={memorizationProgress} onRateReview={saveReviewRating} onSyncRating={(surahId, verse, rating) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } }))} onStartVerse={(chapterId, verse) => { setActiveAssignment({ chapterId, startVerse:Number(verse), endVerse:Number(verse), revision:true }); setTab("buildSession"); }} onStartPractice={() => setTab("memorize")} />;
@@ -1908,8 +1932,8 @@ export default function App() {
   else if (tab === "memorize") screen = <MemorizeScreen onPracticed={() => setPracticeCount(n => n + 1)} onRecordSession={recordPracticeSession} onBuildSession={() => setTab("buildSession")} onPracticeCompleted={id => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) recordDailyActivity("memorizationAyahs",[ref[0]+":"+ref[1]]); if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: current[ref[0]]?.[ref[1]] === "memorized" ? "memorized" : "learning" } })); }} onSyncRating={(id, rating) => { const map = { fatiha2: ["1","2"], ikhlas1: ["112","1"], asr1: ["103","1"] }; const ref = map[id]; if (ref) setMemorizationProgress(current => ({ ...current, [ref[0]]: { ...(current[ref[0]] || {}), [ref[1]]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } })); }} savedIds={savedIds} onToggleSave={id => setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id])} onSaved={() => setTab("saved")} onRateReview={saveReviewRating} reviewRecords={reviewRecords} />;
   else if (tab === "notebook") screen = <StudyNotebookScreen notes={readerNotes} savedIds={savedIds} savedVerseDetails={savedVerseDetails} collections={ayahCollections} onAssignCollection={(key,name) => setAyahCollections(current => ({ ...current, [key]:name }))} onBack={() => setTab("home")} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
-  else if (tab === "arabic") screen = <ArabicLessonsScreen onPremium={() => setTab("premium")} />;
-  else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen onPremium={() => setTab("premium")} />;
+  else if (tab === "arabic") screen = <ArabicLessonsScreen progress={arabicLessonProgress} onProgress={setArabicLessonProgress} onPremium={() => setTab("premium")} />;
+  else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen progress={arabicAlphabetProgress} onProgress={setArabicAlphabetProgress} onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("premium")} onPremium={() => setTab("premium")} />;
   else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
   else if (tab === "review" || tab === "listen") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => setTab("tafsir")} />;
@@ -1920,12 +1944,12 @@ export default function App() {
   else if (tab === "goals") screen = <DailyGoalsScreen activity={dailyActivity} readingTarget={dailyTargets?.reading??5} memorizationTarget={dailyTargets?.memorization??1} onSetReadingTarget={value=>setDailyTargets(current=>({...current,reading:value}))} onSetMemorizationTarget={value=>setDailyTargets(current=>({...current,memorization:value}))} onBack={() => setTab("home")} />;
   else if (tab === "backend") screen = <BackendStatusScreen onBack={()=>setTab("home")} />;
   else if (tab === "insights") screen = <LearningInsightsScreen practiceHistory={practiceHistory} activity={dailyActivity} progress={memorizationProgress} reviewRecords={reviewRecords} onNavigate={navigate} onBack={()=>setTab("home")} />;
-  else if (tab === "data") screen = <DataPrivacyScreen stats={{sessions:(Array.isArray(practiceHistory)?practiceHistory.length:0),bookmarks:savedIds.length,notes:Object.keys(readerNotes||{}).length}} onBack={()=>setTab("home")} onExport={async()=>{try{const keys=await AsyncStorage.getAllKeys();const appKeys=keys.filter(key=>key.startsWith(PREFERENCES_KEY+":"));const pairs=await AsyncStorage.multiGet(appKeys);const preferences={};pairs.forEach(([key,raw])=>{try{preferences[key.slice(PREFERENCES_KEY.length+1)]=JSON.parse(raw);}catch(parseError){preferences[key.slice(PREFERENCES_KEY.length+1)]=null;}});const backup={app:"Ayah",schemaVersion:1,exportedAt:new Date().toISOString(),data:preferences};const json=JSON.stringify(backup,null,2);try{await Share.share({title:"Ayah study backup",message:json});}catch(shareError){/* The copyable backup text remains available on screen. */}return json;}catch(error){Alert.alert("Backup unavailable","Ayah could not read its saved data. Please try again.");return null;}}} onReset={()=>Alert.alert("Clear local Ayah data?","This removes your saved learning progress, notes, bookmarks, settings and session history from this device. This cannot be undone unless you exported a backup.",[{text:"Cancel",style:"cancel"},{text:"Clear data",style:"destructive",onPress:async()=>{try{const keys=await AsyncStorage.getAllKeys();await AsyncStorage.multiRemove(keys.filter(key=>key.startsWith(PREFERENCES_KEY+":")));setPracticeCount(0);setPracticeHistory([]);setDailyTargets({reading:5,memorization:1});setMemorizationPlan({dailyTarget:1,daysPerWeek:5,focus:"balanced"});setReviewRecords({});setMemorizationProgress({});setSavedIds([]);setFavoriteReciterIds([]);setPreferredReciterId("");setPreferredReciterName("");setSavedVerseDetails({});setReaderNotes({});setAyahCollections({});setLastReadPosition(null);setThemeName("auto");setLearningLanguage("English");setDailyGoal(10);setDailyActivity({});setRemindersEnabled(false);setSelectedChapter(null);setActiveAssignment(null);setTab("home");Alert.alert("Local data cleared","Ayah is ready for a fresh start.");}catch(error){Alert.alert("Could not clear data","Please try again.");}}}])} />;
+  else if (tab === "data") screen = <DataPrivacyScreen stats={{sessions:(Array.isArray(practiceHistory)?practiceHistory.length:0),bookmarks:savedIds.length,notes:Object.keys(readerNotes||{}).length}} onBack={()=>setTab("home")} onRestore={raw=>{if(String(raw||"").length>1000000){Alert.alert("Backup too large","Choose an Ayah backup smaller than 1 MB.");return;}let parsed;try{parsed=JSON.parse(raw);}catch(error){Alert.alert("Invalid JSON","The pasted backup is not valid JSON.");return;}const checked=validateAyahBackup(parsed);if(!checked.valid){Alert.alert("Backup not recognized",checked.error);return;}Alert.alert("Restore this backup?","This replaces matching Ayah learning data and settings stored on this device. Export your current data first if you may need it.",[{text:"Cancel",style:"cancel"},{text:"Restore",onPress:async()=>{try{const data=checked.data;await AsyncStorage.multiSet(Object.entries(data).map(([key,value])=>[PREFERENCES_KEY+":"+key,JSON.stringify(value)]));if(data.practiceCount!==undefined)setPracticeCount(data.practiceCount);if(data.practiceHistory!==undefined)setPracticeHistory(data.practiceHistory);if(data.dailyTargets!==undefined)setDailyTargets(data.dailyTargets);if(data.memorizationPlan!==undefined)setMemorizationPlan(data.memorizationPlan);if(data.reviewRecords!==undefined)setReviewRecords(data.reviewRecords);if(data.memorizationProgress!==undefined)setMemorizationProgress(data.memorizationProgress);if(data.savedIds!==undefined)setSavedIds(data.savedIds);if(data.favoriteReciterIds!==undefined)setFavoriteReciterIds(data.favoriteReciterIds);if(data.preferredReciterId!==undefined)setPreferredReciterId(data.preferredReciterId);if(data.preferredReciterName!==undefined)setPreferredReciterName(data.preferredReciterName);if(data.savedVerseDetails!==undefined)setSavedVerseDetails(data.savedVerseDetails);if(data.readerNotes!==undefined)setReaderNotes(data.readerNotes);if(data.ayahCollections!==undefined)setAyahCollections(data.ayahCollections);if(data.lastReadPosition!==undefined)setLastReadPosition(data.lastReadPosition);if(data.themeName!==undefined)setThemeName(data.themeName);if(data.learningLanguage!==undefined)setLearningLanguage(data.learningLanguage);if(data.dailyGoal!==undefined)setDailyGoal(data.dailyGoal);if(data.dailyActivity!==undefined)setDailyActivity(data.dailyActivity);if(data.remindersEnabled!==undefined)setRemindersEnabled(data.remindersEnabled);if(data.recentSearches!==undefined)setRecentSearches(data.recentSearches);if(data.arabicLessonProgress!==undefined)setArabicLessonProgress(data.arabicLessonProgress);if(data.arabicAlphabetProgress!==undefined)setArabicAlphabetProgress(data.arabicAlphabetProgress);setTab("home");Alert.alert("Backup restored","Your supported Ayah data has been restored on this device.");}catch(error){Alert.alert("Restore failed","Ayah could not save this backup. Your previous data may be partly updated; try again after checking device storage.");}}}]);}} onExport={async()=>{try{const keys=await AsyncStorage.getAllKeys();const appKeys=keys.filter(key=>key.startsWith(PREFERENCES_KEY+":"));const pairs=await AsyncStorage.multiGet(appKeys);const preferences={};pairs.forEach(([key,raw])=>{try{preferences[key.slice(PREFERENCES_KEY.length+1)]=JSON.parse(raw);}catch(parseError){preferences[key.slice(PREFERENCES_KEY.length+1)]=null;}});const backup={app:"Ayah",schemaVersion:1,exportedAt:new Date().toISOString(),data:preferences};const json=JSON.stringify(backup,null,2);try{await Share.share({title:"Ayah study backup",message:json});}catch(shareError){/* The copyable backup text remains available on screen. */}return json;}catch(error){Alert.alert("Backup unavailable","Ayah could not read its saved data. Please try again.");return null;}}} onReset={()=>Alert.alert("Clear local Ayah data?","This removes your saved learning progress, notes, bookmarks, settings and session history from this device. This cannot be undone unless you exported a backup.",[{text:"Cancel",style:"cancel"},{text:"Clear data",style:"destructive",onPress:async()=>{try{const keys=await AsyncStorage.getAllKeys();await AsyncStorage.multiRemove(keys.filter(key=>key.startsWith(PREFERENCES_KEY+":")));setPracticeCount(0);setPracticeHistory([]);setDailyTargets({reading:5,memorization:1});setMemorizationPlan({dailyTarget:1,daysPerWeek:5,focus:"balanced"});setReviewRecords({});setMemorizationProgress({});setSavedIds([]);setFavoriteReciterIds([]);setPreferredReciterId("");setPreferredReciterName("");setSavedVerseDetails({});setReaderNotes({});setAyahCollections({});setLastReadPosition(null);setThemeName("auto");setLearningLanguage("English");setDailyGoal(10);setDailyActivity({});setRemindersEnabled(false);setSelectedChapter(null);setActiveAssignment(null);setTab("home");Alert.alert("Local data cleared","Ayah is ready for a fresh start.");}catch(error){Alert.alert("Could not clear data","Please try again.");}}}])} />;
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => { setTafsirTarget({ surah:"1", ayah:"1" }); setTafsirReturnTab("premium"); setTab("tafsir"); }} />;
-  else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} lastReadPosition={lastReadPosition} onContinueReading={() => { if (lastReadPosition?.chapter) { setSelectedChapter(lastReadPosition.chapter); setTab("libraryReader"); } }} />;
+  else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} lastReadPosition={lastReadPosition} onContinueReading={() => { if (lastReadPosition?.chapter) { setSearchInitialAyah(Number(lastReadPosition.ayah||1)); setSelectedChapter(lastReadPosition.chapter); setTab("libraryReader"); } }} />;
   const tabs = [["home", "⌂", "Home"], ["library", "📖", "Qur’an"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Settings"], ["premium", "✧", "Ayah Plus"]];
-  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
+  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected:tab===key}} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
 const createStyles = (p) => StyleSheet.create({
   goalProgressTrack:{height:9,backgroundColor:p.surface,borderRadius:8,overflow:"hidden",marginTop:7,marginBottom:16}, goalProgressFill:{height:9,backgroundColor:p.accent,borderRadius:8}, goalStatRow:{flexDirection:"row",justifyContent:"space-around",gap:8,marginVertical:12}, goalStat:{flex:1,alignItems:"center",backgroundColor:p.surface,borderRadius:12,padding:12}, goalStatValue:{fontSize:26,fontWeight:"800",color:p.accent}, reciterRow:{flexDirection:"row",alignItems:"center",gap:10},calendarGrid:{flexDirection:"row",flexWrap:"wrap",marginTop:12},calendarDay:{width:"14.2857%",minHeight:48,alignItems:"center",justifyContent:"center",borderRadius:10,marginBottom:4},calendarToday:{borderWidth:1,borderColor:p.accent},calendarMarks:{flexDirection:"row",gap:4,marginTop:4,minHeight:7},calendarDot:{width:6,height:6,borderRadius:3,backgroundColor:"transparent"},calendarAssignmentDot:{backgroundColor:p.accent},calendarActivityDot:{backgroundColor:"#58B88A"},calendarLegend:{flexDirection:"row",justifyContent:"space-around",marginTop:10},weekActivityRow:{flexDirection:"row",justifyContent:"space-between",gap:5,marginVertical:16}, weekDay:{flex:1,alignItems:"center",gap:6}, weekDayDot:{width:34,height:34,borderRadius:17,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"}, weekDayDotActive:{backgroundColor:p.accent}, weekDayCount:{fontSize:12,fontWeight:"700",color:p.text},
