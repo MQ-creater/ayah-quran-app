@@ -65,13 +65,13 @@ const PRACTICE = {
 function Button({ title, onPress, secondary = false, disabled = false }) {
   return (
     <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress}
-      style={({ pressed }) => [styles.button, secondary && styles.buttonSecondary, disabled && styles.disabled, pressed && !disabled && styles.pressed]}>
+      accessibilityHint={disabled?"Unavailable right now":undefined} style={({ pressed }) => [styles.button, secondary && styles.buttonSecondary, disabled && styles.disabled, pressed && !disabled && styles.pressed]}>
       <Text style={[styles.buttonText, secondary && styles.buttonTextSecondary]}>{title}</Text>
     </Pressable>
   );
 }
 function Header({ eyebrow, title }) {
-  return <View style={styles.pageHeader}><Text style={styles.eyebrow}>{eyebrow}</Text><Text style={styles.pageTitle}>{title}</Text></View>;
+  return <View style={styles.pageHeader}><Text style={styles.eyebrow}>{eyebrow}</Text><Text accessibilityRole="header" style={styles.pageTitle}>{title}</Text></View>;
 }
 function DailyAyah({ compact = false }) {
   return (
@@ -99,7 +99,7 @@ function WelcomeScreen({ onEmailContinue, onGoogle }) {
         <DailyAyah />
         <View style={styles.signInCard}>
           <Text style={styles.signInTitle}>Begin your journey</Text>
-          <Text style={styles.signInCopy}>Sign in to keep your learning and progress together.</Text>
+          <Text style={styles.signInCopy}>Explore your learning space. Secure accounts and cloud sync are planned but not connected yet.</Text>
           <Button title="Continue with Google" onPress={onGoogle} />
           <Button title="Continue with email" secondary onPress={() => setShowEmail(true)} />
           {showEmail && (
@@ -121,7 +121,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
   return (
     <>
       <View style={styles.header}>
-        <View><Text style={styles.eyebrow}>ASSALAMU ALAIKUM</Text><Text style={styles.heading}>Your Qur’an journey</Text></View>
+        <View><Text style={styles.eyebrow}>ASSALAMU ALAIKUM</Text><Text accessibilityRole="header" style={styles.heading}>Your Qur’an journey</Text></View>
         <Pressable accessibilityRole="button" onPress={() => onNavigate("settings")} style={styles.settingsButton}><Text style={styles.settingsButtonText}>⚙  Settings</Text></Pressable>
         <View style={styles.logo}><Text style={styles.logoArabic}>آيَة</Text></View>
       </View>
@@ -177,7 +177,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
 }
 function ActionTile({ icon, title, subtitle, onPress, locked = false }) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={({ pressed }) => [styles.actionTile, pressed && styles.pressed]}>
+    <Pressable accessibilityRole="button" accessibilityLabel={title + ". " + subtitle + (locked ? ". Ayah Plus feature." : "")} accessibilityHint="Opens this section" onPress={onPress} style={({ pressed }) => [styles.actionTile, pressed && styles.pressed]}>
       <View style={styles.tileTop}><Text style={styles.actionIcon}>{icon}</Text>{locked && <Text style={styles.lock}>PLUS</Text>}</View>
       <Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionSubtitle}>{subtitle}</Text>
     </Pressable>
@@ -948,7 +948,7 @@ function DataPrivacyScreen({ onBack, onExport, onRestore, onReset, stats }) {
       <Text style={styles.tinyNote}>The export includes every locally stored Ayah preference and learning record, including reader display choices and saved audio positions. Store it somewhere private. It does not contain your Quran Foundation server credentials.</Text>
       <Text style={styles.settingLabel}>Restore from a backup</Text>
       <Text style={styles.progressHint}>Paste the JSON from an earlier Ayah export. Restoring replaces the matching local settings and learning records on this device.</Text>
-      <TextInput multiline value={restoreInput} onChangeText={setRestoreInput} placeholder="Paste Ayah backup JSON here…" placeholderTextColor={MUTED} style={[styles.emailInput,{minHeight:110,textAlignVertical:"top",marginTop:10}]} />
+      <TextInput accessibilityLabel="Paste Ayah backup JSON" maxLength={1000000} multiline value={restoreInput} onChangeText={setRestoreInput} placeholder="Paste Ayah backup JSON here…" placeholderTextColor={MUTED} style={[styles.emailInput,{minHeight:110,textAlignVertical:"top",marginTop:10}]} />
       <Button title="Validate and restore backup" secondary disabled={restoreInput.trim().length<10} onPress={()=>onRestore?.(restoreInput)} />
     </View>
     <View style={styles.infoCard}>
@@ -1001,7 +1001,7 @@ function QuranSearchScreen({ onOpenResult, language, recentSearches = [], onSave
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Find a passage</Text>
       <Text style={styles.progressHint}>Search Arabic words, translation phrases, or enter a reference such as 2:255. A reference opens that exact ayah.</Text>
-      <TextInput value={query} onChangeText={setQuery} onSubmitEditing={search} returnKeyType="search" placeholder="Search the Qur’an…" placeholderTextColor={MUTED} style={styles.emailInput}/>
+      <TextInput accessibilityLabel="Search Arabic words, translations, or an ayah reference" value={query} onChangeText={setQuery} onSubmitEditing={search} returnKeyType="search" placeholder="Search the Qur’an…" placeholderTextColor={MUTED} style={styles.emailInput}/>
       <Button title="Search Qur’an" onPress={()=>search()} disabled={loading}/>
       {recentSearches.length>0?<View style={{marginTop:12}}><Text style={styles.readerToolLabel}>Recent searches</Text><View style={styles.languageGrid}>{recentSearches.map(item=><Pressable key={item} onPress={()=>{setQuery(item);search(item);}} style={styles.languageChoice}><Text style={styles.choiceText}>{item}</Text></Pressable>)}</View><Pressable accessibilityRole="button" onPress={()=>onSaveRecentSearch?.("")}><Text style={styles.verseBookmark}>Clear recent searches</Text></Pressable></View>:null}
       {loading ? <ActivityIndicator color={GOLD} size="large"/> : null}
@@ -1979,7 +1979,7 @@ const createStyles = (p) => StyleSheet.create({
   reference:{color:p.muted,fontSize:11,textAlign:"center",marginTop:7},signInCard:{backgroundColor:"rgba(16,28,45,0.94)",borderRadius:22,padding:18,borderWidth:1,borderColor:p.border},
   signInTitle:{color:p.text,fontSize:19,fontWeight:"700",textAlign:"center"},signInCopy:{color:p.muted,fontSize:12,textAlign:"center",lineHeight:19,marginTop:7},
   emailArea:{marginTop:12},emailInput:{backgroundColor:p.surface,borderWidth:1,borderColor:"#53617A",borderRadius:12,padding:13,color:p.text,fontSize:14},
-  tinyNote:{color:p.muted,fontSize:10,lineHeight:16,textAlign:"center",marginTop:12},button:{backgroundColor:GOLD,borderRadius:14,paddingVertical:14,paddingHorizontal:16,alignItems:"center",marginTop:12},
+  tinyNote:{color:p.muted,fontSize:10,lineHeight:16,textAlign:"center",marginTop:12},button:{backgroundColor:GOLD,borderRadius:14,paddingVertical:14,paddingHorizontal:16,minHeight:46,alignItems:"center",justifyContent:"center",marginTop:12},
   buttonSecondary:{backgroundColor:"transparent",borderWidth:1,borderColor:GOLD},buttonText:{color:p.navyText,fontWeight:"700",fontSize:13},buttonTextSecondary:{color:p.accent},disabled:{opacity:0.55},pressed:{opacity:0.76},
   header:{flexDirection:"row",justifyContent:"space-between",alignItems:"center",marginTop:14,marginBottom:23},eyebrow:{color:p.accent,fontSize:10,letterSpacing:2,fontWeight:"700",marginBottom:7},
   heading:{color:p.text,fontSize:22,fontWeight:"700"},pageHeader:{marginTop:18,marginBottom:23},pageTitle:{color:p.text,fontSize:27,fontWeight:"700"},
@@ -2005,7 +2005,7 @@ const createStyles = (p) => StyleSheet.create({
   quizPrompt:{color:p.text,fontSize:17,fontWeight:"700",lineHeight:25,marginTop:14,marginBottom:6},quizScore:{color:p.accent,fontSize:36,fontWeight:"800",textAlign:"center",marginVertical:12},
   freeLessonBadge:{backgroundColor:p.surface,borderRadius:12,padding:10,alignSelf:"flex-start",borderWidth:1,borderColor:GOLD,marginBottom:8},freeLessonBadgeText:{color:p.accent,fontSize:10,fontWeight:"800",letterSpacing:1.2},
   exampleBox:{backgroundColor:p.surface,borderRadius:14,padding:14,marginTop:14,alignItems:"center"},exampleArabic:{color:p.text,fontSize:24,lineHeight:42,textAlign:"center"},
-  navButton:{alignItems:"center",minWidth:58,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:p.bg},
+  navButton:{alignItems:"center",justifyContent:"center",minWidth:58,minHeight:48,paddingVertical:4},bottomNav:{flexDirection:"row",justifyContent:"space-around",borderTopWidth:1,borderTopColor:"#34445B",paddingTop:10,paddingBottom:7,backgroundColor:p.bg},
   savedAyah:{backgroundColor:p.surface,borderRadius:15,padding:13,marginTop:12},
   readerTools:{backgroundColor:p.surface,borderRadius:15,padding:14,marginTop:15,marginBottom:4},
   readerToolRow:{flexDirection:"row",alignItems:"center",justifyContent:"space-between"},
@@ -2015,7 +2015,7 @@ const createStyles = (p) => StyleSheet.create({
   readerSizeButtonText:{color:p.accent,fontWeight:"800",fontSize:14},
   readerSizeValue:{color:p.text,fontSize:12,minWidth:20,textAlign:"center"},
   readerToggleRow:{flexDirection:"row",gap:8,marginTop:12},
-  readerToggle:{flex:1,backgroundColor:p.panel,borderRadius:10,paddingVertical:10,paddingHorizontal:7,alignItems:"center",borderWidth:1,borderColor:p.border},
+  readerToggle:{flex:1,backgroundColor:p.panel,borderRadius:10,paddingVertical:10,paddingHorizontal:7,minHeight:40,alignItems:"center",justifyContent:"center",borderWidth:1,borderColor:p.border},
   readerToggleActive:{borderColor:p.accent},
   readerToggleText:{color:p.muted,fontSize:10,fontWeight:"600",textAlign:"center"},
   readerToggleTextActive:{color:p.accent},
