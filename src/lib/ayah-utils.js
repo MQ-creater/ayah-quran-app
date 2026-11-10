@@ -57,10 +57,10 @@ function validateAyahBackup(value) {
   if (data.themeName !== undefined && !["auto","light","dark","sepia"].includes(data.themeName)) return { valid:false, error:"The saved appearance setting is invalid." };
   if (data.readerArabicScript !== undefined && !["Uthmani","IndoPak"].includes(data.readerArabicScript)) return { valid:false, error:"The saved Arabic script setting is invalid." };
   if (data.readerTranslationFont !== undefined && !["Sans","Serif","Monospace"].includes(data.readerTranslationFont)) return { valid:false, error:"The saved translation font is invalid." };
-  if (data.readerTranslationId !== undefined && !/^\\d+$/.test(String(data.readerTranslationId))) return { valid:false, error:"The saved translation selection is invalid." };
+  if (data.readerTranslationId !== undefined && !/^\d+$/.test(String(data.readerTranslationId))) return { valid:false, error:"The saved translation selection is invalid." };
   for (const key of ["readerShowArabic","readerShowTranslation","readerShowWordByWord","remindersEnabled"]) if (data[key] !== undefined && typeof data[key] !== "boolean") return { valid:false, error:"The " + key + " setting in this backup is invalid." };
   if (data.recitationRepeatCount !== undefined && ![1,3,5].includes(data.recitationRepeatCount)) return { valid:false, error:"The saved ayah repeat setting is invalid." };
-  for (const [key, item] of Object.entries(data)) if (/^lastAudioPosition_\\d+$/.test(key) && (!Number.isFinite(item) || item < 0 || item > 86400)) return { valid:false, error:"A saved audio position is invalid." };
+  for (const [key, item] of Object.entries(data)) if (/^lastAudioPosition_\d+$/.test(key) && (!Number.isFinite(item) || item < 0 || item > 86400)) return { valid:false, error:"A saved audio position is invalid." };
   return { valid:true, data };
 }
 module.exports = { BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup };
