@@ -105,3 +105,17 @@ test("validates pinned comparison detail backups",()=>{
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareDetails:{"bad":{arabic:"test"}}}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareDetails:{"2:255":"text"}}}).valid,false);
 });
+
+test("rejects impossible calendar dates in reading plans",()=>{
+  const malformed={durationDays:30,startDateKey:"2026-02-31"};
+  assert.equal(summarizeKhatmahProgress({},malformed),null);
+  const valid=createKhatmahPlan(30,new Date("2026-02-28T12:00:00"));
+  assert.equal(summarizeKhatmahProgress({},valid,new Date("2026-03-01T12:00:00")).elapsedDays,2);
+});
+test("translation reading mode is accepted as a boolean backup setting",()=>{
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readerTranslationReadingMode:true}}).valid,true);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readerTranslationReadingMode:"yes"}}).valid,false);
+});
+test("rejects pinned comparison detail that is not in the pin list",()=>{
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["2:255"],pinnedCompareDetails:{"3:18":{arabic:"text"}}}}).valid,false);
+});
