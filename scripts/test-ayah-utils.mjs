@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import ayahUtils from "../src/lib/ayah-utils.js";
-const { normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup } = ayahUtils;
+const { normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, QURAN_TOTAL_AYAHS } = ayahUtils;
 
 test("normalizes valid verse references and rejects invalid ones",()=>{
   assert.equal(normalizeVerseKey("002:255"),"2:255");
@@ -34,4 +34,35 @@ test("validates Ayah backups and filters unknown keys",()=>{
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readerTranslationId:"not-a-number"}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{memorizationProgress:[]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{lastAudioPosition_2:999999}}).valid,false);
+});
+
+test("normalizes a primary and comparison translation without duplicates",()=>{
+  assert.equal(normalizeTranslationIds("131","20"),"131,20");
+  assert.equal(normalizeTranslationIds("131","131"),"131");
+  assert.equal(normalizeTranslationIds("bad","20"),"20");
+  assert.equal(normalizeTranslationIds("131;DROP",""),"");
+});
+test("supports legacy and multiple bookmark collections",()=>{
+  assert.deepEqual(normalizeCollectionNames("Study"),["Study"]);
+  assert.deepEqual(normalizeCollectionNames(["Favorites","Study","Study"]),["Favorites","Study"]);
+  assert.deepEqual(toggleCollectionMembership(["Favorites"],"Study"),["Favorites","Study"]);
+  assert.deepEqual(toggleCollectionMembership(["Favorites","Study"],"Study"),["Favorites"]);
+});
+test("creates and summarizes a date-based Qur’an completion plan",()=>{
+  const start=new Date("2026-11-09T12:00:00");
+  const plan=createKhatmahPlan(30,start);
+  assert.equal(plan.totalAyahs,QURAN_TOTAL_AYAHS);
+  assert.equal(plan.dailyAyahTarget,Math.ceil(QURAN_TOTAL_AYAHS/30));
+  const summary=summarizeKhatmahProgress({
+    "2026-11-09":{readingAyahs:["1:1","1:2","1:2","invalid"]},
+    "2026-11-08":{readingAyahs:["1:3"]}
+  },plan,start);
+  assert.equal(summary.completedAyahs,2);
+  assert.equal(summary.readToday,2);
+  assert.equal(summary.elapsedDays,1);
+  assert.equal(summary.percent,0);
+});
+test("rejects invalid khatmah and comparison preferences during backup restore",()=>{
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{compareTranslationId:"x"}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{khatmahPlan:{durationDays:999,startDateKey:"bad"}}}).valid,false);
 });
