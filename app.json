@@ -4,7 +4,7 @@
     "slug": "ayah-quran-app",
     "version": "1.0.0",
     "orientation": "portrait",
-    "userInterfaceStyle": "dark",
+    "userInterfaceStyle": "automatic",
     "android": {
       "package": "com.mqcreater.ayah"
     }
