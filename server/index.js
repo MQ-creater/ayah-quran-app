@@ -339,7 +339,7 @@ app.get("/api/verses/random", async (req,res) => {
   for(const name of selected)params.set(name,String(Number(req.query[name])));
   try{
     const data=await qfGet("/verses/random?"+params.toString());
-    const verse=data.verse||null;
+    if(!verse||!/^\d{1,3}:\d{1,3}$/.test(String(verse.verse_key||"")))return res.status(502).json({error:"The content provider returned an invalid random verse."});
     if(!verse||!/^\\d{1,3}:\\d{1,3}$/.test(String(verse.verse_key||"")))return res.status(502).json({error:"The content provider returned an invalid random verse."});
     res.json({verse});
   }catch(error){
