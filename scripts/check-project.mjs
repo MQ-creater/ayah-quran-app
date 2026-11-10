@@ -50,6 +50,18 @@ const checks = [
   ["shared utility exports the backup validator", utilities.includes("module.exports") && utilities.includes("validateAyahBackup")]
 ]; 
 
+checks.push(...[  ["Mushaf page and Juz navigation APIs", server.includes("/api/verses/by-page/:pageNumber") && server.includes("/api/verses/by-juz/:juzNumber") && server.includes("/verses/by_page/") && server.includes("/verses/by_juz/")],
+  ["related hadith endpoint uses separate least-privilege token", server.includes("/api/hadith/:surah/:ayah") && server.includes("content.hadith.read") && server.includes("cachedHadithToken")],
+  ["reader has on-demand related hadith study", app.includes("function RelatedHadithSection") && app.includes("Related hadith and sources") && app.includes("/hadith/")],
+  ["Qur’an navigation screen supports Juz and Mushaf page", app.includes("function QuranNavigationScreen") && app.includes("Browse by Juz or Mushaf page") && app.includes("by-page/") && app.includes("by-juz/")],
+  ["Khatmah plan is reachable from home", app.includes("function KhatmahPlanScreen") && app.includes("Qur’an completion plan") && app.includes("tab === \"khatmah\"")],
+  ["reader supports two provider translations", app.includes("normalizeTranslationIds(translationId, compareTranslationId)") && app.includes("Compare with a second translation")],
+  ["pinned ayah comparison persists locally", app.includes("usePersistentState(\"pinnedCompareKeys\",[])") && app.includes("Compare pinned ayahs")],
+  ["verse sharing is available from the reader", app.includes("Share ayah") && app.includes("Share.share({title:chapter.name_simple")],
+  ["study notebook supports multiple collections", app.includes("toggleCollectionMembership(current[key],name)") && app.includes("Add to or remove from collections")],
+  ["learning insights include a 30-day activity heatmap", app.includes("Last 30 days") && app.includes("activeMonthDays")],
+  ["audio URL normalization restricts external hosts", utilities.includes("audio.qurancdn.com") && utilities.includes("verses.quran.foundation") && utilities.includes("normalizeAudioUrl")],]);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
