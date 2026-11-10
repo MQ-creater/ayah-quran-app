@@ -134,7 +134,7 @@ app.get("/api/status", (_req, res) => res.json({
   responseCacheTtlSeconds: RESPONSE_CACHE_TTL_MS / 1000,
   environment,
   providerConfigured: Boolean(clientId && clientSecret),
-  endpoints: ["chapters", "verses", "translations", "search", "chapter-audio", "tafsir", "hadith", "mushaf-pages", "juz", "hizb", "rub-al-hizb"]
+  endpoints: ["chapters", "verses", "translations", "search", "chapter-audio", "tafsir", "hadith", "mushaf-pages", "juz", "hizb", "rub-al-hizb", "manzil", "ruku", "random-verse"]
 }));
 
 app.get("/api/audio/reciters", async (req, res) => {
@@ -288,6 +288,65 @@ app.get("/api/hadith/:surah/:ayah", async (req,res) => {
   }
 });
 
+
+
+app.get("/api/verses/by-manzil/:manzilNumber", async (req,res) => {
+  const manzilNumber=Number(req.params.manzilNumber);
+  if(!Number.isInteger(manzilNumber)||manzilNumber<1||manzilNumber>7)return res.status(400).json({error:"Manzil number must be a whole number from 1 to 7."});
+  const built=buildVerseBrowseParams(req);
+  if(built.error)return res.status(400).json({error:built.error});
+  try{
+    const data=await qfGet("/verses/by_manzil/"+manzilNumber+"?"+built.params.toString());
+    res.json({verses:data.verses||[],pagination:data.pagination||null,navigation:{type:"manzil",manzilNumber}});
+  }catch(error){
+    console.error("Manzil request failed:",error.message);
+    res.status(error.status||503).json({error:"This Manzil is temporarily unavailable."});
+  }
+});
+
+app.get("/api/verses/by-ruku/:rukuNumber", async (req,res) => {
+  const rukuNumber=Number(req.params.rukuNumber);
+  if(!Number.isInteger(rukuNumber)||rukuNumber<1||rukuNumber>558)return res.status(400).json({error:"Ruku number must be a whole number from 1 to 558."});
+  const built=buildVerseBrowseParams(req);
+  if(built.error)return res.status(400).json({error:built.error});
+  try{
+    const data=await qfGet("/verses/by_ruku/"+rukuNumber+"?"+built.params.toString());
+    res.json({verses:data.verses||[],pagination:data.pagination||null,navigation:{type:"ruku",rukuNumber}});
+  }catch(error){
+    console.error("Ruku request failed:",error.message);
+    res.status(error.status||503).json({error:"This Ruku is temporarily unavailable."});
+  }
+});
+
+app.get("/api/verses/random", async (req,res) => {
+  const filterNames=["chapter_number","page_number","juz_number","hizb_number","rub_el_hizb_number","ruku_number","manzil_number"];
+  const selected=filterNames.filter(name=>req.query[name]!==undefined);
+  if(selected.length>1)return res.status(400).json({error:"Choose at most one section filter for a random ayah."});
+  const bounds={chapter_number:[1,114],page_number:[1,604],juz_number:[1,30],hizb_number:[1,60],rub_el_hizb_number:[1,240],ruku_number:[1,558],manzil_number:[1,7]};
+  for(const name of selected){
+    const value=Number(req.query[name]);
+    const [minimum,maximum]=bounds[name];
+    if(!Number.isInteger(value)||value<minimum||value>maximum)return res.status(400).json({error:"Invalid "+name.replace(/_number$/,"").replace(/_/g," ")+" range."});
+  }
+  const language=String(req.query.language||"en").toLowerCase();
+  const script=String(req.query.script||"uthmani");
+  const ids=String(req.query.translation_id||translationId).split(",").map(value=>value.trim());
+  if(!/^[a-z]{2}$/.test(language))return res.status(400).json({error:"Language must be a two-letter code."});
+  if(!["uthmani","indopak"].includes(script))return res.status(400).json({error:"Choose a supported Arabic script."});
+  if(ids.length<1||ids.length>2||ids.some(value=>!/^\d+$/.test(value))||new Set(ids).size!==ids.length)return res.status(400).json({error:"Choose one or two valid translations."});
+  const arabicField=script==="indopak"?"text_indopak_nastaleeq":"text_qpc_hafs";
+  const params=new URLSearchParams({language,words:"true",translations:ids.join(","),word_fields:[arabicField,"text_uthmani","text_indopak_nastaleeq","transliteration","translation","audio_url","position","char_type_name"].join(","),fields:[arabicField,"text_uthmani","text_indopak_nastaleeq","juz_number","hizb_number","rub_el_hizb_number","page_number","ruku_number","manzil_number"].join(",")});
+  for(const name of selected)params.set(name,String(Number(req.query[name])));
+  try{
+    const data=await qfGet("/verses/random?"+params.toString());
+    const verse=data.verse||null;
+    if(!verse||!/^\\d{1,3}:\\d{1,3}$/.test(String(verse.verse_key||"")))return res.status(502).json({error:"The content provider returned an invalid random verse."});
+    res.json({verse});
+  }catch(error){
+    console.error("Random ayah request failed:",error.message);
+    res.status(error.status||503).json({error:"A random ayah is temporarily unavailable."});
+  }
+});
 
 app.get("/api/verses/by-hizb/:hizbNumber", async (req,res) => {
   const hizbNumber=Number(req.params.hizbNumber);
