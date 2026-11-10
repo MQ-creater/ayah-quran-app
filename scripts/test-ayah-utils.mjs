@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup } from "../src/lib/ayah-utils.mjs";
+import ayahUtils from "../src/lib/ayah-utils.js";
+const { normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup } = ayahUtils;
 
 test("normalizes valid verse references and rejects invalid ones",()=>{
   assert.equal(normalizeVerseKey("002:255"),"2:255");
