@@ -1,9 +1,11 @@
 import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 
-const [app,server] = await Promise.all([
+const [app,server,config,utilities] = await Promise.all([
   readFile(new URL("../App.js", import.meta.url), "utf8"),
-  readFile(new URL("../server/index.js", import.meta.url), "utf8")
+  readFile(new URL("../server/index.js", import.meta.url), "utf8"),
+  readFile(new URL("../app.json", import.meta.url), "utf8"),
+  readFile(new URL("../src/lib/ayah-utils.js", import.meta.url), "utf8")
 ]);
 
 const checks = [
@@ -43,7 +45,9 @@ const checks = [
   ["Arabic lesson completion resumes after reopening", app.includes("useState(Boolean(progress.completed))")],
   ["alphabet progress stores a count, not an index", app.includes("highestLetter:Math.max(Number(current.highestLetter||0),value+1)")],
   ["restore resets new local learning progress", app.includes("setArabicLessonProgress({highestWord:0") && app.includes("setRecentSearches([])")],
-  ["backup validator rejects malformed preference types", app.includes("validateAyahBackup(parsed)") && app.includes("Backup not recognized")]
+  ["backup validator rejects malformed preference types", app.includes("validateAyahBackup(parsed)") && app.includes("Backup not recognized")],
+  ["Auto appearance follows the device", config.includes('"userInterfaceStyle": "automatic"')],
+  ["shared utility exports the backup validator", utilities.includes("module.exports") && utilities.includes("validateAyahBackup")]
 ]; 
 
 for (const [name, passed] of checks) {
