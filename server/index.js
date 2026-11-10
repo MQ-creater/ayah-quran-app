@@ -253,11 +253,11 @@ app.get("/api/chapters/:id/verses", async (req, res) => {
   const perPage = Number(req.query.per_page || 50);
   if (!Number.isInteger(page) || page < 1 || page > 500) return res.status(400).json({ error: "Page must be a whole number from 1 to 500." });
   if (!Number.isInteger(perPage) || perPage < 1 || perPage > 50) return res.status(400).json({ error: "Page size must be a whole number from 1 to 50." });
-  const requestedTranslation = String(req.query.translation_id || translationId);
+  const requestedTranslations = String(req.query.translation_id || translationId).split(",").map(value => value.trim());
   if (!Number.isInteger(chapterId) || chapterId < 1 || chapterId > 114) {
     return res.status(400).json({ error: "Chapter number must be between 1 and 114." });
   }
-  if (!/^\d+$/.test(requestedTranslation)) {
+  if (requestedTranslations.length < 1 || requestedTranslations.length > 2 || requestedTranslations.some(value => !/^\d+$/.test(value)) || new Set(requestedTranslations).size !== requestedTranslations.length) {
     return res.status(400).json({ error: "Invalid translation selection." });
   }
   const requestedScript = String(req.query.script || "uthmani");
@@ -274,7 +274,7 @@ app.get("/api/chapters/:id/verses", async (req, res) => {
       language: requestedLanguage,
       words: "true",
       word_fields: [arabicField, "text_uthmani", "transliteration", "translation", "audio_url", "position", "char_type_name"].join(","),
-      translations: requestedTranslation,
+      translations: requestedTranslations.join(","),
       fields: requestedScript === "indopak" ? "text_indopak_nastaleeq" : "text_qpc_hafs",
       page: String(page),
       per_page: String(perPage)
