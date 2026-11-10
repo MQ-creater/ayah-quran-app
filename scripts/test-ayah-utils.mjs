@@ -31,4 +31,7 @@ test("validates Ayah backups and filters unknown keys",()=>{
   assert.deepEqual(result.data,{savedIds:["2:255"],themeName:"dark",readerTranslationId:"131",recitationRepeatCount:3,lastAudioPosition_114:128});
   assert.equal(validateAyahBackup({app:"Other",schemaVersion:1,data:{savedIds:[]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedIds:"wrong"}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readerTranslationId:"not-a-number"}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{memorizationProgress:[]}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{lastAudioPosition_2:999999}}).valid,false);
 });
