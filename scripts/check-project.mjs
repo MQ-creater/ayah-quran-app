@@ -56,7 +56,7 @@ checks.push(...[  ["Mushaf page and Juz navigation APIs", server.includes("/api/
   ["Qur’an navigation screen supports Juz and Mushaf page", app.includes("function QuranNavigationScreen") && app.includes("Browse Qur’an sections") && app.includes("by-page/") && app.includes("by-juz/") && app.includes("by-hizb/") && app.includes("by-rub-al-hizb/")],
   ["Khatmah plan is reachable from home", app.includes("function KhatmahPlanScreen") && app.includes("Qur’an completion plan") && app.includes("tab === \"khatmah\"")],
   ["reader supports two provider translations", app.includes("normalizeTranslationIds(translationId, compareTranslationId)") && app.includes("Compare with a second translation")],
-  ["pinned ayah comparison persists locally", app.includes("usePersistentState(\"pinnedCompareKeys\", [])") && app.includes("Compare pinned ayahs")],
+  ["pinned ayah comparison persists locally", app.includes("usePersistentState(\"pinnedCompareKeys\", [])") && app.includes("setPinnedCompareDetails={setPinnedCompareDetails}") && app.includes("Compare pinned ayahs")],
   ["verse sharing is available from the reader", app.includes("Share ayah") && app.includes("Share.share({title:chapter.name_simple")],
   ["study notebook supports multiple collections", app.includes("toggleCollectionMembership(current[key],name)") && app.includes("Add to or remove from collections")],
   ["learning insights include a 30-day activity heatmap", app.includes("Last 30 days") && app.includes("activeMonthDays")],
@@ -73,8 +73,12 @@ checks.push(...[  ["navigation supports Manzil and Ruku", app.includes("manzil:"
 checks.push(...[  ["navigation error messages include Manzil and Ruku", app.includes("manzil:\"Manzil\"") && app.includes("ruku:\"Ruku\"")],
   ["translation reading mode is stored and backed up", app.includes("readerTranslationReadingMode") && utilities.includes("readerTranslationReadingMode") && utilities.includes("readerTranslationReadingMode\\"")],
   ["Surah information uses the source chapter-info route", app.includes("function SurahInfoSection") && app.includes("/chapters/\"+chapterId+\"/info")],
-  ["random ayah requests include translation and supported page limit", app.includes("/verses/random") && app.includes("translation_id:\"131\"") && app.includes("1–604")],
+  ["random ayah requests include translation and supported page limit", app.includes("/verses/random") && app.includes("translation_id:\"131\"") && app.includes("1–604") && server.includes("/api/verses/random")],
   ["reader comparison details are owned by root app state", app.includes("usePersistentState(\"pinnedCompareDetails\", {})") && app.includes("setPinnedCompareDetails={setPinnedCompareDetails}")],]);
+
+checks.push(...[  ["random ayah API rejects malformed verse keys instead of accepting them", server.includes("!/^\\d{1,3}:\\d{1,3}$/.test(String(verse.verse_key||\"\"))")],
+  ["all six navigation modes have validation and endpoint mappings", app.includes("manzil:\"Manzil\"") && app.includes("ruku:\"Ruku\"") && server.includes("/api/verses/by-manzil/") && server.includes("/api/verses/by-ruku/")],
+  ["Mushaf-aware page browsing requests layout metadata", server.includes("\"line_number\"") && server.includes("\"page_number\"") && app.includes("word.line_number")],]);
 
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
