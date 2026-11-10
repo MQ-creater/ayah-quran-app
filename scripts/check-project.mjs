@@ -56,19 +56,25 @@ checks.push(...[  ["Mushaf page and Juz navigation APIs", server.includes("/api/
   ["Qur’an navigation screen supports Juz and Mushaf page", app.includes("function QuranNavigationScreen") && app.includes("Browse Qur’an sections") && app.includes("by-page/") && app.includes("by-juz/") && app.includes("by-hizb/") && app.includes("by-rub-al-hizb/")],
   ["Khatmah plan is reachable from home", app.includes("function KhatmahPlanScreen") && app.includes("Qur’an completion plan") && app.includes("tab === \"khatmah\"")],
   ["reader supports two provider translations", app.includes("normalizeTranslationIds(translationId, compareTranslationId)") && app.includes("Compare with a second translation")],
-  ["pinned ayah comparison persists locally", app.includes("usePersistentState(\"pinnedCompareKeys\",[])") && app.includes("Compare pinned ayahs")],
+  ["pinned ayah comparison persists locally", app.includes("usePersistentState(\"pinnedCompareKeys\", [])") && app.includes("Compare pinned ayahs")],
   ["verse sharing is available from the reader", app.includes("Share ayah") && app.includes("Share.share({title:chapter.name_simple")],
   ["study notebook supports multiple collections", app.includes("toggleCollectionMembership(current[key],name)") && app.includes("Add to or remove from collections")],
   ["learning insights include a 30-day activity heatmap", app.includes("Last 30 days") && app.includes("activeMonthDays")],
   ["audio URL normalization restricts external hosts", utilities.includes("audio.qurancdn.com") && utilities.includes("verses.quran.foundation") && utilities.includes("normalizeAudioUrl")],]);
 
 checks.push(...[  ["navigation supports Manzil and Ruku", app.includes("manzil:") && app.includes("ruku:") && app.includes("by-manzil/") && app.includes("by-ruku/")],
-  ["random ayah discovery is reachable", app.includes("Random ayah") && app.includes("/random-ayah")],
+  ["random ayah discovery is reachable", app.includes("Random ayah") && app.includes("/verses/random")],
   ["Mushaf line view uses supplied line metadata", app.includes("pageLineMap") && app.includes("word.line_number") && app.includes("Mushaf lines")],
   ["reader pins preserve verse details across pages", app.includes("pinnedCompareDetails") && app.includes("Compare pinned ayahs")],
   ["bookmarks allow an explicitly empty collection list", utilities.includes("if (isArray) return names;")],
   ["verse references check each surah ayah count", utilities.includes("SURAH_AYAH_COUNTS[surah - 1]")],
   ["backup validator covers pinned verse detail data", utilities.includes("pinnedCompareDetails") && utilities.includes("pinnedCompareKeys")],]);
+
+checks.push(...[  ["navigation error messages include Manzil and Ruku", app.includes("manzil:\"Manzil\"") && app.includes("ruku:\"Ruku\"")],
+  ["translation reading mode is stored and backed up", app.includes("readerTranslationReadingMode") && utilities.includes("readerTranslationReadingMode") && utilities.includes("readerTranslationReadingMode\\"")],
+  ["Surah information uses the source chapter-info route", app.includes("function SurahInfoSection") && app.includes("/chapters/\"+chapterId+\"/info")],
+  ["random ayah requests include translation and supported page limit", app.includes("/verses/random") && app.includes("translation_id:\"131\"") && app.includes("1–604")],
+  ["reader comparison details are owned by root app state", app.includes("usePersistentState(\"pinnedCompareDetails\", {})") && app.includes("setPinnedCompareDetails={setPinnedCompareDetails}")],]);
 
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
