@@ -887,6 +887,8 @@ function LearningInsightsScreen({ practiceHistory = [], activity = {}, progress 
   for(let i=0;i<365;i++){const d=new Date();d.setDate(d.getDate()-i);const day=activity?.[localDateKey(d)]||{};const active=((day.readingAyahs||[]).length+(day.memorizationAyahs||[]).length)>0;if(active)streak++;else if(i===0)continue;else break;}
   const totalSessions=sessions.length;
   const totalAyahs=sessions.reduce((n,item)=>n+Number(item.ayahCount||item.ayahKeys?.length||0),0);
+  const monthDays=Array.from({length:30},(_,index)=>{const d=new Date();d.setDate(d.getDate()-(29-index));const key=localDateKey(d);const item=activity?.[key]||{};const read=(item.readingAyahs||[]).length;const practiced=(item.memorizationAyahs||[]).length;const daySessions=sessions.filter(s=>localDateKey(s.completedAt)===key).length;return {key,day:d.getDate(),read,practiced,sessions:daySessions,total:read+practiced+daySessions};});
+  const activeMonthDays=monthDays.filter(day=>day.total>0).length;
   return <>
     <Header eyebrow="YOUR LEARNING DATA" title="Learning insights" />
     <View style={styles.infoCard}>
@@ -901,6 +903,11 @@ function LearningInsightsScreen({ practiceHistory = [], activity = {}, progress 
         <Text style={styles.reference}>{day.label}</Text>
         <Text style={styles.reference}>{day.sessions} sessions</Text>
       </View>)}</View>
+      <Text style={styles.sectionTitle}>Last 30 days</Text>
+      <View accessibilityLabel={activeMonthDays+" active days out of the last 30 days"} style={{flexDirection:"row",flexWrap:"wrap",justifyContent:"space-between",marginTop:8}}>
+        {monthDays.map(day=><View key={day.key} accessible accessibilityLabel={day.key+": "+day.read+" ayahs read, "+day.practiced+" ayahs practiced, "+day.sessions+" sessions"} style={{width:"13.2%",minHeight:42,marginBottom:7,borderRadius:9,backgroundColor:day.total>0?THEME_PALETTES[activeTheme]?.accent||GOLD:THEME_PALETTES[activeTheme]?.surface||PANEL,opacity:day.total===0?0.45:Math.min(1,0.62+day.total/12*0.38),alignItems:"center",justifyContent:"center",borderWidth:1,borderColor:day.total>0?GOLD:BORDER}}><Text style={{fontSize:11,fontWeight:"700",color:day.total>0?"#101C2D":TEXT}}>{day.day}</Text></View>)}
+      </View>
+      <Text style={styles.progressHint}>{activeMonthDays} of 30 days had at least one saved reading mark, memorization mark, or completed session. A day’s shade reflects recorded activity, not recitation accuracy.</Text>
       <View style={styles.goalStatRow}>
         <View style={styles.goalStat}><Text style={styles.goalStatValue}>{weekRead}</Text><Text style={styles.reference}>Read ayahs</Text></View>
         <View style={styles.goalStat}><Text style={styles.goalStatValue}>{weekPractice}</Text><Text style={styles.reference}>Practiced ayahs</Text></View>
