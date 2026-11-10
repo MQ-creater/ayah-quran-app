@@ -66,3 +66,16 @@ test("rejects invalid khatmah and comparison preferences during backup restore",
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{compareTranslationId:"x"}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{khatmahPlan:{durationDays:999,startDateKey:"bad"}}}).valid,false);
 });
+
+test("normalizes approved audio URLs and rejects unsafe or unknown hosts",()=>{
+  assert.equal(normalizeAudioUrl("wbw/001_001_001.mp3"),"https://audio.qurancdn.com/wbw/001_001_001.mp3");
+  assert.equal(normalizeAudioUrl("https://verses.quran.foundation/Alafasy/mp3/001001.mp3"),"https://verses.quran.foundation/Alafasy/mp3/001001.mp3");
+  assert.equal(normalizeAudioUrl("javascript:alert(1)"),"");
+  assert.equal(normalizeAudioUrl("//example.com/audio.mp3"),"");
+  assert.equal(normalizeAudioUrl("https://example.com/audio.mp3"),"");
+});
+test("validates persisted pinned verse comparisons",()=>{
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["2:255","3:18"]}}).valid,true);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["2:255","bad"]}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["1:1","1:2","1:3"]}}).valid,false);
+});
