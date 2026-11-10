@@ -134,7 +134,7 @@ app.get("/api/status", (_req, res) => res.json({
   responseCacheTtlSeconds: RESPONSE_CACHE_TTL_MS / 1000,
   environment,
   providerConfigured: Boolean(clientId && clientSecret),
-  endpoints: ["chapters", "verses", "translations", "search", "chapter-audio", "tafsir", "hadith", "mushaf-pages", "juz"]
+  endpoints: ["chapters", "verses", "translations", "search", "chapter-audio", "tafsir", "hadith", "mushaf-pages", "juz", "hizb", "rub-al-hizb"]
 }));
 
 app.get("/api/audio/reciters", async (req, res) => {
@@ -285,6 +285,35 @@ app.get("/api/hadith/:surah/:ayah", async (req,res) => {
     console.error("Related hadith request failed:",error.message);
     const message = error.providerStatus === 403 ? "Related hadith access is not enabled for the Quran Foundation credentials. Request the content.hadith.read permission." : "Related hadith are temporarily unavailable.";
     res.status(error.status || 503).json({ error:message });
+  }
+});
+
+
+app.get("/api/verses/by-hizb/:hizbNumber", async (req,res) => {
+  const hizbNumber=Number(req.params.hizbNumber);
+  if(!Number.isInteger(hizbNumber)||hizbNumber<1||hizbNumber>60)return res.status(400).json({error:"Hizb number must be a whole number from 1 to 60."});
+  const built=buildVerseBrowseParams(req);
+  if(built.error)return res.status(400).json({error:built.error});
+  try{
+    const data=await qfGet("/verses/by_hizb/"+hizbNumber+"?"+built.params.toString());
+    res.json({verses:data.verses||[],pagination:data.pagination||null,navigation:{type:"hizb",hizbNumber}});
+  }catch(error){
+    console.error("Hizb request failed:",error.message);
+    res.status(error.status||503).json({error:"This Hizb is temporarily unavailable."});
+  }
+});
+
+app.get("/api/verses/by-rub-al-hizb/:rubNumber", async (req,res) => {
+  const rubNumber=Number(req.params.rubNumber);
+  if(!Number.isInteger(rubNumber)||rubNumber<1||rubNumber>240)return res.status(400).json({error:"Rub al-Hizb number must be a whole number from 1 to 240."});
+  const built=buildVerseBrowseParams(req);
+  if(built.error)return res.status(400).json({error:built.error});
+  try{
+    const data=await qfGet("/verses/by_rub_el_hizb_number/"+rubNumber+"?"+built.params.toString());
+    res.json({verses:data.verses||[],pagination:data.pagination||null,navigation:{type:"rub-el-hizb",rubNumber}});
+  }catch(error){
+    console.error("Rub al-Hizb request failed:",error.message);
+    res.status(error.status||503).json({error:"This Rub al-Hizb is temporarily unavailable."});
   }
 });
 
