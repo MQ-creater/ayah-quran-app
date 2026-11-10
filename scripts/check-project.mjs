@@ -26,7 +26,20 @@ const checks = [
   ["clean grouped home navigation", app.includes("MEMORIZE & REVIEW") && app.includes("READ & STUDY QUR’AN") && app.includes("APP & DATA")],
   ["session history preserves surah references", app.includes("chapterName:selectedChapter?.name_simple") && app.includes("ayahReference:passage.reference")],
   ["backend diagnostics screen is reachable from home", app.includes('title="Connection status"') && app.includes('tab === "backend"')]
-];
+
+  ["backup import uses a schema validator", app.includes("validateAyahBackup(parsed)") && app.includes("Validate and restore backup")],
+  ["continue reading restores saved ayah", app.includes("setSearchInitialAyah(Number(lastReadPosition.ayah||1))")],
+  ["reader translation preferences persist", app.includes('usePersistentState("readerTranslationId", "131")') && app.includes('usePersistentState("readerTranslationLanguage", "en")')],
+  ["search handles direct ayah references", app.includes("normalizeVerseKey(term)") && app.includes("readerPageForAyah(ayah)")],
+  ["search history is persisted", app.includes('usePersistentState("recentSearches",[])') && app.includes("Recent searches")],
+  ["Arabic vocabulary starter expanded", app.includes("مَسْجِدٌ") && app.includes("مَاءٌ")],
+  ["Arabic alphabet classroom expanded", app.includes("LETTER CLASSROOM · FIRST 12 LETTERS")],
+  ["Arabic learning progress persists", app.includes('usePersistentState("arabicLessonProgress"') && app.includes('usePersistentState("arabicAlphabetProgress"')],
+  ["server caches provider reads", server.includes("RESPONSE_CACHE_LIMIT") && server.includes("cacheKey")],
+  ["search endpoint has additional rate limit", server.includes("searchRateLimit") && server.includes("limit:20")],
+  ["verse pagination is bounded", server.includes("page > 500") && server.includes("perPage > 50")],
+  ["provider errors are mapped to gateway errors", server.includes("response.status === 429 ? 503 : 502")]
+]; 
 
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
