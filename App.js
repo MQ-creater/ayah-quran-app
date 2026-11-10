@@ -585,7 +585,13 @@ const ARABIC_LESSON = [
   { word: "بَابٌ", transliteration: "bābun", meaning: "a door", example: "هَذَا بَابٌ", exampleMeaning: "This is a door." },
   { word: "مَاءٌ", transliteration: "māʾun", meaning: "water", example: "هَذَا مَاءٌ", exampleMeaning: "This is water." },
   { word: "بَيْتٌ", transliteration: "baytun", meaning: "a house", example: "هَذَا بَيْتٌ", exampleMeaning: "This is a house." },
-  { word: "مَسْجِدٌ", transliteration: "masjidun", meaning: "a mosque", example: "هَذَا مَسْجِدٌ", exampleMeaning: "This is a mosque." }
+  { word: "مَسْجِدٌ", transliteration: "masjidun", meaning: "a mosque", example: "هَذَا مَسْجِدٌ", exampleMeaning: "This is a mosque." },
+  { word: "مَدْرَسَةٌ", transliteration: "madrasatun", meaning: "a school", example: "هَذِهِ مَدْرَسَةٌ", exampleMeaning: "This is a school." },
+  { word: "سَيَّارَةٌ", transliteration: "sayyāratun", meaning: "a car", example: "هَذِهِ سَيَّارَةٌ", exampleMeaning: "This is a car." },
+  { word: "طَعَامٌ", transliteration: "ṭaʿāmun", meaning: "food", example: "هَذَا طَعَامٌ", exampleMeaning: "This is food." },
+  { word: "شَمْسٌ", transliteration: "shamsun", meaning: "sun", example: "هَذِهِ شَمْسٌ", exampleMeaning: "This is the sun." },
+  { word: "قَمَرٌ", transliteration: "qamarun", meaning: "moon", example: "هَذَا قَمَرٌ", exampleMeaning: "This is the moon." },
+  { word: "مِفْتَاحٌ", transliteration: "miftāḥun", meaning: "a key", example: "هَذَا مِفْتَاحٌ", exampleMeaning: "This is a key." }
 ];
 const ARABIC_STARTER_QUIZ = [
   { prompt: "What does كِتَابٌ mean?", options: ["A door", "A book", "A pen"], answer: "A book", explanation: "كِتَابٌ (kitābun) means “a book.”" },
@@ -593,7 +599,13 @@ const ARABIC_STARTER_QUIZ = [
   { prompt: "What does بَابٌ mean?", options: ["A book", "A pen", "A door"], answer: "A door", explanation: "بَابٌ (bābun) means “a door.”" },
   { prompt: "What does مَاءٌ mean?", options: ["Water", "A house", "A mosque"], answer: "Water", explanation: "مَاءٌ (māʾun) means “water.”" },
   { prompt: "Which word means “a house”?", options: ["مَسْجِدٌ", "بَيْتٌ", "مَاءٌ"], answer: "بَيْتٌ", explanation: "بَيْتٌ (baytun) means “a house.”" },
-  { prompt: "What does مَسْجِدٌ mean?", options: ["A book", "A mosque", "A door"], answer: "A mosque", explanation: "مَسْجِدٌ (masjidun) means “a mosque.”" }
+  { prompt: "What does مَسْجِدٌ mean?", options: ["A book", "A mosque", "A door"], answer: "A mosque", explanation: "مَسْجِدٌ (masjidun) means “a mosque.”" },
+  { prompt: "What does مَدْرَسَةٌ mean?", options: ["A school", "A car", "A key"], answer: "A school", explanation: "مَدْرَسَةٌ (madrasatun) means “a school.”" },
+  { prompt: "Which word means “a car”?", options: ["شَمْسٌ", "سَيَّارَةٌ", "قَمَرٌ"], answer: "سَيَّارَةٌ", explanation: "سَيَّارَةٌ (sayyāratun) means “a car.”" },
+  { prompt: "What does طَعَامٌ mean?", options: ["Food", "A house", "A mosque"], answer: "Food", explanation: "طَعَامٌ (ṭaʿāmun) means “food.”" },
+  { prompt: "Which Arabic word means “sun”?", options: ["قَمَرٌ", "مِفْتَاحٌ", "شَمْسٌ"], answer: "شَمْسٌ", explanation: "شَمْسٌ (shamsun) means “sun.”" },
+  { prompt: "What does قَمَرٌ mean?", options: ["A key", "Moon", "A school"], answer: "Moon", explanation: "قَمَرٌ (qamarun) means “moon.”" },
+  { prompt: "Which word means “a key”?", options: ["مِفْتَاحٌ", "مَدْرَسَةٌ", "طَعَامٌ"], answer: "مِفْتَاحٌ", explanation: "مِفْتَاحٌ (miftāḥun) means “a key.”" }
 ];
 function ArabicStarterQuiz({ onReview, onComplete }) {
   const [question, setQuestion] = useState(0);
@@ -625,7 +637,7 @@ function ArabicStarterQuiz({ onReview, onComplete }) {
       <Text style={styles.choiceMark}>{answer === option ? "✓" : "○"}</Text>
     </Pressable>)}
     <Button title={question === ARABIC_STARTER_QUIZ.length - 1 ? "Finish quiz" : "Next question"} disabled={!answer} onPress={submit} />
-    <Text style={styles.tinyNote}>This short checkpoint reviews the three words in the starter lesson. It is practice, not a formal language proficiency test.</Text>
+    <Text style={styles.tinyNote}>This checkpoint reviews the beginner vocabulary in this lesson. It is practice, not a formal language proficiency test.</Text>
   </View>;
 }
 
@@ -1747,18 +1759,34 @@ function ArabicLessonsScreen({ onPremium, progress = {}, onProgress }) {
 }
 
 const ALPHABET_LESSON = [
-  { letter: "ا", name: "Alif", sound: "A long or open vowel carrier in many beginner examples.", word: "أَسَدٌ", wordName: "asadun", meaning: "a lion" },
+  { letter: "ا", name: "Alif", sound: "Alif can act as a seat for hamzah or as a long ā vowel letter, depending on the word.", word: "أَسَدٌ", wordName: "asadun", meaning: "a lion" },
   { letter: "ب", name: "Bā’", sound: "A b sound.", word: "بَابٌ", wordName: "bābun", meaning: "a door" },
   { letter: "ت", name: "Tā’", sound: "A t sound.", word: "تِينٌ", wordName: "tīnun", meaning: "figs" },
-  { letter: "ث", name: "Thā’", sound: "A th sound, as in “think”.", word: "ثَوْبٌ", wordName: "thawbun", meaning: "a garment" },
-  { letter: "ج", name: "Jīm", sound: "A j sound in many varieties of standard Arabic teaching.", word: "جَمَلٌ", wordName: "jamalun", meaning: "a camel" },
+  { letter: "ث", name: "Thā’", sound: "An unvoiced th sound, as in “think”.", word: "ثَوْبٌ", wordName: "thawbun", meaning: "a garment" },
+  { letter: "ج", name: "Jīm", sound: "A j sound in many varieties of Standard Arabic teaching.", word: "جَمَلٌ", wordName: "jamalun", meaning: "a camel" },
   { letter: "ح", name: "Ḥā’", sound: "A distinct breathy, throaty h sound. It is not the same as ه.", word: "حَلِيبٌ", wordName: "ḥalībun", meaning: "milk" },
   { letter: "خ", name: "Khā’", sound: "A throaty kh sound.", word: "خُبْزٌ", wordName: "khubzun", meaning: "bread" },
   { letter: "د", name: "Dāl", sound: "A d sound.", word: "دَارٌ", wordName: "dārun", meaning: "a home" },
   { letter: "ذ", name: "Dhāl", sound: "A voiced th sound, as in “this”.", word: "ذَهَبٌ", wordName: "dhahabun", meaning: "gold" },
   { letter: "ر", name: "Rā’", sound: "A tapped or trilled r sound.", word: "رَجُلٌ", wordName: "rajulun", meaning: "a man" },
   { letter: "ز", name: "Zāy", sound: "A z sound.", word: "زَيْتٌ", wordName: "zaytun", meaning: "oil" },
-  { letter: "س", name: "Sīn", sound: "An s sound.", word: "سَمَكٌ", wordName: "samakun", meaning: "fish" }
+  { letter: "س", name: "Sīn", sound: "An s sound.", word: "سَمَكٌ", wordName: "samakun", meaning: "fish" },
+  { letter: "ش", name: "Shīn", sound: "A sh sound.", word: "شَمْسٌ", wordName: "shamsun", meaning: "sun" },
+  { letter: "ص", name: "Ṣād", sound: "An emphatic s sound; practise it with a qualified Arabic teacher.", word: "صَبْرٌ", wordName: "ṣabrun", meaning: "patience" },
+  { letter: "ض", name: "Ḍād", sound: "An emphatic d sound with a distinctive Arabic articulation.", word: "ضَيْفٌ", wordName: "ḍayfun", meaning: "a guest" },
+  { letter: "ط", name: "Ṭā’", sound: "An emphatic t sound.", word: "طَائِرٌ", wordName: "ṭāʾirun", meaning: "a bird" },
+  { letter: "ظ", name: "Ẓā’", sound: "An emphatic voiced th-like sound in common transliteration systems.", word: "ظِلٌّ", wordName: "ẓillun", meaning: "shade" },
+  { letter: "ع", name: "ʿAyn", sound: "A distinct throat sound; a transliteration guide cannot teach its articulation by itself.", word: "عَيْنٌ", wordName: "ʿaynun", meaning: "an eye" },
+  { letter: "غ", name: "Ghayn", sound: "A voiced, throaty gh sound.", word: "غُرْفَةٌ", wordName: "ghurfatun", meaning: "a room" },
+  { letter: "ف", name: "Fā’", sound: "An f sound.", word: "فِيلٌ", wordName: "fīlun", meaning: "an elephant" },
+  { letter: "ق", name: "Qāf", sound: "A deep q sound produced farther back than ك.", word: "قَمَرٌ", wordName: "qamarun", meaning: "moon" },
+  { letter: "ك", name: "Kāf", sound: "A k sound.", word: "كَلْبٌ", wordName: "kalbun", meaning: "a dog" },
+  { letter: "ل", name: "Lām", sound: "An l sound.", word: "لَيْلٌ", wordName: "laylun", meaning: "night" },
+  { letter: "م", name: "Mīm", sound: "An m sound.", word: "مَدْرَسَةٌ", wordName: "madrasatun", meaning: "a school" },
+  { letter: "ن", name: "Nūn", sound: "An n sound.", word: "نَجْمٌ", wordName: "najmun", meaning: "a star" },
+  { letter: "ه", name: "Hā’", sound: "A light h sound, different from the stronger throat articulation of ح.", word: "هِلَالٌ", wordName: "hilālun", meaning: "a crescent" },
+  { letter: "و", name: "Wāw", sound: "A w sound, and it can also represent a long ū vowel.", word: "وَرْدَةٌ", wordName: "wardatun", meaning: "a rose" },
+  { letter: "ي", name: "Yā’", sound: "A y sound, and it can also represent a long ī vowel.", word: "يَدٌ", wordName: "yadun", meaning: "a hand" }
 ];
 function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
   const [selected, setSelected] = useState(Math.min(ALPHABET_LESSON.length-1,Math.max(0,Number(progress.highestLetter||0)-1)));
@@ -1767,7 +1795,7 @@ function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
   const [quizAnswer, setQuizAnswer] = useState("");
   const [quizScore, setQuizScore] = useState(0);
   const [quizDone, setQuizDone] = useState(false);
-  const quizLetters = [1, 3, 5, 7, 9, 11];
+  const quizLetters = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 27];
   const target = ALPHABET_LESSON[quizLetters[quizIndex]];
   const choices = [target, ALPHABET_LESSON[(quizLetters[quizIndex] + 2) % ALPHABET_LESSON.length], ALPHABET_LESSON[(quizLetters[quizIndex] + 5) % ALPHABET_LESSON.length]];
   const submitAnswer = () => {
@@ -1782,8 +1810,8 @@ function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
   return <>
     <Header eyebrow="ARABIC ACADEMY · LEVEL 1" title="Meet the Arabic letters" />
     <View style={styles.infoCard}>
-      <Text style={styles.cardEyebrow}>LETTER CLASSROOM · FIRST 12 LETTERS</Text>
-      <Text style={styles.progressHint}>Progress: {Math.min(12,Number(progress.highestLetter||0))} / 12 letters reached · Best quiz: {progress.bestQuizScore||0} / {quizLetters.length}</Text>
+      <Text style={styles.cardEyebrow}>LETTER CLASSROOM · ALL 28 LETTERS</Text>
+      <Text style={styles.progressHint}>Progress: {Math.min(28,Number(progress.highestLetter||0))} / 28 letters reached · Best quiz: {progress.bestQuizScore||0} / {quizLetters.length}</Text>
       <Text style={styles.progressHint}>Tap a letter to explore its name and a beginner example. Arabic letters can change shape when they join other letters; connected forms will be a later lesson.</Text>
       <View style={styles.alphabetGrid}>
         {ALPHABET_LESSON.map((entry, index) => <Pressable key={entry.letter} accessibilityRole="button" accessibilityLabel={entry.name} onPress={() => {moveToLetter(index);}} style={[styles.alphabetTile, selected === index && styles.choiceSelected]}>
@@ -1808,7 +1836,7 @@ function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
       </View>
     </View>
     <View style={styles.infoCard}>
-      <Text style={styles.cardEyebrow}>QUICK CHECK · 6 QUESTIONS</Text>
+      <Text style={styles.cardEyebrow}>QUICK CHECK · 12 QUESTIONS</Text>
       <Text style={styles.sectionTitle}>Find the letter</Text>
       {quizDone ? <>
         <Text style={styles.quizScore}>{quizScore} / {quizLetters.length}</Text>
