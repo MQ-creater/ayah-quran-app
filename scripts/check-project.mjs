@@ -85,6 +85,8 @@ checks.push(...[  ["Arabic starter lesson contains twelve reviewed vocabulary en
   ["Arabic alphabet checkpoint samples twelve different letters", app.includes("const quizLetters = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 27]")],
   ["Home screen contains only one Khatmah shortcut", (app.match(/title="Qur’an completion plan"/g)||[]).length === 1],]);
 
+checks.push(...[  ["Arabic alphabet lesson includes four connected letter forms", app.includes("const ALPHABET_JOINING_FORMS") && app.includes('isolated:"ا"') && app.includes('initial:"بـ"') && app.includes('medial:"ـبـ"') && app.includes('final:"ـب"') && app.includes("connectsNext:false")],]);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
