@@ -62,7 +62,7 @@ function validateAyahBackup(value) {
   if (data.readerTranslationId !== undefined && !/^\d+$/.test(String(data.readerTranslationId))) return { valid:false, error:"The saved translation selection is invalid." };
   if (data.compareTranslationId !== undefined && data.compareTranslationId !== "" && !/^\d{1,12}$/.test(String(data.compareTranslationId))) return { valid:false, error:"The comparison translation selection is invalid." };
   if (data.khatmahPlan !== undefined && data.khatmahPlan !== null && (!data.khatmahPlan || typeof data.khatmahPlan !== "object" || ![30,60,90].includes(Number(data.khatmahPlan.durationDays)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.khatmahPlan.startDateKey || "")))) return { valid:false, error:"The saved Qur’an completion plan is invalid." };
-  for (const key of ["readerShowArabic","readerShowTranslation","readerShowWordByWord","remindersEnabled"]) if (data[key] !== undefined && typeof data[key] !== "boolean") return { valid:false, error:"The " + key + " setting in this backup is invalid." };
+  for (const key of ["readerShowArabic","readerShowTranslation","readerShowWordByWord","readerTranslationReadingMode","remindersEnabled"]) if (data[key] !== undefined && typeof data[key] !== "boolean") return { valid:false, error:"The " + key + " setting in this backup is invalid." };
   if (data.recitationRepeatCount !== undefined && ![1,3,5].includes(data.recitationRepeatCount)) return { valid:false, error:"The saved ayah repeat setting is invalid." };
   for (const [key, item] of Object.entries(data)) if (/^lastAudioPosition_\d+$/.test(key) && (!Number.isFinite(item) || item < 0 || item > 86400)) return { valid:false, error:"A saved audio position is invalid." };
   return { valid:true, data };
