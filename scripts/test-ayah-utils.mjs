@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import ayahUtils from "../src/lib/ayah-utils.js";
-const { normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, QURAN_TOTAL_AYAHS } = ayahUtils;
+const { normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeAudioUrl, SURAH_AYAH_COUNTS, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, QURAN_TOTAL_AYAHS } = ayahUtils;
 
 test("normalizes valid verse references and rejects invalid ones",()=>{
   assert.equal(normalizeVerseKey("002:255"),"2:255");
@@ -78,4 +78,30 @@ test("validates persisted pinned verse comparisons",()=>{
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["2:255","3:18"]}}).valid,true);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["2:255","bad"]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["1:1","1:2","1:3"]}}).valid,false);
+});
+
+test("validates the exact ayah limit for every surah",()=>{
+  assert.equal(SURAH_AYAH_COUNTS.length,114);
+  assert.equal(SURAH_AYAH_COUNTS.reduce((sum,count)=>sum+count,0),6236);
+  assert.equal(normalizeVerseKey("1:7"),"1:7");
+  assert.equal(normalizeVerseKey("1:8"),null);
+  assert.equal(normalizeVerseKey("2:286"),"2:286");
+  assert.equal(normalizeVerseKey("2:287"),null);
+  assert.equal(normalizeVerseKey("114:6"),"114:6");
+  assert.equal(normalizeVerseKey("114:7"),null);
+});
+test("removing the last bookmark collection keeps the ayah unassigned",()=>{
+  assert.deepEqual(toggleCollectionMembership(["Favorites"],"Favorites"),[]);
+  assert.deepEqual(normalizeCollectionNames([]),[]);
+  assert.deepEqual(normalizeCollectionNames(undefined),["Favorites"]);
+});
+test("does not silently promote a secondary translation to primary",()=>{
+  assert.equal(normalizeTranslationIds("bad","20"),"");
+  assert.equal(normalizeTranslationIds("131","20"),"131,20");
+  assert.equal(normalizeTranslationIds("131","131"),"131");
+});
+test("validates pinned comparison detail backups",()=>{
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareDetails:{"2:255":{arabic:"test",translation:"meaning"}}}}).valid,true);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareDetails:{"bad":{arabic:"test"}}}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareDetails:{"2:255":"text"}}}).valid,false);
 });
