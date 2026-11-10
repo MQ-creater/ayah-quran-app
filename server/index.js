@@ -258,7 +258,7 @@ function buildVerseBrowseParams(req) {
     params: new URLSearchParams({
       language,
       words:"true",
-      word_fields:[arabicField,"text_uthmani","transliteration","translation","audio_url","position","char_type_name"].join(","),
+      word_fields:[arabicField,"text_uthmani","transliteration","translation","audio_url","position","char_type_name","line_number","page_number","text_indopak_nastaleeq"].join(","),
       translations:translationIds.join(","),
       fields:arabicField,
       page:String(page),
@@ -385,7 +385,7 @@ app.get("/api/chapters/:id/verses", async (req, res) => {
     const params = new URLSearchParams({
       language: requestedLanguage,
       words: "true",
-      word_fields: [arabicField, "text_uthmani", "transliteration", "translation", "audio_url", "position", "char_type_name"].join(","),
+      word_fields: [arabicField, "text_uthmani", "transliteration", "translation", "audio_url", "position", "char_type_name", "line_number", "page_number", "text_indopak_nastaleeq"].join(","),
       translations: requestedTranslations.join(","),
       fields: requestedScript === "indopak" ? "text_indopak_nastaleeq" : "text_qpc_hafs",
       page: String(page),
