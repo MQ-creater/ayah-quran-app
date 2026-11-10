@@ -418,6 +418,26 @@ app.get("/api/verses/by-juz/:juzNumber", async (req, res) => {
   }
 });
 
+
+app.get("/api/chapters/:id/info", async (req,res) => {
+  const chapterId=Number(req.params.id);
+  const language=String(req.query.language||"en").toLowerCase();
+  const includeResources=String(req.query.include_resources||"true")==="true";
+  const resourceId=req.query.resource_id===undefined?"":String(req.query.resource_id);
+  if(!Number.isInteger(chapterId)||chapterId<1||chapterId>114)return res.status(400).json({error:"Surah number must be a whole number from 1 to 114."});
+  if(!/^[a-z]{2}$/.test(language))return res.status(400).json({error:"Language must be a two-letter language code."});
+  if(resourceId.length>100||!(/^(?:[a-z0-9-]+|\\d+)$/i.test(resourceId)||resourceId===""))return res.status(400).json({error:"Chapter information source is invalid."});
+  const params=new URLSearchParams({language,include_resources:String(includeResources)});
+  if(resourceId)params.set("resource_id",resourceId);
+  try{
+    const data=await qfGet("/chapters/"+chapterId+"/info?"+params.toString());
+    res.json({chapter_info:data.chapter_info||null,resources:Array.isArray(data.resources)?data.resources:[]});
+  }catch(error){
+    console.error("Chapter information request failed:",error.message);
+    res.status(error.status||503).json({error:"Surah introduction is temporarily unavailable."});
+  }
+});
+
 app.get("/api/chapters/:id/verses", async (req, res) => {
   const chapterId = Number(req.params.id);
   const page = Number(req.query.page || 1);
