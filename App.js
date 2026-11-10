@@ -1112,6 +1112,10 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
   const [randomError,setRandomError] = useState("");
   const [mushaf,setMushaf] = useState("1");
   const [pageDisplayMode,setPageDisplayMode] = useState("verses");
+  const [translationOptions,setTranslationOptions] = useState([]);
+  const [translationId,setTranslationId] = useState("");
+  const [translationLoading,setTranslationLoading] = useState(false);
+  const [translationError,setTranslationError] = useState("");
   const [resultPage,setResultPage] = useState(1);
   const [verses,setVerses] = useState([]);
   const [pagination,setPagination] = useState(null);
@@ -1120,6 +1124,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
   const [searched,setSearched] = useState(false);
   const requestRef = useRef(null);
   useEffect(()=>()=>requestRef.current?.abort(),[]);
+  useEffect(()=>{if(!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;setTranslationLoading(true);setTranslationError("");fetch(base+"/translations?language="+encodeURIComponent(languageCodeFor(language))).then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||"Translation catalogue unavailable.");return data;}).then(data=>{if(!active)return;const items=Array.isArray(data.translations)?data.translations:[];setTranslationOptions(items);setTranslationId(current=>items.some(item=>String(item.id)===String(current))?current:String(items[0]?.id||""));}).catch(error=>{if(active)setTranslationError(error.message||"Translations could not be loaded.");}).finally(()=>{if(active)setTranslationLoading(false);});return()=>{active=false;};},[language]);
   const load = async (nextPage=1) => {
     const value=Number(target);
     const ranges={juz:30,page:700,hizb:60,rub:240,manzil:7,ruku:558};
@@ -1129,10 +1134,12 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     requestRef.current?.abort();
     const controller=new AbortController();
     requestRef.current=controller;
+    if(translationLoading){setError("Wait for the translation list to finish loading, then try again.");return;}
     setLoading(true);setError("");setSearched(true);setVerses([]);
     const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
     const useIndoPak=mode==="page"&&(mushaf==="6"||mushaf==="7");
     const params=new URLSearchParams({page:String(nextPage),per_page:"50",language:languageCodeFor(language),script:useIndoPak?"indopak":"uthmani"});
+    if(translationId)params.set("translation_id",translationId);
     if(mode==="page")params.set("mushaf",mushaf);
     const endpoint=({juz:"/verses/by-juz/",page:"/verses/by-page/",hizb:"/verses/by-hizb/",rub:"/verses/by-rub-al-hizb/",manzil:"/verses/by-manzil/",ruku:"/verses/by-ruku/"})[mode]+value;
     try{
@@ -1163,6 +1170,10 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
       <View style={styles.readerToggleRow}>
         {[{id:"juz",label:"Juz · 1–30"},{id:"hizb",label:"Hizb · 1–60"},{id:"rub",label:"Rub · 1–240"},{id:"manzil",label:"Manzil · 1–7"},{id:"ruku",label:"Ruku · 1–558"},{id:"page",label:"Mushaf page"}].map(option=><Pressable key={option.id} accessibilityRole="button" accessibilityState={{selected:mode===option.id}} onPress={()=>{setMode(option.id);setVerses([]);setRandomVerse(null);setError("");setSearched(false);setResultPage(1);}} style={[styles.readerToggle,mode===option.id&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,mode===option.id&&styles.readerToggleTextActive]}>{option.label}</Text></Pressable>)}
       </View>
+      <Text style={styles.readerToolLabel}>Translation accompanying the Arabic</Text>
+      {translationLoading?<ActivityIndicator color={GOLD} size="small"/>:null}
+      {translationError?<Text style={styles.progressHint}>{translationError}</Text>:null}
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{gap:8,paddingVertical:8}}>{translationOptions.map(item=><Pressable key={item.id} accessibilityRole="button" accessibilityState={{selected:String(translationId)===String(item.id)}} onPress={()=>{setTranslationId(String(item.id));setVerses([]);setRandomVerse(null);}} style={[styles.readerToggle,{minWidth:120,maxWidth:190,flexGrow:0},String(translationId)===String(item.id)&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,String(translationId)===String(item.id)&&styles.readerToggleTextActive]} numberOfLines={2}>{item.name||item.translated_name?.name||("Translation "+item.id)}</Text><Text style={styles.reference}>{item.author_name||item.language_name||""}</Text></Pressable>)}</ScrollView>
       <Text style={styles.readerToolLabel}>{({juz:"Juz number",page:"Mushaf page number",hizb:"Hizb number",rub:"Rub al-Hizb number",manzil:"Manzil number",ruku:"Ruku number"})[mode]}</Text>
       <TextInput accessibilityLabel={({juz:"Juz number",page:"Mushaf page number",hizb:"Hizb number",rub:"Rub al-Hizb number",manzil:"Manzil number",ruku:"Ruku number"})[mode]} value={target} onChangeText={value=>{setTarget(value);setRandomVerse(null);}} keyboardType="number-pad" placeholder={({juz:"1–30",page:"1–700",hizb:"1–60",rub:"1–240",manzil:"1–7",ruku:"1–558"})[mode]} placeholderTextColor={MUTED} style={styles.emailInput}/>
       {mode==="page"?<>
@@ -1172,7 +1183,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
         </View>
       </>:null}
       <Button title={loading?"Loading Qur’an section…":"Open "+title} onPress={()=>load(1)} disabled={loading}/>
-      <Button title={randomLoading?"Finding an ayah…":"Pick a random ayah"+(searched?" in this section":" from the Qur’an")} secondary disabled={randomLoading||loading} onPress={async()=>{setRandomLoading(true);setRandomError("");setRandomVerse(null);try{if(!AYAH_API_BASE)throw new Error("Connect the secure Ayah backend to discover a random ayah.");const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;const params=new URLSearchParams({language:languageCodeFor(language),translation_id:"131",script:mode==="page"&&(mushaf==="6"||mushaf==="7")?"indopak":"uthmani"});if(searched){if(mode==="page"&&Number(target)>604)throw new Error("Random ayah filtering supports Madani Mushaf pages 1–604. This selected Mushaf page can still be opened normally.");const key=({juz:"juz_number",page:"page_number",hizb:"hizb_number",rub:"rub_el_hizb_number",manzil:"manzil_number",ruku:"ruku_number"})[mode];const value=Number(target);if(key&&Number.isInteger(value))params.set(key,String(value));}const response=await fetch(base+"/verses/random?"+params.toString());const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not find a random ayah.");if(!data.verse?.verse_key)throw new Error("The content source returned no verse.");setRandomVerse(data.verse);}catch(error){setRandomError(error.message||"Please try again.");}finally{setRandomLoading(false);}}}/>
+      <Button title={randomLoading?"Finding an ayah…":"Pick a random ayah"+(searched?" in this section":" from the Qur’an")} secondary disabled={randomLoading||loading} onPress={async()=>{setRandomLoading(true);setRandomError("");setRandomVerse(null);try{if(!AYAH_API_BASE)throw new Error("Connect the secure Ayah backend to discover a random ayah.");if(translationLoading)throw new Error("Wait for the translation list to finish loading, then try again.");const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;const params=new URLSearchParams({language:languageCodeFor(language),script:mode==="page"&&(mushaf==="6"||mushaf==="7")?"indopak":"uthmani"});if(translationId)params.set("translation_id",translationId);if(searched){if(mode==="page"&&Number(target)>604)throw new Error("Random ayah filtering supports Madani Mushaf pages 1–604. This selected Mushaf page can still be opened normally.");const key=({juz:"juz_number",page:"page_number",hizb:"hizb_number",rub:"rub_el_hizb_number",manzil:"manzil_number",ruku:"ruku_number"})[mode];const value=Number(target);if(key&&Number.isInteger(value))params.set(key,String(value));}const response=await fetch(base+"/verses/random?"+params.toString());const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not find a random ayah.");if(!data.verse?.verse_key)throw new Error("The content source returned no verse.");setRandomVerse(data.verse);}catch(error){setRandomError(error.message||"Please try again.");}finally{setRandomLoading(false);}}}/>
       {randomError?<Text style={styles.progressHint}>{randomError}</Text>:null}
       {randomVerse?<Pressable accessibilityRole="button" onPress={()=>open(randomVerse)} style={styles.savedAyah}><Text style={styles.readerToolLabel}>A RANDOM AYAH · {randomVerse.verse_key}</Text><Text style={styles.dailyArabic} writingDirection="rtl">{randomVerse.text_qpc_hafs||randomVerse.text_uthmani||randomVerse.text_indopak_nastaleeq||""}</Text><Text style={styles.translation}>{String(randomVerse.translations?.[0]?.text||"").replace(/<[^>]*>/g,"")}</Text><Text style={styles.reference}>Tap to open in the Qur’an reader</Text></Pressable>:null}
       {error?<Text style={styles.progressHint}>{error}</Text>:null}
