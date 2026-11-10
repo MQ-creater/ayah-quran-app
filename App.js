@@ -157,6 +157,8 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="Browse and preview reciters" onPress={() => onNavigate("reciters")} />
         <ActionTile icon="◎" title="Qur’an completion plan" subtitle="Build a 30, 60 or 90-day Khatmah" onPress={() => onNavigate("khatmah")} />
+        <ActionTile icon="▦" title="Browse by Juz or page" subtitle="Use a printed Mushaf layout" onPress={() => onNavigate("quranNavigation")} />
+        <ActionTile icon="◎" title="Qur’an completion plan" subtitle="Build a 30, 60 or 90-day Khatmah" onPress={() => onNavigate("khatmah")} />
         <ActionTile icon="۞" title="Tafsir library" subtitle="Verse explanations · Plus" locked onPress={() => onNavigate("premium")} />
       </View>
       <Text style={styles.settingLabel}>ARABIC & LEARNING</Text>
@@ -1057,7 +1059,7 @@ function QuranSearchScreen({ onOpenResult, language, recentSearches = [], onSave
   </>;
 }
 
-function QuranLibraryScreen({ onOpenChapter }) {
+function QuranLibraryScreen({ onOpenChapter, onOpenNavigation }) {
   const [chapters, setChapters] = useState([]);
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -1078,7 +1080,8 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Header eyebrow="QUR’AN" title="Qur’an library" />
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Explore all 114 surahs</Text>
-      <Text style={styles.progressHint}>Search by surah name, Arabic name, meaning, or number.</Text>
+      <Text style={styles.progressHint}>Search by surah name, Arabic name, meaning, or number. You can also jump to a Juz or printed Mushaf page.</Text>
+      <Button title="Browse by Juz or Mushaf page" secondary onPress={onOpenNavigation}/>
       <TextInput value={query} onChangeText={setQuery} placeholder="Search surahs…" placeholderTextColor={MUTED} style={styles.emailInput} />
       {!AYAH_API_BASE ? <View style={styles.apiNotice}>
         <Text style={styles.sectionTitle}>Qur’an content connection needed</Text>
@@ -1093,6 +1096,89 @@ function QuranLibraryScreen({ onOpenChapter }) {
     <Text style={styles.tinyNote}>Ayah will display verified Uthmani Arabic and selected translations after the secure content connection is configured. We will not fill gaps with invented Qur’an text.</Text>
   </>;
 }
+
+function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
+  const [mode,setMode] = useState("juz");
+  const [target,setTarget] = useState("1");
+  const [mushaf,setMushaf] = useState("1");
+  const [resultPage,setResultPage] = useState(1);
+  const [verses,setVerses] = useState([]);
+  const [pagination,setPagination] = useState(null);
+  const [loading,setLoading] = useState(false);
+  const [error,setError] = useState("");
+  const [searched,setSearched] = useState(false);
+  const requestRef = useRef(null);
+  useEffect(()=>()=>requestRef.current?.abort(),[]);
+  const load = async (nextPage=1) => {
+    const value=Number(target);
+    const maximum=mode==="juz"?30:700;
+    if(!Number.isInteger(value)||value<1||value>maximum){setError(mode==="juz"?"Enter a Juz number from 1 to 30.":"Enter a Mushaf page from 1 to 700.");return;}
+    if(!AYAH_API_BASE){setError("Connect the secure Ayah content backend to browse by Juz or Mushaf page.");return;}
+    requestRef.current?.abort();
+    const controller=new AbortController();
+    requestRef.current=controller;
+    setLoading(true);setError("");setSearched(true);setVerses([]);
+    const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
+    const params=new URLSearchParams({page:String(nextPage),per_page:"50",language:languageCodeFor(language),script:"uthmani"});
+    if(mode==="page")params.set("mushaf",mushaf);
+    const endpoint=mode==="juz"?"/verses/by-juz/"+value:"/verses/by-page/"+value;
+    try{
+      const response=await fetch(base+endpoint+"?"+params.toString(),{signal:controller.signal});
+      const data=await response.json();
+      if(!response.ok)throw new Error(data.error||"The requested Qur’an section could not be loaded.");
+      const incoming=Array.isArray(data.verses)?data.verses:[];
+      setVerses(incoming);
+      setPagination(data.pagination||null);
+      setResultPage(Number(data.pagination?.current_page||nextPage));
+    }catch(e){if(e.name!=="AbortError")setError(e.message||"Please try again.");}
+    finally{if(requestRef.current===controller){requestRef.current=null;setLoading(false);}}
+  };
+  const open=verse=>{
+    const reference=String(verse.verse_key||"");
+    const [chapterId,verseNumber]=reference.split(":").map(Number);
+    if(chapterId>=1&&chapterId<=114&&verseNumber>=1)onOpenVerse?.({chapter_id:chapterId,verse_number:verseNumber,verse_key:reference});
+  };
+  const title=mode==="juz"?"Juz "+target:"Mushaf page "+target;
+  return <>
+    <Header eyebrow="QUR’AN NAVIGATION" title="Browse by Juz or page"/>
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Choose your place in the Qur’an</Text>
+      <Text style={styles.progressHint}>Jump straight to a Juz or a printed Mushaf page. Page boundaries depend on the Mushaf edition you select.</Text>
+      <View style={styles.readerToggleRow}>
+        {["juz","page"].map(option=><Pressable key={option} accessibilityRole="button" accessibilityState={{selected:mode===option}} onPress={()=>{setMode(option);setVerses([]);setError("");setSearched(false);setResultPage(1);}} style={[styles.readerToggle,mode===option&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,mode===option&&styles.readerToggleTextActive]}>{option==="juz"?"Juz · 1–30":"Mushaf page"}</Text></Pressable>)}
+      </View>
+      <Text style={styles.readerToolLabel}>{mode==="juz"?"Juz number":"Mushaf page number"}</Text>
+      <TextInput accessibilityLabel={mode==="juz"?"Juz number":"Mushaf page number"} value={target} onChangeText={setTarget} keyboardType="number-pad" placeholder={mode==="juz"?"1–30":"1–700"} placeholderTextColor={MUTED} style={styles.emailInput}/>
+      {mode==="page"?<>
+        <Text style={styles.readerToolLabel}>Mushaf edition</Text>
+        <View style={styles.readerToggleRow}>
+          {[{id:"1",label:"Uthmani · 1"},{id:"6",label:"IndoPak · 6"},{id:"7",label:"IndoPak · 7"}].map(item=><Pressable key={item.id} accessibilityRole="button" accessibilityState={{selected:mushaf===item.id}} onPress={()=>setMushaf(item.id)} style={[styles.readerToggle,mushaf===item.id&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,mushaf===item.id&&styles.readerToggleTextActive]}>{item.label}</Text></Pressable>)}
+        </View>
+      </>:null}
+      <Button title={loading?"Loading Qur’an section…":"Open "+title} onPress={()=>load(1)} disabled={loading}/>
+      {error?<Text style={styles.progressHint}>{error}</Text>:null}
+      {!AYAH_API_BASE?<Text style={styles.tinyNote}>The navigation interface is ready. It requires the secure Ayah backend and approved Qur’an content access.</Text>:null}
+    </View>
+    {loading?<ActivityIndicator color={GOLD} size="large"/>:null}
+    {searched&&!loading&&!error?<View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>{title} · {pagination?.total_records??verses.length} verses</Text>
+      {verses.map(verse=><Pressable key={verse.verse_key} accessibilityRole="button" onPress={()=>open(verse)} style={styles.savedAyah}>
+        <Text style={styles.reference}>Surah {verse.chapter_id} · Ayah {verse.verse_number} · {verse.verse_key} {verse.page_number?"· Page "+verse.page_number:""}</Text>
+        <Text style={styles.dailyArabic} writingDirection="rtl">{verse.text_qpc_hafs||verse.text_uthmani||verse.text_indopak_nastaleeq||""}</Text>
+        <Text style={styles.translation}>{String(verse.translations?.[0]?.text||"Translation not available").replace(/<[^>]*>/g,"")}</Text>
+        <Text style={styles.readerToolLabel}>Open this ayah in reader →</Text>
+      </Pressable>)}
+      {verses.length===0?<Text style={styles.progressHint}>No verses were returned for this section.</Text>:null}
+      <View style={styles.readerToggleRow}>
+        <Pressable accessibilityRole="button" disabled={resultPage<=1||loading} onPress={()=>load(resultPage-1)} style={[styles.readerToggle,resultPage<=1&&styles.disabled]}><Text style={styles.readerToggleText}>← Previous results</Text></Pressable>
+        <Pressable accessibilityRole="button" disabled={!pagination?.next_page||loading} onPress={()=>load(Number(pagination.next_page))} style={[styles.readerToggle,!pagination?.next_page&&styles.disabled]}><Text style={styles.readerToggleText}>Next results →</Text></Pressable>
+      </View>
+      <Text style={styles.reference}>Result page {resultPage}{pagination?.total_pages?" of "+pagination.total_pages:""}</Text>
+    </View>:null}
+    <Button title="Back to Qur’an library" secondary onPress={()=>onOpenVerse?.({navigateToLibrary:true})}/>
+  </>;
+}
+
 function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readTodayIds = [], onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, compareTranslationId, setCompareTranslationId, onChangeChapter }) {
   const wordPlayer = useAudioPlayer(null);
   const audioStatus = useAudioPlayerStatus(wordPlayer);
@@ -1998,7 +2084,8 @@ export default function App() {
   let screen;
   if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen compareTranslationId={compareTranslationId} setCompareTranslationId={setCompareTranslationId} preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} onChangeChapter={setSelectedChapter} chapter={selectedChapter} initialAyah={searchInitialAyah} onMarkAyahRead={key=>recordDailyActivity("readingAyahs",[key])} readTodayIds={dailyActivity?.[localDateKey()]?.readingAyahs||[]} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} recentSearches={recentSearches} onSaveRecentSearch={query=>setRecentSearches(current=>query?mergeRecentSearches(current,query):[])} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
-  else if (tab === "library") screen = <QuranLibraryScreen onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
+  else if (tab === "quranNavigation") screen = <QuranNavigationScreen language={learningLanguage} onOpenVerse={async result=>{if(result.navigateToLibrary){setTab("library");return;}try{const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;const response=await fetch(base+"/chapters");if(!response.ok)throw new Error("Could not load surah details.");const data=await response.json();const chapter=(data.chapters||[]).find(item=>Number(item.id)===Number(result.chapter_id));if(!chapter)throw new Error("This surah is unavailable in the reader.");setSearchInitialAyah(Number(result.verse_number));setSelectedChapter(chapter);setTab("libraryReader");}catch(error){Alert.alert("Unable to open ayah",error.message||"Please try again.");}}} />;
+  else if (tab === "library") screen = <QuranLibraryScreen onOpenNavigation={()=>setTab("quranNavigation")} onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
   else if (tab === "tracking") screen = <FullMemorizationTrackingScreen progress={memorizationProgress} onSetStatus={(surahId, verse, status) => setMemorizationProgress(current => { const next = { ...current, [surahId]: { ...(current[surahId] || {}) } }; if (status === "none") delete next[surahId][verse]; else next[surahId][verse] = status; return next; })} onBack={() => setTab("progress")} />;
   else if (tab === "revision") screen = <SmartRevisionScreen records={reviewRecords} progress={memorizationProgress} onRateReview={saveReviewRating} onSyncRating={(surahId, verse, rating) => setMemorizationProgress(current => ({ ...current, [surahId]: { ...(current[surahId] || {}), [verse]: rating === "easy" ? "memorized" : rating === "difficult" ? "revision" : "learning" } }))} onStartVerse={(chapterId, verse) => { setActiveAssignment({ chapterId, startVerse:Number(verse), endVerse:Number(verse), revision:true }); setTab("buildSession"); }} onStartPractice={() => setTab("memorize")} />;
   else if (tab === "plan") screen = <MemorizationPlanScreen plan={memorizationPlan} onSavePlan={setMemorizationPlan} onStartPractice={() => setTab("memorize")} onBuildSession={() => { setActiveAssignment(null); setTab("buildSession"); }} onStartAssignment={assignment => { setActiveAssignment(assignment); setTab("buildSession"); }} practiceCount={practiceCount} />;
