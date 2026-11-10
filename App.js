@@ -967,6 +967,7 @@ function QuranSearchScreen({ onOpenResult, language, recentSearches = [], onSave
   const [searched, setSearched] = useState(false);
   const [error, setError] = useState("");
   const activeSearch = useRef(null);
+  useEffect(() => () => activeSearch.current?.abort(), []);
   const search = async (requestedTerm = query) => {
     const term = query.trim();
     if (term.length < 2) { setError("Enter at least two characters to search."); return; }
