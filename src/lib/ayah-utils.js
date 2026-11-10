@@ -38,9 +38,29 @@ function validateAyahBackup(value) {
   for (const key of BACKUP_PREFERENCE_KEYS) if (Object.prototype.hasOwnProperty.call(value.data, key)) data[key] = value.data[key];
   for (const [key, item] of Object.entries(value.data)) if (/^lastAudioPosition_\d+$/.test(key)) data[key] = item;
   if (!Object.keys(data).length) return { valid:false, error:"No recognized Ayah learning data was found in this backup." };
-  if (data.savedIds !== undefined && (!Array.isArray(data.savedIds) || data.savedIds.some(item => typeof item !== "string"))) return { valid:false, error:"The bookmark list in this backup is invalid." };
-  if (data.practiceHistory !== undefined && !Array.isArray(data.practiceHistory)) return { valid:false, error:"The practice history in this backup is invalid." };
+  const objectKeys = ["dailyTargets","memorizationPlan","reviewRecords","memorizationProgress","savedVerseDetails","readerNotes","ayahCollections","dailyActivity","arabicLessonProgress","arabicAlphabetProgress"];
+  for (const key of objectKeys) if (data[key] !== undefined && (!data[key] || typeof data[key] !== "object" || Array.isArray(data[key]))) return { valid:false, error:"The " + key + " section in this backup is invalid." };
+  if (data.lastReadPosition !== undefined && data.lastReadPosition !== null && (typeof data.lastReadPosition !== "object" || Array.isArray(data.lastReadPosition))) return { valid:false, error:"The saved reading position is invalid." };
+  const arrayKeys = ["savedIds","favoriteReciterIds","practiceHistory","recentSearches"];
+  for (const key of arrayKeys) if (data[key] !== undefined && !Array.isArray(data[key])) return { valid:false, error:"The " + key + " list in this backup is invalid." };
+  if (data.savedIds !== undefined && (data.savedIds.length > 5000 || data.savedIds.some(item => typeof item !== "string" || item.length > 64))) return { valid:false, error:"The bookmark list in this backup is invalid." };
+  if (data.favoriteReciterIds !== undefined && (data.favoriteReciterIds.length > 500 || data.favoriteReciterIds.some(item => !["string","number"].includes(typeof item)))) return { valid:false, error:"The favorite reciter list in this backup is invalid." };
+  if (data.practiceHistory !== undefined) {
+    if (data.practiceHistory.some(item => !item || typeof item !== "object" || Array.isArray(item))) return { valid:false, error:"The practice history in this backup is invalid." };
+    data.practiceHistory = data.practiceHistory.slice(0,250);
+  }
+  if (data.recentSearches !== undefined && (data.recentSearches.length > 8 || data.recentSearches.some(item => typeof item !== "string" || item.length > 100))) return { valid:false, error:"The recent search list in this backup is invalid." };
+  if (data.practiceCount !== undefined && (!Number.isInteger(data.practiceCount) || data.practiceCount < 0 || data.practiceCount > 1000000)) return { valid:false, error:"The saved practice count is invalid." };
+  if (data.dailyGoal !== undefined && (![5,10,15,20].includes(data.dailyGoal))) return { valid:false, error:"The saved daily learning goal is invalid." };
+  if (data.dailyTargets !== undefined && ["reading","memorization"].some(key => data.dailyTargets[key] !== undefined && (!Number.isFinite(data.dailyTargets[key]) || data.dailyTargets[key] < 1 || data.dailyTargets[key] > 100))) return { valid:false, error:"The saved daily targets are invalid." };
+  if (data.readerArabicSize !== undefined && (!Number.isFinite(data.readerArabicSize) || data.readerArabicSize < 18 || data.readerArabicSize > 60)) return { valid:false, error:"The saved Arabic text size is invalid." };
   if (data.themeName !== undefined && !["auto","light","dark","sepia"].includes(data.themeName)) return { valid:false, error:"The saved appearance setting is invalid." };
+  if (data.readerArabicScript !== undefined && !["Uthmani","IndoPak"].includes(data.readerArabicScript)) return { valid:false, error:"The saved Arabic script setting is invalid." };
+  if (data.readerTranslationFont !== undefined && !["Sans","Serif","Monospace"].includes(data.readerTranslationFont)) return { valid:false, error:"The saved translation font is invalid." };
+  if (data.readerTranslationId !== undefined && !/^\\d+$/.test(String(data.readerTranslationId))) return { valid:false, error:"The saved translation selection is invalid." };
+  for (const key of ["readerShowArabic","readerShowTranslation","readerShowWordByWord","remindersEnabled"]) if (data[key] !== undefined && typeof data[key] !== "boolean") return { valid:false, error:"The " + key + " setting in this backup is invalid." };
+  if (data.recitationRepeatCount !== undefined && ![1,3,5].includes(data.recitationRepeatCount)) return { valid:false, error:"The saved ayah repeat setting is invalid." };
+  for (const [key, item] of Object.entries(data)) if (/^lastAudioPosition_\\d+$/.test(key) && (!Number.isFinite(item) || item < 0 || item > 86400)) return { valid:false, error:"A saved audio position is invalid." };
   return { valid:true, data };
 }
 module.exports = { BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup };
