@@ -1208,7 +1208,7 @@ function RelatedHadithSection({ verseKey, language = "en" }) {
     return ()=>controller.abort();
   },[expanded,verseKey,language,page]);
   return <View style={{marginTop:12,borderTopWidth:1,borderTopColor:BORDER,paddingTop:10}}>
-    <Pressable accessibilityRole="button" accessibilityState={{expanded}} onPress={()=>{setExpanded(value=>!value);if(!expanded&&!loaded)setPage(1);}} style={styles.readerToggle}>
+    <Pressable accessibilityRole="button" accessibilityState={{expanded}} onPress={()=>{if(expanded){setExpanded(false);}else{setHadiths([]);setLoaded(false);setHasMore(false);setPage(1);setExpanded(true);}}} style={styles.readerToggle}>
       <Text style={styles.readerToggleText}>{expanded?"Hide related hadith":"Related hadith and sources"}</Text>
     </Pressable>
     {expanded&&!AYAH_API_BASE?<Text style={styles.progressHint}>Connect the secure Ayah backend to load related hadith.</Text>:null}
