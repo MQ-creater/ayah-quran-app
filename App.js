@@ -578,14 +578,20 @@ function MemorizationPlanScreen({ plan, onSavePlan, onStartPractice, onBuildSess
 const ARABIC_LESSON = [
   { word: "كِتَابٌ", transliteration: "kitābun", meaning: "a book", example: "هَذَا كِتَابٌ", exampleMeaning: "This is a book." },
   { word: "قَلَمٌ", transliteration: "qalamun", meaning: "a pen", example: "هَذَا قَلَمٌ", exampleMeaning: "This is a pen." },
-  { word: "بَابٌ", transliteration: "bābun", meaning: "a door", example: "هَذَا بَابٌ", exampleMeaning: "This is a door." }
+  { word: "بَابٌ", transliteration: "bābun", meaning: "a door", example: "هَذَا بَابٌ", exampleMeaning: "This is a door." },
+  { word: "مَاءٌ", transliteration: "māʾun", meaning: "water", example: "هَذَا مَاءٌ", exampleMeaning: "This is water." },
+  { word: "بَيْتٌ", transliteration: "baytun", meaning: "a house", example: "هَذَا بَيْتٌ", exampleMeaning: "This is a house." },
+  { word: "مَسْجِدٌ", transliteration: "masjidun", meaning: "a mosque", example: "هَذَا مَسْجِدٌ", exampleMeaning: "This is a mosque." }
 ];
 const ARABIC_STARTER_QUIZ = [
   { prompt: "What does كِتَابٌ mean?", options: ["A door", "A book", "A pen"], answer: "A book", explanation: "كِتَابٌ (kitābun) means “a book.”" },
   { prompt: "Which Arabic word means “a pen”?", options: ["قَلَمٌ", "بَابٌ", "كِتَابٌ"], answer: "قَلَمٌ", explanation: "قَلَمٌ (qalamun) means “a pen.”" },
-  { prompt: "What does بَابٌ mean?", options: ["A book", "A pen", "A door"], answer: "A door", explanation: "بَابٌ (bābun) means “a door.”" }
+  { prompt: "What does بَابٌ mean?", options: ["A book", "A pen", "A door"], answer: "A door", explanation: "بَابٌ (bābun) means “a door.”" },
+  { prompt: "What does مَاءٌ mean?", options: ["Water", "A house", "A mosque"], answer: "Water", explanation: "مَاءٌ (māʾun) means “water.”" },
+  { prompt: "Which word means “a house”?", options: ["مَسْجِدٌ", "بَيْتٌ", "مَاءٌ"], answer: "بَيْتٌ", explanation: "بَيْتٌ (baytun) means “a house.”" },
+  { prompt: "What does مَسْجِدٌ mean?", options: ["A book", "A mosque", "A door"], answer: "A mosque", explanation: "مَسْجِدٌ (masjidun) means “a mosque.”" }
 ];
-function ArabicStarterQuiz({ onReview }) {
+function ArabicStarterQuiz({ onReview, onComplete }) {
   const [question, setQuestion] = useState(0);
   const [answer, setAnswer] = useState("");
   const [score, setScore] = useState(0);
@@ -594,7 +600,7 @@ function ArabicStarterQuiz({ onReview }) {
   const submit = () => {
     if (!answer) return;
     if (answer === item.answer) setScore(n => n + 1);
-    if (question === ARABIC_STARTER_QUIZ.length - 1) setFinished(true);
+    if (question === ARABIC_STARTER_QUIZ.length - 1) { setFinished(true); onComplete?.(score + (answer === item.answer ? 1 : 0)); }
     else { setQuestion(n => n + 1); setAnswer(""); }
   };
   const retry = () => { setQuestion(0); setAnswer(""); setScore(0); setFinished(false); };
@@ -602,7 +608,7 @@ function ArabicStarterQuiz({ onReview }) {
     <Text style={styles.cardEyebrow}>MILESTONE CHECKPOINT</Text>
     <Text style={styles.sectionTitle}>Starter lesson quiz complete!</Text>
     <Text style={styles.quizScore}>{score} / {ARABIC_STARTER_QUIZ.length}</Text>
-    <Text style={styles.progressHint}>{score === 3 ? "Excellent work! You got every question right." : "Good effort. Review the words and try again whenever you're ready."}</Text>
+    <Text style={styles.progressHint}>{score === ARABIC_STARTER_QUIZ.length ? "Excellent work! You got every question right." : "Good effort. Review the words and try again whenever you're ready."}</Text>
     <Button title="Try the quiz again" secondary onPress={retry} />
     <Button title="Review the lesson" onPress={onReview} />
   </View>;
@@ -1434,16 +1440,18 @@ function StudyNotebookScreen({ notes, savedIds, savedVerseDetails, collections, 
   </>;
 }
 
-function ArabicLessonsScreen({ onPremium }) {
-  const [index, setIndex] = useState(0);
+function ArabicLessonsScreen({ onPremium, progress = {}, onProgress }) {
+  const [index, setIndex] = useState(Math.min(ARABIC_LESSON.length-1,Number(progress.highestWord||0)));
   const [revealed, setRevealed] = useState(false);
   const [completed, setCompleted] = useState(false);
   const item = ARABIC_LESSON[index];
   const next = () => {
     if (index === ARABIC_LESSON.length - 1) {
       setCompleted(true);
+      onProgress?.(current=>({...current,highestWord:ARABIC_LESSON.length,completed:true}));
     } else {
       setIndex(n => n + 1);
+      onProgress?.(current=>({...current,highestWord:Math.max(Number(current.highestWord||0),index+1)}));
       setRevealed(false);
     }
   };
@@ -1452,6 +1460,7 @@ function ArabicLessonsScreen({ onPremium }) {
     <View style={styles.freeLessonBadge}><Text style={styles.freeLessonBadgeText}>FREE STARTER LESSON</Text></View>
     <View style={styles.lessonCard}>
       <Text style={styles.cardEyebrow}>LESSON 1 · EVERYDAY WORDS</Text>
+      <Text style={styles.progressHint}>Progress: {Math.min(Number(progress.highestWord||0),ARABIC_LESSON.length)} / {ARABIC_LESSON.length} words reached · Best quiz: {progress.bestQuizScore||0} / {ARABIC_STARTER_QUIZ.length}</Text>
       <Text style={styles.dailyArabic} writingDirection="rtl">{item.word}</Text>
       <Text style={styles.translation}>{item.transliteration}</Text>
       <View style={styles.practicePrompt}><Text style={styles.practicePromptText}>{revealed ? item.meaning : "Try to guess the meaning, then reveal it."}</Text></View>
@@ -1460,7 +1469,7 @@ function ArabicLessonsScreen({ onPremium }) {
       <Text style={styles.reference}>Word {index + 1} of {ARABIC_LESSON.length}</Text>
     </View>
     <View style={styles.stepDots}>{ARABIC_LESSON.map((x,i) => <View key={x.word} style={[styles.stepDot, i <= index && styles.stepDotActive]} />)}</View>
-    {completed ? <ArabicStarterQuiz onReview={() => {setIndex(0);setRevealed(false);setCompleted(false);}} /> : <Button title={index === ARABIC_LESSON.length - 1 ? "Finish starter lesson" : "Next word"} onPress={next} />}
+    {completed ? <ArabicStarterQuiz onComplete={score=>onProgress?.(current=>({...current,bestQuizScore:Math.max(Number(current.bestQuizScore||0),score)}))} onReview={() => {setIndex(0);setRevealed(false);setCompleted(false);}} /> : <Button title={index === ARABIC_LESSON.length - 1 ? "Finish starter lesson" : "Next word"} onPress={next} />}
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Unlock the full Arabic course</Text>
       <Text style={styles.progressHint}>Ayah Plus is planned to include structured lessons in reading, vocabulary, grammar, sentence building and guided practice.</Text>
@@ -1479,33 +1488,38 @@ const ALPHABET_LESSON = [
   { letter: "ج", name: "Jīm", sound: "A j sound in many varieties of standard Arabic teaching.", word: "جَمَلٌ", wordName: "jamalun", meaning: "a camel" },
   { letter: "ح", name: "Ḥā’", sound: "A distinct breathy, throaty h sound. It is not the same as ه.", word: "حَلِيبٌ", wordName: "ḥalībun", meaning: "milk" },
   { letter: "خ", name: "Khā’", sound: "A throaty kh sound.", word: "خُبْزٌ", wordName: "khubzun", meaning: "bread" },
-  { letter: "د", name: "Dāl", sound: "A d sound.", word: "دَارٌ", wordName: "dārun", meaning: "a home" }
+  { letter: "د", name: "Dāl", sound: "A d sound.", word: "دَارٌ", wordName: "dārun", meaning: "a home" },
+  { letter: "ذ", name: "Dhāl", sound: "A voiced th sound, as in “this”.", word: "ذَهَبٌ", wordName: "dhahabun", meaning: "gold" },
+  { letter: "ر", name: "Rā’", sound: "A tapped or trilled r sound.", word: "رَجُلٌ", wordName: "rajulun", meaning: "a man" },
+  { letter: "ز", name: "Zāy", sound: "A z sound.", word: "زَيْتٌ", wordName: "zaytun", meaning: "oil" },
+  { letter: "س", name: "Sīn", sound: "An s sound.", word: "سَمَكٌ", wordName: "samakun", meaning: "fish" }
 ];
-function ArabicAlphabetScreen({ onPremium }) {
-  const [selected, setSelected] = useState(0);
+function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
+  const [selected, setSelected] = useState(Math.min(ALPHABET_LESSON.length-1,Number(progress.highestLetter||0)));
   const [showWord, setShowWord] = useState(false);
   const [quizIndex, setQuizIndex] = useState(0);
   const [quizAnswer, setQuizAnswer] = useState("");
   const [quizScore, setQuizScore] = useState(0);
   const [quizDone, setQuizDone] = useState(false);
-  const quizLetters = [1, 3, 5, 7];
+  const quizLetters = [1, 3, 5, 7, 9, 11];
   const target = ALPHABET_LESSON[quizLetters[quizIndex]];
-  const choices = [target, ALPHABET_LESSON[(quizLetters[quizIndex] + 2) % 8], ALPHABET_LESSON[(quizLetters[quizIndex] + 5) % 8]];
+  const choices = [target, ALPHABET_LESSON[(quizLetters[quizIndex] + 2) % ALPHABET_LESSON.length], ALPHABET_LESSON[(quizLetters[quizIndex] + 5) % ALPHABET_LESSON.length]];
   const submitAnswer = () => {
     if (!quizAnswer) return;
     if (quizAnswer === target.letter) setQuizScore(n => n + 1);
-    if (quizIndex === quizLetters.length - 1) setQuizDone(true);
+    if (quizIndex === quizLetters.length - 1) { setQuizDone(true); onProgress?.(current=>({...current,bestQuizScore:Math.max(Number(current.bestQuizScore||0),quizScore+(quizAnswer===target.letter?1:0))})); }
     else { setQuizIndex(n => n + 1); setQuizAnswer(""); }
   };
   const restartQuiz = () => { setQuizIndex(0); setQuizAnswer(""); setQuizScore(0); setQuizDone(false); };
   const item = ALPHABET_LESSON[selected];
+  const moveToLetter = next => { const value=Math.max(0,Math.min(ALPHABET_LESSON.length-1,next));setSelected(value);setShowWord(false);onProgress?.(current=>({...current,highestLetter:Math.max(Number(current.highestLetter||0),value)})); };
   return <>
     <Header eyebrow="ARABIC ACADEMY · LEVEL 1" title="Meet the Arabic letters" />
     <View style={styles.infoCard}>
-      <Text style={styles.cardEyebrow}>LETTER CLASSROOM · FIRST 8 LETTERS</Text>
+      <Text style={styles.cardEyebrow}>LETTER CLASSROOM · FIRST 12 LETTERS</Text>
       <Text style={styles.progressHint}>Tap a letter to explore its name and a beginner example. Arabic letters can change shape when they join other letters; connected forms will be a later lesson.</Text>
       <View style={styles.alphabetGrid}>
-        {ALPHABET_LESSON.map((entry, index) => <Pressable key={entry.letter} accessibilityRole="button" accessibilityLabel={entry.name} onPress={() => {setSelected(index);setShowWord(false);}} style={[styles.alphabetTile, selected === index && styles.choiceSelected]}>
+        {ALPHABET_LESSON.map((entry, index) => <Pressable key={entry.letter} accessibilityRole="button" accessibilityLabel={entry.name} onPress={() => {moveToLetter(index);}} style={[styles.alphabetTile, selected === index && styles.choiceSelected]}>
           <Text style={[styles.alphabetTileLetter, selected === index && styles.choiceTextSelected]}>{entry.letter}</Text>
           <Text style={styles.alphabetTileName}>{entry.name}</Text>
         </Pressable>)}
@@ -1522,16 +1536,16 @@ function ArabicAlphabetScreen({ onPremium }) {
         <Text style={styles.translation}>{item.wordName} · {item.meaning}</Text>
       </View>}
       <View style={styles.rowButtons}>
-        <View style={styles.rowButtonCell}><Button title="Previous" secondary disabled={selected === 0} onPress={() => {setSelected(n => Math.max(0,n-1));setShowWord(false);}} /></View>
-        <View style={styles.rowButtonCell}><Button title={selected === ALPHABET_LESSON.length - 1 ? "Back to Alif" : "Next letter"} onPress={() => {setSelected(n => (n + 1) % ALPHABET_LESSON.length);setShowWord(false);}} /></View>
+        <View style={styles.rowButtonCell}><Button title="Previous" secondary disabled={selected === 0} onPress={() => {moveToLetter(selected-1);}} /></View>
+        <View style={styles.rowButtonCell}><Button title={selected === ALPHABET_LESSON.length - 1 ? "Back to Alif" : "Next letter"} onPress={() => {moveToLetter(selected === ALPHABET_LESSON.length-1 ? 0 : selected+1);}} /></View>
       </View>
     </View>
     <View style={styles.infoCard}>
-      <Text style={styles.cardEyebrow}>QUICK CHECK · 4 QUESTIONS</Text>
+      <Text style={styles.cardEyebrow}>QUICK CHECK · 6 QUESTIONS</Text>
       <Text style={styles.sectionTitle}>Find the letter</Text>
       {quizDone ? <>
         <Text style={styles.quizScore}>{quizScore} / {quizLetters.length}</Text>
-        <Text style={styles.progressHint}>{quizScore === 4 ? "Excellent recognition!" : "Nice effort. Review the letters and try again."}</Text>
+        <Text style={styles.progressHint}>{quizScore === quizLetters.length ? "Excellent recognition!" : "Nice effort. Review the letters and try again."}</Text>
         <Button title="Try again" onPress={restartQuiz} />
       </> : <>
         <Text style={styles.quizPrompt}>Which letter is {target.name}?</Text>
