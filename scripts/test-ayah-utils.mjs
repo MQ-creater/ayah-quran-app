@@ -25,9 +25,9 @@ test("keeps recent searches unique and newest first",()=>{
   assert.deepEqual(mergeRecentSearches([],"a"),[]);
 });
 test("validates Ayah backups and filters unknown keys",()=>{
-  const result=validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedIds:["2:255"],themeName:"dark",privateToken:"never-import"}});
+  const result=validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedIds:["2:255"],themeName:"dark",readerTranslationId:"131",recitationRepeatCount:3,lastAudioPosition_114:128,privateToken:"never-import"}});
   assert.equal(result.valid,true);
-  assert.deepEqual(result.data,{savedIds:["2:255"],themeName:"dark"});
+  assert.deepEqual(result.data,{savedIds:["2:255"],themeName:"dark",readerTranslationId:"131",recitationRepeatCount:3,lastAudioPosition_114:128});
   assert.equal(validateAyahBackup({app:"Other",schemaVersion:1,data:{savedIds:[]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedIds:"wrong"}}).valid,false);
 });
