@@ -36,6 +36,9 @@ let cachedToken = null;
 let tokenExpiresAt = 0;
 let cachedTafsirToken = null;
 let tafsirTokenExpiresAt = 0;
+const responseCache = new Map();
+const RESPONSE_CACHE_LIMIT = 180;
+const RESPONSE_CACHE_TTL_MS = 60_000;
 
 app.disable("x-powered-by");
 app.use(helmet());
@@ -92,6 +95,10 @@ async function getAccessToken(includeTafsir = false) {
 }
 
 async function qfGet(path, includeTafsir = false) {
+  const cacheKey = (includeTafsir ? "tafsir:" : "content:") + path;
+  const cached = responseCache.get(cacheKey);
+  if (cached && cached.expiresAt > Date.now()) return cached.data;
+  if (cached) responseCache.delete(cacheKey);
   const token = await getAccessToken(includeTafsir);
   let response;
   try {
@@ -105,16 +112,22 @@ async function qfGet(path, includeTafsir = false) {
   }
   if (!response.ok) {
     const error = new Error("The Qur’an content provider request failed.");
-    error.status = response.status;
+    error.status = response.status === 429 ? 503 : 502;
+    error.providerStatus = response.status;
     throw error;
   }
-  return response.json();
+  const data = await response.json();
+  responseCache.set(cacheKey,{data,expiresAt:Date.now()+RESPONSE_CACHE_TTL_MS});
+  if(responseCache.size>RESPONSE_CACHE_LIMIT){const oldest=responseCache.keys().next().value;responseCache.delete(oldest);}
+  return data;
 }
 
 app.get("/health", (_req, res) => res.json({ ok: true, service: "ayah-content-api", providerConfigured: Boolean(clientId && clientSecret), environment }));
 
 app.get("/api/status", (_req, res) => res.json({
   service: "ayah-content-api",
+  apiVersion: 1,
+  responseCacheTtlSeconds: RESPONSE_CACHE_TTL_MS / 1000,
   environment,
   providerConfigured: Boolean(clientId && clientSecret),
   endpoints: ["chapters", "verses", "translations", "search", "chapter-audio", "tafsir"]
@@ -199,7 +212,8 @@ app.get("/api/tafsirs/:resourceId/ayah/:surah/:ayah", async (req, res) => {
 });
 
 
-app.get("/api/search", async (req, res) => {
+const searchRateLimit = rateLimit({ windowMs:60_000, limit:20, standardHeaders:"draft-7", legacyHeaders:false });
+app.get("/api/search", searchRateLimit, async (req, res) => {
   const query = String(req.query.q || "").trim();
   const language = String(req.query.language || "en").toLowerCase();
   const size = Math.min(30, Math.max(1, Number(req.query.size) || 20));
@@ -235,8 +249,10 @@ app.get("/api/chapters", async (_req, res) => {
 
 app.get("/api/chapters/:id/verses", async (req, res) => {
   const chapterId = Number(req.params.id);
-  const page = Math.max(1, Number(req.query.page) || 1);
-  const perPage = Math.min(50, Math.max(1, Number(req.query.per_page) || 50));
+  const page = Number(req.query.page || 1);
+  const perPage = Number(req.query.per_page || 50);
+  if (!Number.isInteger(page) || page < 1 || page > 500) return res.status(400).json({ error: "Page must be a whole number from 1 to 500." });
+  if (!Number.isInteger(perPage) || perPage < 1 || perPage > 50) return res.status(400).json({ error: "Page size must be a whole number from 1 to 50." });
   const requestedTranslation = String(req.query.translation_id || translationId);
   if (!Number.isInteger(chapterId) || chapterId < 1 || chapterId > 114) {
     return res.status(400).json({ error: "Chapter number must be between 1 and 114." });
