@@ -157,7 +157,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
         <ActionTile icon="▤" title="Study notebook" subtitle="Notes and ayah collections" onPress={() => onNavigate("notebook")} />
         <ActionTile icon="♫" title="Recitation library" subtitle="Browse and preview reciters" onPress={() => onNavigate("reciters")} />
         <ActionTile icon="◎" title="Qur’an completion plan" subtitle="Build a 30, 60 or 90-day Khatmah" onPress={() => onNavigate("khatmah")} />
-        <ActionTile icon="▦" title="Browse by Juz or page" subtitle="Use a printed Mushaf layout" onPress={() => onNavigate("quranNavigation")} />
+        <ActionTile icon="▦" title="Browse Qur’an sections" subtitle="Juz, Hizb, Rub al-Hizb, and Mushaf pages" onPress={() => onNavigate("quranNavigation")} />
         <ActionTile icon="◎" title="Qur’an completion plan" subtitle="Build a 30, 60 or 90-day Khatmah" onPress={() => onNavigate("khatmah")} />
         <ActionTile icon="۞" title="Tafsir library" subtitle="Verse explanations · Plus" locked onPress={() => onNavigate("premium")} />
       </View>
@@ -1088,7 +1088,7 @@ function QuranLibraryScreen({ onOpenChapter, onOpenNavigation }) {
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Explore all 114 surahs</Text>
       <Text style={styles.progressHint}>Search by surah name, Arabic name, meaning, or number. You can also jump to a Juz or printed Mushaf page.</Text>
-      <Button title="Browse by Juz or Mushaf page" secondary onPress={onOpenNavigation}/>
+      <Button title="Browse by Juz, Hizb, or Mushaf page" secondary onPress={onOpenNavigation}/>
       <TextInput value={query} onChangeText={setQuery} placeholder="Search surahs…" placeholderTextColor={MUTED} style={styles.emailInput} />
       {!AYAH_API_BASE ? <View style={styles.apiNotice}>
         <Text style={styles.sectionTitle}>Qur’an content connection needed</Text>
@@ -1118,8 +1118,9 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
   useEffect(()=>()=>requestRef.current?.abort(),[]);
   const load = async (nextPage=1) => {
     const value=Number(target);
-    const maximum=mode==="juz"?30:700;
-    if(!Number.isInteger(value)||value<1||value>maximum){setError(mode==="juz"?"Enter a Juz number from 1 to 30.":"Enter a Mushaf page from 1 to 700.");return;}
+    const ranges={juz:30,page:700,hizb:60,rub:240};
+    const maximum=ranges[mode];
+    if(!Number.isInteger(value)||value<1||value>maximum){setError("Enter a "+({juz:"Juz",page:"Mushaf page",hizb:"Hizb",rub:"Rub al-Hizb"}[mode])+" number from 1 to "+maximum+".");return;}
     if(!AYAH_API_BASE){setError("Connect the secure Ayah content backend to browse by Juz or Mushaf page.");return;}
     requestRef.current?.abort();
     const controller=new AbortController();
@@ -1128,7 +1129,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
     const params=new URLSearchParams({page:String(nextPage),per_page:"50",language:languageCodeFor(language),script:"uthmani"});
     if(mode==="page")params.set("mushaf",mushaf);
-    const endpoint=mode==="juz"?"/verses/by-juz/"+value:"/verses/by-page/"+value;
+    const endpoint=({juz:"/verses/by-juz/",page:"/verses/by-page/",hizb:"/verses/by-hizb/",rub:"/verses/by-rub-al-hizb/"})[mode]+value;
     try{
       const response=await fetch(base+endpoint+"?"+params.toString(),{signal:controller.signal});
       const data=await response.json();
@@ -1145,17 +1146,17 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     const [chapterId,verseNumber]=reference.split(":").map(Number);
     if(chapterId>=1&&chapterId<=114&&verseNumber>=1)onOpenVerse?.({chapter_id:chapterId,verse_number:verseNumber,verse_key:reference});
   };
-  const title=mode==="juz"?"Juz "+target:"Mushaf page "+target;
+  const title=({juz:"Juz ",page:"Mushaf page ",hizb:"Hizb ",rub:"Rub al-Hizb "})[mode]+target;
   return <>
-    <Header eyebrow="QUR’AN NAVIGATION" title="Browse by Juz or page"/>
+    <Header eyebrow="QUR’AN NAVIGATION" title="Browse Qur’an sections"/>
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Choose your place in the Qur’an</Text>
-      <Text style={styles.progressHint}>Jump straight to a Juz or a printed Mushaf page. Page boundaries depend on the Mushaf edition you select.</Text>
+      <Text style={styles.progressHint}>Navigate by Juz, Hizb, Rub al-Hizb, or a printed Mushaf page. Page boundaries depend on the Mushaf edition you select.</Text>
       <View style={styles.readerToggleRow}>
-        {["juz","page"].map(option=><Pressable key={option} accessibilityRole="button" accessibilityState={{selected:mode===option}} onPress={()=>{setMode(option);setVerses([]);setError("");setSearched(false);setResultPage(1);}} style={[styles.readerToggle,mode===option&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,mode===option&&styles.readerToggleTextActive]}>{option==="juz"?"Juz · 1–30":"Mushaf page"}</Text></Pressable>)}
+        {[{id:"juz",label:"Juz · 1–30"},{id:"hizb",label:"Hizb · 1–60"},{id:"rub",label:"Rub · 1–240"},{id:"page",label:"Mushaf page"}].map(option=><Pressable key={option.id} accessibilityRole="button" accessibilityState={{selected:mode===option.id}} onPress={()=>{setMode(option.id);setVerses([]);setError("");setSearched(false);setResultPage(1);}} style={[styles.readerToggle,mode===option.id&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,mode===option.id&&styles.readerToggleTextActive]}>{option.label}</Text></Pressable>)}
       </View>
-      <Text style={styles.readerToolLabel}>{mode==="juz"?"Juz number":"Mushaf page number"}</Text>
-      <TextInput accessibilityLabel={mode==="juz"?"Juz number":"Mushaf page number"} value={target} onChangeText={setTarget} keyboardType="number-pad" placeholder={mode==="juz"?"1–30":"1–700"} placeholderTextColor={MUTED} style={styles.emailInput}/>
+      <Text style={styles.readerToolLabel}>{({juz:"Juz number",page:"Mushaf page number",hizb:"Hizb number",rub:"Rub al-Hizb number"})[mode]}</Text>
+      <TextInput accessibilityLabel={({juz:"Juz number",page:"Mushaf page number",hizb:"Hizb number",rub:"Rub al-Hizb number"})[mode]} value={target} onChangeText={setTarget} keyboardType="number-pad" placeholder={({juz:"1–30",page:"1–700",hizb:"1–60",rub:"1–240"})[mode]} placeholderTextColor={MUTED} style={styles.emailInput}/>
       {mode==="page"?<>
         <Text style={styles.readerToolLabel}>Mushaf edition</Text>
         <View style={styles.readerToggleRow}>
