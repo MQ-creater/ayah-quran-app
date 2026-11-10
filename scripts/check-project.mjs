@@ -53,7 +53,7 @@ const checks = [
 checks.push(...[  ["Mushaf page and Juz navigation APIs", server.includes("/api/verses/by-page/:pageNumber") && server.includes("/api/verses/by-juz/:juzNumber") && server.includes("/verses/by_page/") && server.includes("/verses/by_juz/")],
   ["related hadith endpoint uses separate least-privilege token", server.includes("/api/hadith/:surah/:ayah") && server.includes("content.hadith.read") && server.includes("cachedHadithToken")],
   ["reader has on-demand related hadith study", app.includes("function RelatedHadithSection") && app.includes("Related hadith and sources") && app.includes("/hadith/")],
-  ["Qur’an navigation screen supports Juz and Mushaf page", app.includes("function QuranNavigationScreen") && app.includes("Browse by Juz or Mushaf page") && app.includes("by-page/") && app.includes("by-juz/")],
+  ["Qur’an navigation screen supports Juz and Mushaf page", app.includes("function QuranNavigationScreen") && app.includes("Browse Qur’an sections") && app.includes("by-page/") && app.includes("by-juz/") && app.includes("by-hizb/") && app.includes("by-rub-al-hizb/")],
   ["Khatmah plan is reachable from home", app.includes("function KhatmahPlanScreen") && app.includes("Qur’an completion plan") && app.includes("tab === \"khatmah\"")],
   ["reader supports two provider translations", app.includes("normalizeTranslationIds(translationId, compareTranslationId)") && app.includes("Compare with a second translation")],
   ["pinned ayah comparison persists locally", app.includes("usePersistentState(\"pinnedCompareKeys\",[])") && app.includes("Compare pinned ayahs")],
@@ -61,6 +61,14 @@ checks.push(...[  ["Mushaf page and Juz navigation APIs", server.includes("/api/
   ["study notebook supports multiple collections", app.includes("toggleCollectionMembership(current[key],name)") && app.includes("Add to or remove from collections")],
   ["learning insights include a 30-day activity heatmap", app.includes("Last 30 days") && app.includes("activeMonthDays")],
   ["audio URL normalization restricts external hosts", utilities.includes("audio.qurancdn.com") && utilities.includes("verses.quran.foundation") && utilities.includes("normalizeAudioUrl")],]);
+
+checks.push(...[  ["navigation supports Manzil and Ruku", app.includes("manzil:") && app.includes("ruku:") && app.includes("by-manzil/") && app.includes("by-ruku/")],
+  ["random ayah discovery is reachable", app.includes("Random ayah") && app.includes("/random-ayah")],
+  ["Mushaf line view uses supplied line metadata", app.includes("pageLineMap") && app.includes("word.line_number") && app.includes("Mushaf lines")],
+  ["reader pins preserve verse details across pages", app.includes("pinnedCompareDetails") && app.includes("Compare pinned ayahs")],
+  ["bookmarks allow an explicitly empty collection list", utilities.includes("if (isArray) return names;")],
+  ["verse references check each surah ayah count", utilities.includes("SURAH_AYAH_COUNTS[surah - 1]")],
+  ["backup validator covers pinned verse detail data", utilities.includes("pinnedCompareDetails") && utilities.includes("pinnedCompareKeys")],]);
 
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
