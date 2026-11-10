@@ -46,7 +46,7 @@ export function validateAyahBackup(value) {
     if (Object.prototype.hasOwnProperty.call(value.data, key)) data[key] = value.data[key];
   }
   for (const [key, item] of Object.entries(value.data)) {
-    if (/^lastAudioPosition_\\d+$/.test(key)) data[key] = item;
+    if (/^lastAudioPosition_\d+$/.test(key)) data[key] = item;
   }
   if (!Object.keys(data).length) return { valid:false, error:"No recognized Ayah learning data was found in this backup." };
   if (data.savedIds !== undefined && (!Array.isArray(data.savedIds) || data.savedIds.some(item => typeof item !== "string"))) return { valid:false, error:"The bookmark list in this backup is invalid." };
