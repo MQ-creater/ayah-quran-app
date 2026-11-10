@@ -5,7 +5,7 @@ const BACKUP_PREFERENCE_KEYS = [
   "savedVerseDetails","readerNotes","ayahCollections","lastReadPosition","themeName",
   "learningLanguage","dailyGoal","dailyActivity","remindersEnabled","readerArabicSize",
   "readerShowArabic","readerShowTranslation","readerShowWordByWord","readerArabicScript",
-  "readerTranslationFont","readerTranslationLanguage","readerTranslationId","recitationRepeatCount","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
+  "readerTranslationFont","readerTranslationLanguage","readerTranslationId","pinnedCompareKeys","recitationRepeatCount","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
   "arabicLessonProgress","arabicAlphabetProgress","recentSearches","compareTranslationId","khatmahPlan"
 ];
 function normalizeVerseKey(value) {
@@ -43,6 +43,7 @@ function validateAyahBackup(value) {
   if (data.lastReadPosition !== undefined && data.lastReadPosition !== null && (typeof data.lastReadPosition !== "object" || Array.isArray(data.lastReadPosition))) return { valid:false, error:"The saved reading position is invalid." };
   const arrayKeys = ["savedIds","favoriteReciterIds","practiceHistory","recentSearches"];
   for (const key of arrayKeys) if (data[key] !== undefined && !Array.isArray(data[key])) return { valid:false, error:"The " + key + " list in this backup is invalid." };
+  if (data.pinnedCompareKeys !== undefined && (!Array.isArray(data.pinnedCompareKeys) || data.pinnedCompareKeys.length > 2 || data.pinnedCompareKeys.some(value => !normalizeVerseKey(value)))) return { valid:false, error:"The pinned verse comparison list is invalid." };
   if (data.savedIds !== undefined && (data.savedIds.length > 5000 || data.savedIds.some(item => typeof item !== "string" || item.length > 64))) return { valid:false, error:"The bookmark list in this backup is invalid." };
   if (data.favoriteReciterIds !== undefined && (data.favoriteReciterIds.length > 500 || data.favoriteReciterIds.some(item => !["string","number"].includes(typeof item)))) return { valid:false, error:"The favorite reciter list in this backup is invalid." };
   if (data.practiceHistory !== undefined) {
