@@ -237,6 +237,32 @@ app.get("/api/search", searchRateLimit, async (req, res) => {
   }
 });
 
+
+function buildVerseBrowseParams(req) {
+  const page = Number(req.query.page || 1);
+  const perPage = Number(req.query.per_page || 50);
+  const translationIds = String(req.query.translation_id || translationId).split(",").map(value => value.trim());
+  const language = String(req.query.language || "en").toLowerCase();
+  const script = String(req.query.script || "uthmani");
+  if (!Number.isInteger(page) || page < 1 || page > 100) return { error:"Result page must be a whole number from 1 to 100." };
+  if (!Number.isInteger(perPage) || perPage < 1 || perPage > 50) return { error:"Page size must be a whole number from 1 to 50." };
+  if (translationIds.length < 1 || translationIds.length > 2 || translationIds.some(value => !/^\d+$/.test(value)) || new Set(translationIds).size !== translationIds.length) return { error:"Choose one or two valid translation IDs." };
+  if (!/^[a-z]{2}$/.test(language)) return { error:"Language must be a two-letter language code." };
+  if (!["uthmani","indopak"].includes(script)) return { error:"Choose a supported Arabic script." };
+  const arabicField = script === "indopak" ? "text_indopak_nastaleeq" : "text_qpc_hafs";
+  return {
+    params: new URLSearchParams({
+      language,
+      words:"true",
+      word_fields:[arabicField,"text_uthmani","transliteration","translation","audio_url","position","char_type_name"].join(","),
+      translations:translationIds.join(","),
+      fields:arabicField,
+      page:String(page),
+      per_page:String(perPage)
+    })
+  };
+}
+
 app.get("/api/chapters", async (_req, res) => {
   try {
     const data = await qfGet("/chapters?language=en");
@@ -244,6 +270,38 @@ app.get("/api/chapters", async (_req, res) => {
   } catch (error) {
     console.error("Chapter request failed:", error.message);
     res.status(error.status || 503).json({ error: "The surah list is temporarily unavailable." });
+  }
+});
+
+
+app.get("/api/verses/by-page/:pageNumber", async (req, res) => {
+  const pageNumber = Number(req.params.pageNumber);
+  if (!Number.isInteger(pageNumber) || pageNumber < 1 || pageNumber > 700) return res.status(400).json({ error:"Mushaf page must be a whole number from 1 to 700." });
+  const built = buildVerseBrowseParams(req);
+  if (built.error) return res.status(400).json({ error:built.error });
+  const mushaf = req.query.mushaf === undefined ? "" : String(req.query.mushaf);
+  if (mushaf && (!/^\d+$/.test(mushaf) || Number(mushaf) < 1 || Number(mushaf) > 99)) return res.status(400).json({ error:"Mushaf ID must be a positive whole number." });
+  if (mushaf) built.params.set("mushaf",mushaf);
+  try {
+    const data = await qfGet("/verses/by_page/" + pageNumber + "?" + built.params.toString());
+    res.json({ verses:data.verses || [], pagination:data.pagination || null, navigation:{ type:"page", pageNumber, mushaf:mushaf || null } });
+  } catch (error) {
+    console.error("Mushaf page request failed:",error.message);
+    res.status(error.status || 503).json({ error:"This Mushaf page is temporarily unavailable." });
+  }
+});
+
+app.get("/api/verses/by-juz/:juzNumber", async (req, res) => {
+  const juzNumber = Number(req.params.juzNumber);
+  if (!Number.isInteger(juzNumber) || juzNumber < 1 || juzNumber > 30) return res.status(400).json({ error:"Juz number must be a whole number from 1 to 30." });
+  const built = buildVerseBrowseParams(req);
+  if (built.error) return res.status(400).json({ error:built.error });
+  try {
+    const data = await qfGet("/verses/by_juz/" + juzNumber + "?" + built.params.toString());
+    res.json({ verses:data.verses || [], pagination:data.pagination || null, navigation:{ type:"juz", juzNumber } });
+  } catch (error) {
+    console.error("Juz request failed:",error.message);
+    res.status(error.status || 503).json({ error:"This Juz is temporarily unavailable." });
   }
 });
 
