@@ -1108,6 +1108,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
   const [mode,setMode] = useState("juz");
   const [target,setTarget] = useState("1");
   const [mushaf,setMushaf] = useState("1");
+  const [pageDisplayMode,setPageDisplayMode] = useState("verses");
   const [resultPage,setResultPage] = useState(1);
   const [verses,setVerses] = useState([]);
   const [pagination,setPagination] = useState(null);
@@ -1147,6 +1148,9 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     if(chapterId>=1&&chapterId<=114&&verseNumber>=1)onOpenVerse?.({chapter_id:chapterId,verse_number:verseNumber,verse_key:reference});
   };
   const title=({juz:"Juz ",page:"Mushaf page ",hizb:"Hizb ",rub:"Rub al-Hizb "})[mode]+target;
+  const pageLineMap=new Map();
+  if(mode==="page")verses.forEach(verse=>(verse.words||[]).forEach(word=>{if(!word.line_number)return;if(word.page_number&&Number(word.page_number)!==Number(target))return;const line=Number(word.line_number);if(!pageLineMap.has(line))pageLineMap.set(line,[]);pageLineMap.get(line).push({word,verseKey:verse.verse_key});}));
+  const pageLines=[...pageLineMap.entries()].sort((a,b)=>a[0]-b[0]);
   return <>
     <Header eyebrow="QUR’AN NAVIGATION" title="Browse Qur’an sections"/>
     <View style={styles.infoCard}>
@@ -1170,12 +1174,17 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     {loading?<ActivityIndicator color={GOLD} size="large"/>:null}
     {searched&&!loading&&!error?<View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>{title} · {pagination?.total_records??verses.length} verses</Text>
-      {verses.map(verse=><Pressable key={verse.verse_key} accessibilityRole="button" onPress={()=>open(verse)} style={styles.savedAyah}>
+      {mode==="page"?<View style={styles.readerToggleRow}><Pressable accessibilityRole="button" accessibilityState={{selected:pageDisplayMode==="verses"}} onPress={()=>setPageDisplayMode("verses")} style={[styles.readerToggle,pageDisplayMode==="verses"&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,pageDisplayMode==="verses"&&styles.readerToggleTextActive]}>Verse list</Text></Pressable><Pressable accessibilityRole="button" accessibilityState={{selected:pageDisplayMode==="lines"}} onPress={()=>setPageDisplayMode("lines")} style={[styles.readerToggle,pageDisplayMode==="lines"&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,pageDisplayMode==="lines"&&styles.readerToggleTextActive]}>Mushaf lines</Text></Pressable></View>:null}
+      {mode==="page"&&pageDisplayMode==="lines"?<>
+        <Text style={styles.tinyNote}>Words are grouped using the selected Mushaf’s supplied line metadata. Exact printed-page spacing can differ from this responsive view.</Text>
+        {pageLines.length?pageLines.map(([lineNumber,items])=><View key={lineNumber} style={{flexDirection:"row-reverse",flexWrap:"wrap",justifyContent:"center",alignItems:"center",marginVertical:6,paddingVertical:8,borderBottomWidth:1,borderBottomColor:BORDER}}>{items.map((item,index)=>{const wordText=item.word.text_uthmani||item.word.text_indopak_nastaleeq||"";return <Pressable key={String(item.word.id||item.verseKey+"-"+index)} accessibilityRole="button" accessibilityLabel={"Open ayah "+item.verseKey} onPress={()=>open({verse_key:item.verseKey})} style={{paddingHorizontal:3,paddingVertical:2}}><Text style={[styles.dailyArabic,{fontSize:22,lineHeight:42}]} writingDirection="rtl">{wordText}</Text></Pressable>;})}</View>):<Text style={styles.progressHint}>The provider did not return line metadata for this page. Switch to Verse list to continue reading.</Text>}
+      </>:null}
+      {mode!=="page"||pageDisplayMode==="verses"?verses.map(verse=><Pressable key={verse.verse_key} accessibilityRole="button" onPress={()=>open(verse)} style={styles.savedAyah}>
         <Text style={styles.reference}>Surah {verse.chapter_id} · Ayah {verse.verse_number} · {verse.verse_key} {verse.page_number?"· Page "+verse.page_number:""}</Text>
         <Text style={styles.dailyArabic} writingDirection="rtl">{verse.text_qpc_hafs||verse.text_uthmani||verse.text_indopak_nastaleeq||""}</Text>
         <Text style={styles.translation}>{String(verse.translations?.[0]?.text||"Translation not available").replace(/<[^>]*>/g,"")}</Text>
         <Text style={styles.readerToolLabel}>Open this ayah in reader →</Text>
-      </Pressable>)}
+      </Pressable>):null}
       {verses.length===0?<Text style={styles.progressHint}>No verses were returned for this section.</Text>:null}
       <View style={styles.readerToggleRow}>
         <Pressable accessibilityRole="button" disabled={resultPage<=1||loading} onPress={()=>load(resultPage-1)} style={[styles.readerToggle,resultPage<=1&&styles.disabled]}><Text style={styles.readerToggleText}>← Previous results</Text></Pressable>
