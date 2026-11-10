@@ -25,8 +25,7 @@ const checks = [
   ["reader audio players coordinate", app.includes("chapterPlayer.pause();setActiveSyncedVerseKey") && app.includes("wordPlayer.pause();setActiveAudioKey(null)")],
   ["clean grouped home navigation", app.includes("MEMORIZE & REVIEW") && app.includes("READ & STUDY QUR’AN") && app.includes("APP & DATA")],
   ["session history preserves surah references", app.includes("chapterName:selectedChapter?.name_simple") && app.includes("ayahReference:passage.reference")],
-  ["backend diagnostics screen is reachable from home", app.includes('title="Connection status"') && app.includes('tab === "backend"')]
-
+  ["backend diagnostics screen is reachable from home", app.includes('title="Connection status"') && app.includes('tab === "backend"')],
   ["backup import uses a schema validator", app.includes("validateAyahBackup(parsed)") && app.includes("Validate and restore backup")],
   ["continue reading restores saved ayah", app.includes("setSearchInitialAyah(Number(lastReadPosition.ayah||1))")],
   ["reader translation preferences persist", app.includes('usePersistentState("readerTranslationId", "131")') && app.includes('usePersistentState("readerTranslationLanguage", "en")')],
@@ -38,7 +37,13 @@ const checks = [
   ["server caches provider reads", server.includes("RESPONSE_CACHE_LIMIT") && server.includes("cacheKey")],
   ["search endpoint has additional rate limit", server.includes("searchRateLimit") && server.includes("limit:20")],
   ["verse pagination is bounded", server.includes("page > 500") && server.includes("perPage > 50")],
-  ["provider errors are mapped to gateway errors", server.includes("response.status === 429 ? 503 : 502")]
+  ["provider errors are mapped to gateway errors", server.includes("response.status === 429 ? 503 : 502")],
+  ["shared utilities use Metro-compatible JavaScript module", app.includes('import ayahUtils from "./src/lib/ayah-utils"')],
+  ["recent search replay uses the selected chip query", app.includes('String(requestedTerm || "").trim()')],
+  ["Arabic lesson completion resumes after reopening", app.includes("useState(Boolean(progress.completed))")],
+  ["alphabet progress stores a count, not an index", app.includes("highestLetter:Math.max(Number(current.highestLetter||0),value+1)")],
+  ["restore resets new local learning progress", app.includes("setArabicLessonProgress({highestWord:0") && app.includes("setRecentSearches([])")],
+  ["backup validator rejects malformed preference types", app.includes("validateAyahBackup(parsed)") && app.includes("Backup not recognized")]
 ]; 
 
 for (const [name, passed] of checks) {
