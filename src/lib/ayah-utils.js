@@ -71,13 +71,13 @@ const QURAN_TOTAL_AYAHS = 6236;
 function normalizeAudioUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
-  if (/^https?:\\/\\//i.test(raw)) return raw;
+  if (/^https?:\/\//i.test(raw)) return raw;
   if (/^(javascript|data):/i.test(raw) || raw.startsWith("//")) return "";
-  return "https://audio.qurancdn.com/" + raw.replace(/^\\/+/, "");
+  return "https://audio.qurancdn.com/" + raw.replace(/^\/+/, "");
 }
 
 function normalizeTranslationIds(primary, secondary) {
-  const values = [primary, secondary].map(value => String(value ?? "").trim()).filter(value => /^\\d+$/.test(value));
+  const values = [primary, secondary].map(value => String(value ?? "").trim()).filter(value => /^\d+$/.test(value));
   return [...new Set(values)].slice(0, 2).join(",");
 }
 function normalizeCollectionNames(value, defaultFavorites = true) {
@@ -96,7 +96,7 @@ function dateKey(value = new Date()) {
   return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0");
 }
 function dateKeyToUtc(value) {
-  const match = /^(\\d{4})-(\\d{2})-(\\d{2})$/.exec(String(value || ""));
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value || ""));
   return match ? Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])) : NaN;
 }
 function createKhatmahPlan(durationDays = 30, startDate = new Date()) {
