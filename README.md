@@ -24,7 +24,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - On-demand related-hadith panel, showing the source collection, reference, and any grading metadata returned by Quran Foundation
 - JSON backup export, validated restore with a supported-key allowlist (including pinned verse comparisons and reading plans), and a clear-local-data control
 - Backend connection diagnostics for checking the configured content API and server credential presence without exposing secrets
-- Arabic starter vocabulary expanded to six everyday words, a 12-letter classroom, recognition quizzes, and locally saved lesson progress
+- Arabic starter vocabulary expanded to twelve everyday words, a 28-letter classroom, recognition quizzes, and locally saved lesson progress
 - Ayah Plus Tafsir catalogue and commentary UI, subject to provider access approval and content licensing
 - AI Teacher and Ayah Plus previews; live AI, user accounts, subscriptions, and billing are not connected
 
@@ -83,7 +83,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 61 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs eighteen Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+The 65 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs eighteen Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
