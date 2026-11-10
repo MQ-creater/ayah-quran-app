@@ -1788,6 +1788,38 @@ const ALPHABET_LESSON = [
   { letter: "و", name: "Wāw", sound: "A w sound, and it can also represent a long ū vowel.", word: "وَرْدَةٌ", wordName: "wardatun", meaning: "a rose" },
   { letter: "ي", name: "Yā’", sound: "A y sound, and it can also represent a long ī vowel.", word: "يَدٌ", wordName: "yadun", meaning: "a hand" }
 ];
+
+const ALPHABET_JOINING_FORMS = {
+  "ا":{isolated:"ا",initial:"ا",medial:"ـا",final:"ـا",connectsNext:false},
+  "ب":{isolated:"ب",initial:"بـ",medial:"ـبـ",final:"ـب",connectsNext:true},
+  "ت":{isolated:"ت",initial:"تـ",medial:"ـتـ",final:"ـت",connectsNext:true},
+  "ث":{isolated:"ث",initial:"ثـ",medial:"ـثـ",final:"ـث",connectsNext:true},
+  "ج":{isolated:"ج",initial:"جـ",medial:"ـجـ",final:"ـج",connectsNext:true},
+  "ح":{isolated:"ح",initial:"حـ",medial:"ـحـ",final:"ـح",connectsNext:true},
+  "خ":{isolated:"خ",initial:"خـ",medial:"ـخـ",final:"ـخ",connectsNext:true},
+  "د":{isolated:"د",initial:"د",medial:"ـد",final:"ـد",connectsNext:false},
+  "ذ":{isolated:"ذ",initial:"ذ",medial:"ـذ",final:"ـذ",connectsNext:false},
+  "ر":{isolated:"ر",initial:"ر",medial:"ـر",final:"ـر",connectsNext:false},
+  "ز":{isolated:"ز",initial:"ز",medial:"ـز",final:"ـز",connectsNext:false},
+  "س":{isolated:"س",initial:"سـ",medial:"ـسـ",final:"ـس",connectsNext:true},
+  "ش":{isolated:"ش",initial:"شـ",medial:"ـشـ",final:"ـش",connectsNext:true},
+  "ص":{isolated:"ص",initial:"صـ",medial:"ـصـ",final:"ـص",connectsNext:true},
+  "ض":{isolated:"ض",initial:"ضـ",medial:"ـضـ",final:"ـض",connectsNext:true},
+  "ط":{isolated:"ط",initial:"طـ",medial:"ـطـ",final:"ـط",connectsNext:true},
+  "ظ":{isolated:"ظ",initial:"ظـ",medial:"ـظـ",final:"ـظ",connectsNext:true},
+  "ع":{isolated:"ع",initial:"عـ",medial:"ـعـ",final:"ـع",connectsNext:true},
+  "غ":{isolated:"غ",initial:"غـ",medial:"ـغـ",final:"ـغ",connectsNext:true},
+  "ف":{isolated:"ف",initial:"فـ",medial:"ـفـ",final:"ـف",connectsNext:true},
+  "ق":{isolated:"ق",initial:"قـ",medial:"ـقـ",final:"ـق",connectsNext:true},
+  "ك":{isolated:"ك",initial:"كـ",medial:"ـكـ",final:"ـك",connectsNext:true},
+  "ل":{isolated:"ل",initial:"لـ",medial:"ـلـ",final:"ـل",connectsNext:true},
+  "م":{isolated:"م",initial:"مـ",medial:"ـمـ",final:"ـم",connectsNext:true},
+  "ن":{isolated:"ن",initial:"نـ",medial:"ـنـ",final:"ـن",connectsNext:true},
+  "ه":{isolated:"ه",initial:"هـ",medial:"ـهـ",final:"ـه",connectsNext:true},
+  "و":{isolated:"و",initial:"و",medial:"ـو",final:"ـو",connectsNext:false},
+  "ي":{isolated:"ي",initial:"يـ",medial:"ـيـ",final:"ـي",connectsNext:true}
+};
+
 function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
   const [selected, setSelected] = useState(Math.min(ALPHABET_LESSON.length-1,Math.max(0,Number(progress.highestLetter||0)-1)));
   const [showWord, setShowWord] = useState(false);
@@ -1825,6 +1857,13 @@ function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
       <Text style={styles.alphabetHeroLetter} writingDirection="rtl">{item.letter}</Text>
       <Text style={styles.teacherName}>{item.name}</Text>
       <Text style={styles.progressHint}>{item.sound}</Text>
+      <View style={[styles.exampleBox,{marginTop:12}]}>
+        <Text style={styles.readerToolLabel}>How the letter can look when joined</Text>
+        <View style={styles.goalStatRow}>
+          {[["Isolated",ALPHABET_JOINING_FORMS[item.letter].isolated],["Beginning",ALPHABET_JOINING_FORMS[item.letter].initial],["Middle",ALPHABET_JOINING_FORMS[item.letter].medial],["End",ALPHABET_JOINING_FORMS[item.letter].final]].map(([label,shape])=><View key={label} style={[styles.goalStat,{minWidth:"22%"}]}><Text style={styles.reference}>{label}</Text><Text style={[styles.alphabetHeroLetter,{fontSize:34}]} writingDirection="rtl">{shape}</Text></View>)}
+        </View>
+        {!ALPHABET_JOINING_FORMS[item.letter].connectsNext?<Text style={styles.tinyNote}>This is one of the six Arabic letters that do not join to the letter after them: Alif, Dāl, Dhāl, Rā’, Zāy, and Wāw.</Text>:<Text style={styles.tinyNote}>These are shape examples, not a substitute for reading connected words with a qualified teacher.</Text>}
+      </View>
       <Button title={showWord ? "Hide example word" : "See an example word"} secondary onPress={() => setShowWord(v => !v)} />
       {showWord && <View style={styles.exampleBox}>
         <Text style={styles.exampleArabic} writingDirection="rtl">{item.word}</Text>
