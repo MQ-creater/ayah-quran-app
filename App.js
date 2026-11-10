@@ -1186,6 +1186,50 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
   </>;
 }
 
+
+function RelatedHadithSection({ verseKey, language = "en" }) {
+  const [expanded,setExpanded] = useState(false);
+  const [hadiths,setHadiths] = useState([]);
+  const [page,setPage] = useState(1);
+  const [hasMore,setHasMore] = useState(false);
+  const [loading,setLoading] = useState(false);
+  const [loaded,setLoaded] = useState(false);
+  const [error,setError] = useState("");
+  useEffect(()=>{
+    if(!expanded||!verseKey||!AYAH_API_BASE)return;
+    const controller=new AbortController();
+    const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
+    setLoading(true);setError("");
+    fetch(base+"/hadith/"+verseKey.replace(":","/")+"?language="+(String(language).toLowerCase()==="ar"?"ar":"en")+"&page="+page+"&limit=4",{signal:controller.signal})
+      .then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||"Related hadith could not be loaded.");return data;})
+      .then(data=>{setHadiths(current=>page===1?(data.hadiths||[]):[...current,...(data.hadiths||[])]);setHasMore(Boolean(data.has_more));setLoaded(true);})
+      .catch(e=>{if(e.name!=="AbortError")setError(e.message||"Please try again.");})
+      .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
+    return ()=>controller.abort();
+  },[expanded,verseKey,language,page]);
+  return <View style={{marginTop:12,borderTopWidth:1,borderTopColor:BORDER,paddingTop:10}}>
+    <Pressable accessibilityRole="button" accessibilityState={{expanded}} onPress={()=>{setExpanded(value=>!value);if(!expanded&&!loaded)setPage(1);}} style={styles.readerToggle}>
+      <Text style={styles.readerToggleText}>{expanded?"Hide related hadith":"Related hadith and sources"}</Text>
+    </Pressable>
+    {expanded&&!AYAH_API_BASE?<Text style={styles.progressHint}>Connect the secure Ayah backend to load related hadith.</Text>:null}
+    {expanded&&loading?<ActivityIndicator color={GOLD} size="small"/>:null}
+    {expanded&&error?<Text style={styles.progressHint}>{error}</Text>:null}
+    {expanded&&loaded&&hadiths.length===0&&!loading&&!error?<Text style={styles.progressHint}>No hadith references were returned for this ayah.</Text>:null}
+    {expanded?hadiths.map((item,index)=>{
+      const record=Array.isArray(item.hadith)?item.hadith[0]||{}:{};
+      const grades=Array.isArray(record.grades)?record.grades:[];
+      return <View key={String(item.urn||index)} style={styles.savedAyah}>
+        <Text style={styles.readerToolLabel}>{item.name||item.collection||"Hadith source"} · {item.hadithNumber||"Number not supplied"}</Text>
+        {record.chapterTitle?<Text style={styles.reference}>{record.chapterTitle}</Text>:null}
+        <Text style={[styles.stepText,{marginTop:8}]}>{record.body||"The source returned no readable hadith text."}</Text>
+        {grades.length?<Text style={styles.reference}>Grading: {grades.map(grade=>[grade.grade,grade.graded_by].filter(Boolean).join(" · ")).join("; ")}</Text>:<Text style={styles.reference}>No grading details were included in this response.</Text>}
+      </View>;
+    }):null}
+    {expanded&&hasMore?<Button title="Load more related hadith" secondary onPress={()=>setPage(value=>value+1)} disabled={loading}/>:null}
+    {expanded?<Text style={styles.tinyNote}>These are source-linked references returned for this ayah. The listed collection and grading details belong to the source response; a hadith reference is not, by itself, a tafsir of the ayah.</Text>:null}
+  </View>;
+}
+
 function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readTodayIds = [], onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, compareTranslationId, setCompareTranslationId, onChangeChapter }) {
   const wordPlayer = useAudioPlayer(null);
   const audioStatus = useAudioPlayerStatus(wordPlayer);
@@ -1236,7 +1280,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
   const [audioQueueIndex,setAudioQueueIndex] = useState(0);
   const [selectedAudioKeys,setSelectedAudioKeys] = useState([]);
   const [recallMode,setRecallMode] = useState(false);
-  const [pinnedCompareKeys,setPinnedCompareKeys] = useState([]);
+  const [pinnedCompareKeys,setPinnedCompareKeys] = usePersistentState("pinnedCompareKeys",[]);
   const playVerseAudio = (verse,key,keepQueue=false) => {
     const audioUrl = verse.audio?.url || verse.audio_url || verse.audio?.audio_url;
     if (!audioUrl) { Alert.alert("Audio unavailable","A recitation recording is not available for this ayah in the current content response."); return; }
@@ -1501,6 +1545,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
               </View>
             </> : null}
           </View>
+          <RelatedHadithSection verseKey={key} language={translationLanguage}/>
           {showWordByWord ? <View style={{ marginTop: 14, borderTopWidth: 1, borderTopColor: BORDER, paddingTop: 12 }}>
             <Text style={styles.readerToolLabel}>Word-by-word study</Text>
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 9 }}>
