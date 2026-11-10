@@ -7,7 +7,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Navy-and-gold home screen with Ayah of the Day and quick access to learning tools
 - Auto, Light, Dark, and Sepia themes
 - Qur’an library, surah navigation, Uthmani/QPC Hafs and IndoPak reader modes, translations, word-by-word study, personal notes, bookmarks, collections, and search
-- Reader preferences and last-reading position saved locally
+- Reader preferences, translation choice, last-reading position, and recent search history saved locally
 - Chapter recitation library, preferred reciter, full-surah playback, repeat controls, position resume, and ayah audio controls when supplied by the content response
 - Ayah timestamp highlighting and seek-to-ayah when the selected chapter recording actually includes compatible timing metadata
 - Ayah-by-ayah practice queue with per-ayah repeat, selected-page queue, pause/resume, and recall mode that hides the Arabic on screen
@@ -15,9 +15,9 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Memorization planner, full-surah progress tracker, Smart Revision queue, and suggested review intervals based on the learner's own check-ins
 - Adjustable daily reading and memorization targets; reading activity counts only when the learner explicitly marks an ayah as read
 - Local practice-session history, seven-day insights, tracker summaries, and recent sessions
-- JSON backup through the device share sheet, plus a clear-local-data control
+- JSON backup export, validated restore with a supported-key allowlist, and a clear-local-data control
 - Backend connection diagnostics for checking the configured content API and server credential presence without exposing secrets
-- Arabic starter vocabulary, alphabet classroom, and quizzes
+- Arabic starter vocabulary expanded to six everyday words, a 12-letter classroom, recognition quizzes, and locally saved lesson progress
 - Ayah Plus Tafsir catalogue and commentary UI, subject to provider access approval and content licensing
 - AI Teacher and Ayah Plus previews; live AI, user accounts, subscriptions, and billing are not connected
 
@@ -25,12 +25,16 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 
 - Local preference loading now resets malformed saved JSON safely instead of parsing it twice or leaving an unreadable value in place.
 - Verse keys stay tied to their original ayah numbers when the reader's notes-only filter is active.
+- Direct references such as `2:255` open the exact ayah; recent text searches are saved locally and stale search requests are cancelled when leaving the screen.
+- The Continue Reading shortcut restores the saved ayah as well as its surah and page.
+- Reader translation language and translation ID persist locally. Backup restore validates the Ayah schema and imports only known preference keys, including per-surah audio positions.
+- Arabic vocabulary and letter progress, plus best checkpoint scores, are saved locally and resume on return.
 - Opening a page no longer automatically counts all displayed ayahs as read. Learners explicitly mark ayahs as read, making daily reading goals more meaningful.
 - Full-surah and individual-ayah players stop one another when switching playback modes. Individual ayah audio has pause/resume and a stop control for selected-range queues.
 - Completed guided sessions are stored in a bounded local history (up to 250 entries) and appear in the Learning Insights screen.
 - Daily targets can be changed from the Goals screen.
 - Backup and privacy tools explain what is stored locally and allow the user to export or clear local learning data.
-- The backend includes a status endpoint, bounded upstream request timeouts, and a production CORS allowlist requirement.
+- The backend includes a versioned status endpoint, bounded upstream request timeouts, a production CORS allowlist requirement, short-lived provider response caching, an extra search rate limit, and strict pagination bounds.
 - The in-app connection screen checks the configured backend status and reports whether server credentials are configured without revealing the credentials.
 
 ## Product direction
@@ -72,7 +76,9 @@ npm run check
 npx expo export --platform web
 ```
 
-The source regression check verifies important app wiring, storage and reader behavior, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+The source regression check verifies important app wiring, storage and reader behavior, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs five Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, and backup validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+
+The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
 Check the backend separately with:
 
