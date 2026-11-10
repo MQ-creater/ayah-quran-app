@@ -6,7 +6,7 @@ export const BACKUP_PREFERENCE_KEYS = [
   "savedVerseDetails","readerNotes","ayahCollections","lastReadPosition","themeName",
   "learningLanguage","dailyGoal","dailyActivity","remindersEnabled","readerArabicSize",
   "readerShowArabic","readerShowTranslation","readerShowWordByWord","readerArabicScript",
-  "readerTranslationFont","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
+  "readerTranslationFont","readerTranslationLanguage","readerTranslationId","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
   "arabicLessonProgress","arabicAlphabetProgress","recentSearches"
 ];
 
@@ -44,6 +44,9 @@ export function validateAyahBackup(value) {
   const data = {};
   for (const key of BACKUP_PREFERENCE_KEYS) {
     if (Object.prototype.hasOwnProperty.call(value.data, key)) data[key] = value.data[key];
+  }
+  for (const [key, item] of Object.entries(value.data)) {
+    if (/^lastAudioPosition_\\d+$/.test(key)) data[key] = item;
   }
   if (!Object.keys(data).length) return { valid:false, error:"No recognized Ayah learning data was found in this backup." };
   if (data.savedIds !== undefined && (!Array.isArray(data.savedIds) || data.savedIds.some(item => typeof item !== "string"))) return { valid:false, error:"The bookmark list in this backup is invalid." };
