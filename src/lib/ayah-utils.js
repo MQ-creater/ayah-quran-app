@@ -71,6 +71,35 @@ function validateAyahBackup(value) {
 const QURAN_TOTAL_AYAHS = 6236;
 const SURAH_AYAH_COUNTS = [7,286,200,176,120,165,206,75,129,109,123,111,43,52,99,128,111,110,98,135,112,78,118,64,77,227,93,88,69,60,34,30,73,54,45,83,182,88,75,85,54,53,89,59,37,35,38,29,18,45,60,49,62,55,78,96,29,22,24,13,14,11,11,18,12,12,30,52,52,44,28,28,20,56,40,31,50,40,46,42,29,19,36,25,22,17,19,26,30,20,15,21,11,8,8,19,5,8,8,11,11,8,3,9,5,4,7,3,6,3,5,4,5,6];
 
+function getActiveAudioTiming(timestamps, currentTimeSeconds) {
+  if (!Array.isArray(timestamps)) return null;
+  const seconds = Number(currentTimeSeconds);
+  if (!Number.isFinite(seconds) || seconds < 0) return null;
+  const nowMs = seconds * 1000;
+  for (const item of timestamps) {
+    if (!item || typeof item !== "object") continue;
+    const start = Number(item.timestamp_from);
+    const end = Number(item.timestamp_to);
+    if (!Number.isFinite(start) || !Number.isFinite(end) || start < 0 || end <= start || nowMs < start || nowMs >= end) continue;
+    const verseKey = normalizeVerseKey(item.verse_key || item.verseKey || item.key);
+    if (!verseKey) continue;
+    let wordIndex = null;
+    if (Array.isArray(item.segments)) {
+      for (const segment of item.segments) {
+        const index = Array.isArray(segment) ? Number(segment[0]) : Number(segment?.word_index ?? segment?.wordIndex);
+        const wordStart = Array.isArray(segment) ? Number(segment[1]) : Number(segment?.start_ms ?? segment?.start);
+        const wordEnd = Array.isArray(segment) ? Number(segment[2]) : Number(segment?.end_ms ?? segment?.end);
+        if (Number.isInteger(index) && index > 0 && Number.isFinite(wordStart) && Number.isFinite(wordEnd) && wordEnd > wordStart && nowMs >= wordStart && nowMs < wordEnd) {
+          wordIndex = index;
+          break;
+        }
+      }
+    }
+    return { verseKey, wordIndex };
+  }
+  return null;
+}
+
 function normalizeAudioUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
@@ -156,4 +185,4 @@ function summarizeKhatmahProgress(activity, plan, today = new Date()) {
   };
 }
 
-module.exports = { SURAH_AYAH_COUNTS, QURAN_TOTAL_AYAHS, createKhatmahPlan, summarizeKhatmahProgress, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup };
+module.exports = { SURAH_AYAH_COUNTS, QURAN_TOTAL_AYAHS, getActiveAudioTiming, createKhatmahPlan, summarizeKhatmahProgress, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup };
