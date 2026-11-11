@@ -261,7 +261,7 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSe
   const [showAyah, setShowAyah] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [completed, setCompleted] = useState(Boolean(progress.completed));
+  const [completed, setCompleted] = useState(false);
   const [chapterLoading, setChapterLoading] = useState(false);
   const base = AYAH_API_BASE ? (AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE) : "";
   useEffect(() => {
