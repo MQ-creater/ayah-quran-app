@@ -9,7 +9,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Qur’an library, surah navigation, Uthmani/QPC Hafs and IndoPak reader modes, translations, word-by-word study, personal notes, bookmarks, collections, and search
 - Reader preferences, translation choice, last-reading position, and recent search history saved locally
 - Chapter recitation library, preferred reciter, full-surah playback, repeat controls, position resume, and ayah audio controls when supplied by the content response
-- Ayah timestamp highlighting and seek-to-ayah when the selected chapter recording actually includes compatible timing metadata
+- Ayah timestamp highlighting and seek-to-ayah when the selected chapter recording actually includes compatible timing metadata; optional word-level segment timings highlight the current word when supplied
 - Ayah-by-ayah practice queue with per-ayah repeat, selected-page queue, pause/resume, and recall mode that hides the Arabic on screen
 - Guided memorization sessions for selected surah ranges, up to 50 ayahs per session
 - Memorization planner, full-surah progress tracker, Smart Revision queue, and suggested review intervals based on the learner's own check-ins
@@ -37,7 +37,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Reader translation language and translation ID persist locally. Backup restore validates the Ayah schema and imports only known preference keys, including per-surah audio positions.
 - Arabic vocabulary and letter progress, plus best checkpoint scores, are saved locally and resume on return.
 - Opening a page no longer automatically counts all displayed ayahs as read. Learners explicitly mark ayahs as read, making daily reading goals more meaningful.
-- Full-surah and individual-ayah players stop one another when switching playback modes. Individual ayah audio has pause/resume and a stop control for selected-range queues. Audio URLs are restricted to the supported Quran Foundation audio hosts.
+- Full-surah and individual-ayah players stop one another when switching playback modes. Individual ayah audio has pause/resume and a stop control for selected-range queues. Audio URLs are restricted to the supported Quran Foundation audio hosts. Chapter audio requests ask Quran Foundation for optional word timing segments; the reader resolves the active verse and word from millisecond offsets and highlights the word only when valid segment data is present.
 - Completed guided sessions are stored in a bounded local history (up to 250 entries) and appear in the Learning Insights screen.
 - Daily targets can be changed from the Goals screen.
 - Backup and privacy tools explain what is stored locally and allow the user to export or clear local learning data.
@@ -83,7 +83,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 65 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs eighteen Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+The 65 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs twenty-one Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
