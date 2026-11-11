@@ -87,6 +87,14 @@ checks.push(...[  ["Arabic starter lesson contains twelve reviewed vocabulary en
 
 checks.push(...[  ["Arabic alphabet lesson includes four connected letter forms", app.includes("const ALPHABET_JOINING_FORMS") && app.includes('isolated:"ا"') && app.includes('initial:"بـ"') && app.includes('medial:"ـبـ"') && app.includes('final:"ـب"') && app.includes("connectsNext:false")],]);
 
+checks.push(
+  ["chapter audio requests optional word timing segments", server.includes("/chapter_recitations/") && server.includes("?segments=true")],
+  ["reader resolves active verse and word timing", app.includes("getActiveAudioTiming(verseTimestamps,chapterAudioStatus?.currentTime)") && app.includes("activeSyncedWordIndex")],
+  ["active word styling uses the reader theme", app.includes("Number(word.position) === activeSyncedWordIndex") && app.includes("backgroundColor: PANEL")],
+  ["word timing helper validates verse keys and millisecond ranges", utilities.includes("function getActiveAudioTiming") && utilities.includes("timestamp_from") && utilities.includes("timestamp_to") && utilities.includes("normalizeVerseKey(item.verse_key")],
+  ["audio timing helper is covered by unit tests", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("resolves the active ayah and word"))
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
