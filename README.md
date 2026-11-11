@@ -52,7 +52,15 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 
 Ayah aims to bring together the strengths of Quran.com-style reading, study, audio, search, and reflection with Tarteel-style memorization practice, recitation feedback, and learning analytics. It will also include the user's requested Arabic courses, milestone quizzes, selectable themes, Hamza/Maryam teaching assistants, and a clearly differentiated free and Plus experience.
 
-Planned reader/study capabilities include all 114 surahs, multiple verified translations, word-by-word meaning and pronunciation, tafsir, verse search, notes, collections, reading bookmarks, repeat controls, reciter audio, and reading goals. Planned memorization capabilities include guided hifdh, revision scheduling, recitation checking, voice-based ayah search, and surah-level progress. These are roadmap items, not claims that they already work. In particular, live recitation mistake detection, voice search, secure user accounts, cloud sync, offline audio downloads, and subscription billing need separate validated services and production setup.
+Planned reader/study capabilities include all 114 surahs, multiple verified translations, word-by-word meaning and pronunciation, tafsir, verse search, notes, collections, reading bookmarks, repeat controls, reciter audio, and reading goals. Planned memorization capabilities include guided hifdh, revision scheduling, recitation checking, voice-based ayah search, and surah-level progress. These are roadmap items, not claims that they already work. In particular, the Recitation Coach is planned to support both live feedback and recording analysis, with recording analysis developed first and all mistake detection carefully validated. Offline access will begin with user-selected surahs before any broader offline-library work. Ayah Plus will be a strong premium tier for advanced coaching, expanded Tafsir and study tools, deeper Hifdh planning, and the complete Arabic Academy, while Free will retain a useful Qur’an reader and meaningful basic memorization and learning. Secure user accounts, cloud sync, offline downloads, and subscription billing still need separate validated services and production setup.
+
+## Architecture and shared services
+
+The app shell now imports the reusable local-preferences hook from `src/hooks/use-persistent-state.js`. Its storage namespace remains `@ayah/preferences-v1`, so this extraction does not intentionally change existing preference keys or backup compatibility.
+
+The shared API client lives in `src/services/ayah-api.js`. It validates the configured HTTP(S) backend URL, rejects unsafe relative routes, applies a JSON Accept header, handles non-JSON and HTTP error responses consistently, supports caller-provided abort signals, and applies a bounded request timeout when the caller has not supplied a signal. Backend diagnostics and Qur’an search use this client; the remaining screens will be migrated in focused batches rather than through a risky one-shot rewrite.
+
+The unit test command discovers all `scripts/test-*.mjs` files. The new API-client tests cover URL validation, route validation, successful JSON responses, HTTP errors, malformed JSON, and cancellation.
 
 ## Technology
 
@@ -87,7 +95,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 82 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs twenty-two Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+The 90 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs twenty-nine Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
