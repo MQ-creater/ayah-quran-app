@@ -119,6 +119,8 @@ checks.push(
   ["shared API client centralizes JSON and HTTP errors", apiClient.includes("async function requestJson") && apiClient.includes("INVALID_JSON") && apiClient.includes("HTTP_ERROR")],
   ["backend diagnostics uses the shared API client", app.includes('requestJson("/status",{baseUrl:AYAH_API_BASE})')],
   ["Qur’an search uses the shared API client with cancellation", app.includes("requestJson(\"/search?q=\"") && app.includes("signal:controller.signal")],
+  ["reciter catalogue and preview use the shared API client", app.includes('requestJson("/audio/reciters?language="') && app.includes('requestJson("/audio/chapters/"+encodeURIComponent(id)')],
+  ["Tafsir catalogue and commentary use the shared API client", app.includes('requestJson("/tafsirs?language=en"') && app.includes('requestJson("/tafsirs/" + encodeURIComponent(resourceId)')],
   ["persistent preferences are isolated in a reusable hook", app.includes('from "./src/hooks/use-persistent-state"') && persistentHook.includes("export default function usePersistentState") && persistentHook.includes("AsyncStorage.getItem")],
   ["preference storage namespace remains stable after extraction", app.includes("PREFERENCES_KEY") && persistentHook.includes('export const PREFERENCES_KEY = "@ayah/preferences-v1"')],
   ["unit test command includes all test files", packageJson.includes('node --test scripts/test-*.mjs')]
