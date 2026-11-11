@@ -6,7 +6,7 @@ const BACKUP_PREFERENCE_KEYS = [
   "learningLanguage","dailyGoal","dailyActivity","remindersEnabled","readerArabicSize",
   "readerShowArabic","readerShowTranslation","readerShowWordByWord","readerArabicScript",
   "readerTranslationFont","readerTranslationLanguage","readerTranslationId","readerTranslationReadingMode","pinnedCompareKeys","pinnedCompareDetails","recitationRepeatCount","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
-  "arabicLessonProgress","arabicAlphabetProgress","recentSearches","compareTranslationId","khatmahPlan"
+  "arabicLessonProgress","arabicAlphabetProgress","recentSearches","compareTranslationId","khatmahPlan","audioPlaybackRate"
 ];
 function normalizeVerseKey(value) {
   const match = /^(\d{1,3}):(\d{1,3})$/.exec(String(value || "").trim());
@@ -64,6 +64,7 @@ function validateAyahBackup(value) {
   if (data.khatmahPlan !== undefined && data.khatmahPlan !== null && (!data.khatmahPlan || typeof data.khatmahPlan !== "object" || ![30,60,90].includes(Number(data.khatmahPlan.durationDays)) || !/^\d{4}-\d{2}-\d{2}$/.test(String(data.khatmahPlan.startDateKey || "")))) return { valid:false, error:"The saved Qur’an completion plan is invalid." };
   for (const key of ["readerShowArabic","readerShowTranslation","readerShowWordByWord","readerTranslationReadingMode","remindersEnabled"]) if (data[key] !== undefined && typeof data[key] !== "boolean") return { valid:false, error:"The " + key + " setting in this backup is invalid." };
   if (data.recitationRepeatCount !== undefined && ![1,3,5].includes(data.recitationRepeatCount)) return { valid:false, error:"The saved ayah repeat setting is invalid." };
+  if (data.audioPlaybackRate !== undefined && ![0.75,1,1.25,1.5].includes(data.audioPlaybackRate)) return { valid:false, error:"The saved audio playback speed is invalid." };
   for (const [key, item] of Object.entries(data)) if (/^lastAudioPosition_\d+$/.test(key) && (!Number.isFinite(item) || item < 0 || item > 86400)) return { valid:false, error:"A saved audio position is invalid." };
   return { valid:true, data };
 }
