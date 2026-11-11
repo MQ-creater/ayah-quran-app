@@ -1010,7 +1010,6 @@ function QuranSearchScreen({ onOpenResult, language, recentSearches = [], onSave
     activeSearch.current = controller;
     setLoading(true); setError(""); setSearched(true); setResults([]);
     onSaveRecentSearch?.(term);
-    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE;
     try {
       const reference = normalizeVerseKey(term);
       if (reference) {
