@@ -156,7 +156,7 @@ app.get("/api/audio/chapters/:reciterId/:chapterId", async (req, res) => {
     return res.status(400).json({ error: "Invalid reciter or chapter selection." });
   }
   try {
-    const data = await qfGet("/chapter_recitations/" + reciterId + "/" + chapterId);
+    const data = await qfGet("/chapter_recitations/" + reciterId + "/" + chapterId + "?segments=true");
     const file = data.audio_file || data;
     if (!file.audio_url) return res.status(404).json({ error: "Audio is not available for this selection." });
     res.json({ audio: { url: file.audio_url, format: file.format || "mp3", chapter_id: chapterId, timestamps: file.timestamps || [] } });
