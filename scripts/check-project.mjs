@@ -104,7 +104,7 @@ checks.push(
 
 
 checks.push(
-  ["memorization session mounts without an undefined progress reference", app.includes("const [completed, setCompleted] = useState(false);") && !app.includes("useState(Boolean(progress.completed))")],
+  ["memorization session mounts without an undefined progress reference", app.includes("const [completed, setCompleted] = useState(false);") && !app.slice(app.indexOf("function BuildMemorizationSessionScreen"),app.indexOf("function SmartRevisionScreen")).includes("progress.completed")],
   ["random ayah route reads the provider verse payload before validation", server.includes("const verse=data.verse || data;") && server.includes("if(!verse || !/^\\\\d{1,3}:\\\\d{1,3}$/.test(String(verse.verse_key||\"\")))")],
   ["random ayah route has one provider reference validation", (server.match(/content provider returned an invalid random verse/g)||[]).length === 1]
 );
