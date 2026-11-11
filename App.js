@@ -7,39 +7,17 @@ import {
   Pressable, TextInput, ImageBackground, Alert, ActivityIndicator, Share
 } from "react-native";
 import ayahUtils from "./src/lib/ayah-utils";
+import usePersistentState, { PREFERENCES_KEY } from "./src/hooks/use-persistent-state";
+import ayahApi from "./src/services/ayah-api";
 
 const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, getActiveAudioTiming } = ayahUtils;
+const { requestJson } = ayahApi;
 
 const PREFERENCES_KEY = "@ayah/preferences-v1";
 const PRACTICE_HISTORY_LIMIT = 250;
 function localDateKey(value = new Date()) { const d=value instanceof Date?value:new Date(value); return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0")+"-"+String(d.getDate()).padStart(2,"0"); }
 
 function formatAudioTime(seconds) { const value=Number(seconds);if(!Number.isFinite(value)||value<0)return "0:00";const whole=Math.floor(value);return Math.floor(whole/60)+":"+String(whole%60).padStart(2,"0"); }
-
-function usePersistentState(key, initialValue) {
-  const [value, setValue] = useState(initialValue);
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    let active = true;
-    AsyncStorage.getItem(PREFERENCES_KEY + ":" + key).then(async raw => {
-      if (!active) return;
-      if (raw !== null) {
-        try { setValue(JSON.parse(raw)); }
-        catch (parseError) { console.warn("Resetting unreadable preference:", key); await AsyncStorage.removeItem(PREFERENCES_KEY + ":" + key); if(active)setValue(initialValue); }
-      }
-    }).catch(error => {
-      console.warn("Could not load saved Ayah preferences:", error);
-    }).finally(() => {
-      if (active) setHydrated(true);
-    });
-    return () => { active = false; };
-  }, [key]);
-  useEffect(() => {
-    if (!hydrated) return;
-    AsyncStorage.setItem(PREFERENCES_KEY + ":" + key, JSON.stringify(value)).catch(error => console.warn("Could not save Ayah preferences:", error));
-  }, [key, value, hydrated]);
-  return [value, setValue, hydrated];
-}
 
 const GOLD = "#D9B96E";
 const NAVY = "#101C2D";
@@ -850,11 +828,8 @@ function BackendStatusScreen({ onBack }) {
   const check = async () => {
     if(!AYAH_API_BASE){setStatus("missing");setDetails(null);setError("The EXPO_PUBLIC_AYAH_API_URL setting is empty. Configure it to point to your deployed Ayah API and include /api at the end.");return;}
     setStatus("checking");setError("");
-    const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
     try {
-      const response=await fetch(base+"/status");
-      if(!response.ok)throw new Error("The server returned HTTP "+response.status+".");
-      const data=await response.json();
+      const data=await requestJson("/status",{baseUrl:AYAH_API_BASE});
       setDetails(data);setStatus("connected");
     } catch(err) {setDetails(null);setStatus("unavailable");setError(err.message||"The Ayah API could not be reached.");}
   };
