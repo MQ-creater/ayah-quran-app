@@ -718,9 +718,8 @@ function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPre
   const [reciters,setReciters]=useState([]),[loading,setLoading]=useState(false),[error,setError]=useState("");
   const [language,setLanguage]=useState("en"),[selectedChapter,setSelectedChapter]=useState("1"),[playingId,setPlayingId]=useState(null),[search,setSearch]=useState("");
   useEffect(()=>{let active=true;if(!AYAH_API_BASE){setError("Connect the secure Ayah content backend to browse reciters.");return;}
-    const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
     setLoading(true);setError("");
-    fetch(base+"/audio/reciters?language="+language).then(res=>{if(!res.ok)throw new Error("Reciter catalogue is unavailable (server "+res.status+").");return res.json();})
+    requestJson("/audio/reciters?language="+encodeURIComponent(language),{baseUrl:AYAH_API_BASE})
       .then(data=>{if(active)setReciters(Array.isArray(data.reciters)?data.reciters:[]);})
       .catch(err=>{if(active)setError(err.message||"Unable to load reciters.");})
       .finally(()=>{if(active)setLoading(false);});
@@ -734,10 +733,8 @@ function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPre
     const id=getId(item);if(!id)return;
     if(!AYAH_API_BASE){Alert.alert("Backend required","Connect the Ayah content backend first.");return;}
     try{
-      const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
-      const response=await fetch(base+"/audio/chapters/"+encodeURIComponent(id)+"/"+selectedChapter);
-      if(!response.ok)throw new Error("A preview is not available for this reciter and surah.");
-      const data=await response.json(),url=data.audio?.url;
+      const data=await requestJson("/audio/chapters/"+encodeURIComponent(id)+"/"+selectedChapter,{baseUrl:AYAH_API_BASE});
+      const url=data.audio?.url;
       if(!url)throw new Error("The provider did not return an audio file.");
       setPreferredId(id);setPreferredName?.(getName(item));setPlayingId(id);player.replace(url);player.play();
     }catch(err){Alert.alert("Unable to play preview",err.message||"Please try again.");}
