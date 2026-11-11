@@ -8,7 +8,7 @@ import {
 } from "react-native";
 import ayahUtils from "./src/lib/ayah-utils";
 
-const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress } = ayahUtils;
+const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, getActiveAudioTiming } = ayahUtils;
 
 const PREFERENCES_KEY = "@ayah/preferences-v1";
 const PRACTICE_HISTORY_LIMIT = 250;
@@ -1318,6 +1318,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
   const [chapterAudioError,setChapterAudioError] = useState("");
   const [verseTimestamps,setVerseTimestamps] = useState([]);
   const [activeSyncedVerseKey,setActiveSyncedVerseKey] = useState("");
+  const [activeSyncedWordIndex,setActiveSyncedWordIndex] = useState(null);
   const [chapterList,setChapterList] = useState([]);
   const [lastAudioPosition,setLastAudioPosition] = usePersistentState("lastAudioPosition_"+String(chapter?.id||""),0);
   const [autoAdvance,setAutoAdvance] = useState(true);
@@ -1345,7 +1346,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
     } finally { setChapterAudioLoading(false); }
   };
   useEffect(()=>{if(chapterAudioStatus?.currentTime!=null&&chapterAudioStatus.playing)setLastAudioPosition(chapterAudioStatus.currentTime);},[chapterAudioStatus?.currentTime,chapterAudioStatus?.playing]);
-  useEffect(()=>{if(!chapterAudioStatus?.playing||!verseTimestamps.length)return;const now=Number(chapterAudioStatus.currentTime||0)*1000;const match=verseTimestamps.find(item=>{const start=Number(item.timestamp_from??item.start??item.from??item.start_time);const end=Number(item.timestamp_to??item.end??item.to??item.end_time);return Number.isFinite(start)&&Number.isFinite(end)&&now>=start&&now<=end;});if(match){const key=String(match.verse_key||match.verseKey||match.key||"");if(key)setActiveSyncedVerseKey(key);}},[chapterAudioStatus?.currentTime,chapterAudioStatus?.playing,verseTimestamps]);
+  useEffect(()=>{const timing=getActiveAudioTiming(verseTimestamps,chapterAudioStatus?.currentTime);setActiveSyncedVerseKey(timing?.verseKey||"");setActiveSyncedWordIndex(timing?.wordIndex??null);},[chapterAudioStatus?.currentTime,verseTimestamps]);
   const seekToVerse=key=>{const timing=verseTimestamps.find(item=>String(item.verse_key||item.verseKey||item.key||"")===String(key));const start=Number(timing?.timestamp_from??timing?.start??timing?.from??timing?.start_time);if(Number.isFinite(start)){wordPlayer.pause();setActiveAudioKey(null);chapterPlayer.seekTo(Math.max(0,start/1000));chapterPlayer.play();setActiveSyncedVerseKey(String(key));}else Alert.alert("Ayah timing unavailable","This recording does not provide a timestamp for that ayah. You can still use its individual Play ayah button.");};
   useEffect(()=>{if(resumeAfterLoad&&chapterAudioStatus?.isLoaded){chapterPlayer.seekTo(Number(lastAudioPosition)||0);chapterPlayer.play();setResumeAfterLoad(false);}},[resumeAfterLoad,chapterAudioStatus?.isLoaded]);
   useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||surahRepeatsRemaining<=0)return;setSurahRepeatsRemaining(value=>Math.max(0,value-1));chapterPlayer.seekTo(0);chapterPlayer.play();},[chapterAudioStatus?.didJustFinish,surahRepeatsRemaining]);
@@ -1364,7 +1365,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
     if (!audioUrl) { Alert.alert("Audio unavailable","A recitation recording is not available for this ayah in the current content response."); return; }
     const url = normalizeAudioUrl(audioUrl);
     if (!url) { Alert.alert("Audio unavailable","This recording URL is not supported."); return; }
-    chapterPlayer.pause();setActiveSyncedVerseKey("");
+    chapterPlayer.pause();setActiveSyncedVerseKey("");setActiveSyncedWordIndex(null);
     if(!keepQueue){setAudioQueueKeys([key]);setAudioQueueIndex(0);}
     setActiveAudioKey(key);
     setRepeatsRemaining(Math.max(0,Number(repeatCount)-1));
@@ -1636,7 +1637,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
                 const wordArabic = arabicScript === "IndoPak" ? (word.text_indopak_nastaleeq || word.text_uthmani || "") : (word.text_qpc_hafs || word.text_uthmani || "");
                 const wordMeaning = (word.translation?.text || "").replace(/<[^>]*>/g, "");
                 const wordPronunciation = word.transliteration?.text || "";
-                return <View key={word.id || word.position} style={{ minWidth: 88, maxWidth: 150, backgroundColor: PANEL, borderColor: BORDER, borderWidth: 1, borderRadius: 12, padding: 9, alignItems: "center" }}>
+                return <View key={word.id || word.position} style={[{ minWidth: 88, maxWidth: 150, backgroundColor: PANEL, borderColor: BORDER, borderWidth: 1, borderRadius: 12, padding: 9, alignItems: "center" }, isSyncedVerse && Number(word.position) === activeSyncedWordIndex ? { borderColor: GOLD, borderWidth: 2, backgroundColor: SURFACE } : null]} accessibilityLabel={isSyncedVerse && Number(word.position) === activeSyncedWordIndex ? "Currently recited word" : undefined}>
                   <Text style={{ color: TEXT, fontSize: 22, textAlign: "center", writingDirection: "rtl", fontFamily: arabicFontReady ? (arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs") : undefined }}>{wordArabic}</Text>
                   <Text style={{ color: GOLD, fontSize: 12, textAlign: "center", marginTop: 5 }}>{wordPronunciation || "Pronunciation unavailable"}</Text>
                   <Text style={{ color: TEXT, fontSize: 13, textAlign: "center", marginTop: 4 }}>{wordMeaning || "Meaning unavailable"}</Text>
