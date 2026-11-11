@@ -1015,15 +1015,11 @@ function QuranSearchScreen({ onOpenResult, language, recentSearches = [], onSave
       const reference = normalizeVerseKey(term);
       if (reference) {
         const [surah,ayah] = reference.split(":").map(Number);
-        const response = await fetch(base + "/chapters/" + surah + "/verses?page=" + readerPageForAyah(ayah) + "&per_page=50", { signal:controller.signal });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "That ayah could not be loaded.");
+        const data = await requestJson("/chapters/" + surah + "/verses?page=" + readerPageForAyah(ayah) + "&per_page=50", { baseUrl:AYAH_API_BASE, signal:controller.signal });
         const verse = (data.verses || []).find(item => item.verse_key === reference);
         setResults(verse ? [{verse_key:reference,chapter_id:surah,verse_number:ayah,arabic:verse.text_qpc_hafs || verse.text_uthmani || "",translation:verse.translations?.[0]?.text || ""}] : []);
       } else {
-        const response = await fetch(base + "/search?q=" + encodeURIComponent(term) + "&language=" + languageCodeFor(language), { signal:controller.signal });
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.error || "Search could not be completed.");
+        const data = await requestJson("/search?q=" + encodeURIComponent(term) + "&language=" + languageCodeFor(language), { baseUrl:AYAH_API_BASE, signal:controller.signal });
         setResults(Array.isArray(data.results) ? data.results : []);
       }
     } catch (e) { if(e.name !== "AbortError")setError(e.message || "Search is temporarily unavailable."); }
