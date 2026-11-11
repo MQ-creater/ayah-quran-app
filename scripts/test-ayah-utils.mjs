@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import ayahUtils from "../src/lib/ayah-utils.js";
-const { normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeAudioUrl, SURAH_AYAH_COUNTS, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, QURAN_TOTAL_AYAHS } = ayahUtils;
+const { getActiveAudioTiming, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeAudioUrl, SURAH_AYAH_COUNTS, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, QURAN_TOTAL_AYAHS } = ayahUtils;
 
 test("normalizes valid verse references and rejects invalid ones",()=>{
   assert.equal(normalizeVerseKey("002:255"),"2:255");
@@ -118,4 +118,34 @@ test("translation reading mode is accepted as a boolean backup setting",()=>{
 });
 test("rejects pinned comparison detail that is not in the pin list",()=>{
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["2:255"],pinnedCompareDetails:{"3:18":{arabic:"text"}}}}).valid,false);
+});
+
+
+test("resolves the active ayah and word from chapter audio timing segments",()=>{
+  const timestamps=[{
+    verse_key:"2:255",
+    timestamp_from:1000,
+    timestamp_to:5000,
+    segments:[[1,1000,2200],[2,2200,3500],[3,3500,5000]]
+  }];
+  assert.deepEqual(getActiveAudioTiming(timestamps,1.5),{verseKey:"2:255",wordIndex:1});
+  assert.deepEqual(getActiveAudioTiming(timestamps,2.2),{verseKey:"2:255",wordIndex:2});
+  assert.deepEqual(getActiveAudioTiming(timestamps,4.9),{verseKey:"2:255",wordIndex:3});
+  assert.equal(getActiveAudioTiming(timestamps,5),null);
+});
+
+test("supports object-shaped word timing segments and safely ignores malformed timings",()=>{
+  const timestamps=[
+    {verse_key:"invalid",timestamp_from:0,timestamp_to:5000,segments:[[1,0,5000]]},
+    {verse_key:"1:1",timestamp_from:0,timestamp_to:5000,segments:[{word_index:2,start_ms:1000,end_ms:3000}]}
+  ];
+  assert.deepEqual(getActiveAudioTiming(timestamps,2),{verseKey:"1:1",wordIndex:2});
+  assert.equal(getActiveAudioTiming(timestamps,NaN),null);
+  assert.equal(getActiveAudioTiming([],2),null);
+  assert.equal(getActiveAudioTiming([{verse_key:"1:1",timestamp_from:4,timestamp_to:2}],1),null);
+});
+
+test("does not treat legacy negative or zero-length timestamp windows as active",()=>{
+  assert.equal(getActiveAudioTiming([{verse_key:"1:1",timestamp_from:1000,timestamp_to:1000,segments:[[1,1000,1000]]}],1),null);
+  assert.equal(getActiveAudioTiming([{verse_key:"1:1",timestamp_from:1000,timestamp_to:-1000}],0.5),null);
 });
