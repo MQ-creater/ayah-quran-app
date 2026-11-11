@@ -1881,13 +1881,12 @@ function TafsirLibraryScreen({ onBack, initialTarget }) {
   const [loadingSources, setLoadingSources] = useState(false);
   const [loadingText, setLoadingText] = useState(false);
   const [error, setError] = useState("");
-  const base = AYAH_API_BASE ? (AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE) : "";
+  const base = AYAH_API_BASE;
   useEffect(() => {
     if (!base) return;
     let active = true;
     setLoadingSources(true);
-    fetch(base + "/tafsirs?language=en")
-      .then(response => { if (!response.ok) throw new Error("Tafsir catalogue request failed."); return response.json(); })
+    requestJson("/tafsirs?language=en",{baseUrl:base})
       .then(data => {
         if (!active) return;
         const items = Array.isArray(data.tafsirs) ? data.tafsirs : [];
@@ -1925,9 +1924,7 @@ function TafsirLibraryScreen({ onBack, initialTarget }) {
     }
     setLoadingText(true); setError(""); setCommentary(null);
     try {
-      const response = await fetch(base + "/tafsirs/" + resourceId + "/ayah/" + chapterNumber + "/" + verseNumber);
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.error || "This commentary could not be loaded.");
+      const data = await requestJson("/tafsirs/" + encodeURIComponent(resourceId) + "/ayah/" + chapterNumber + "/" + verseNumber,{baseUrl:base});
       if (!data.tafsir?.text) throw new Error("No commentary was returned for this selection.");
       setCommentary({ ...data.tafsir, displayText: cleanHtml(data.tafsir.text), surah:chapterNumber, ayah:verseNumber, author:selectedSource.author_name || "Author information not supplied" });
     } catch (e) {
