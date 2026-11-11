@@ -149,3 +149,14 @@ test("does not treat legacy negative or zero-length timestamp windows as active"
   assert.equal(getActiveAudioTiming([{verse_key:"1:1",timestamp_from:1000,timestamp_to:1000,segments:[[1,1000,1000]]}],1),null);
   assert.equal(getActiveAudioTiming([{verse_key:"1:1",timestamp_from:1000,timestamp_to:-1000}],0.5),null);
 });
+
+
+test("accepts supported recitation speeds and rejects unsafe backup values",()=>{
+  for (const rate of [0.75,1,1.25,1.5]) {
+    const result=validateAyahBackup({app:"Ayah",schemaVersion:1,data:{audioPlaybackRate:rate}});
+    assert.equal(result.valid,true);
+    assert.equal(result.data.audioPlaybackRate,rate);
+  }
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{audioPlaybackRate:3}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{audioPlaybackRate:"fast"}}).valid,false);
+});
