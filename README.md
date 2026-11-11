@@ -10,6 +10,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Reader preferences, translation choice, last-reading position, and recent search history saved locally
 - Chapter recitation library, preferred reciter, full-surah playback, repeat controls, position resume, and ayah audio controls when supplied by the content response
 - Ayah timestamp highlighting and seek-to-ayah when the selected chapter recording actually includes compatible timing metadata; optional word-level segment timings highlight the current word when supplied
+- Adjustable 0.75×, 1×, 1.25×, and 1.5× recitation speed with pitch correction, shared by surah, ayah-queue, and word playback and included in local backups
 - Ayah-by-ayah practice queue with per-ayah repeat, selected-page queue, pause/resume, and recall mode that hides the Arabic on screen
 - Guided memorization sessions for selected surah ranges, up to 50 ayahs per session
 - Memorization planner, full-surah progress tracker, Smart Revision queue, and suggested review intervals based on the learner's own check-ins
