@@ -1,11 +1,14 @@
 import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 
-const [app,server,config,utilities] = await Promise.all([
+const [app,server,config,utilities,apiClient,persistentHook,packageJson] = await Promise.all([
   readFile(new URL("../App.js", import.meta.url), "utf8"),
   readFile(new URL("../server/index.js", import.meta.url), "utf8"),
   readFile(new URL("../app.json", import.meta.url), "utf8"),
-  readFile(new URL("../src/lib/ayah-utils.js", import.meta.url), "utf8")
+  readFile(new URL("../src/lib/ayah-utils.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/services/ayah-api.js", import.meta.url), "utf8"),
+  readFile(new URL("../src/hooks/use-persistent-state.js", import.meta.url), "utf8"),
+  readFile(new URL("../package.json", import.meta.url), "utf8")
 ]);
 
 const checks = [
@@ -107,6 +110,18 @@ checks.push(
   ["memorization session mounts without an undefined progress reference", app.includes("const [completed, setCompleted] = useState(false);") && !app.slice(app.indexOf("function BuildMemorizationSessionScreen"),app.indexOf("function SmartRevisionScreen")).includes("progress.completed")],
   ["random ayah route reads the provider verse payload before validation", server.includes("const verse=data.verse || data;") && server.includes("if(!verse || !/^\\\\d{1,3}:\\\\d{1,3}$/.test(String(verse.verse_key||\"\")))")],
   ["random ayah route has one provider reference validation", (server.match(/content provider returned an invalid random verse/g)||[]).length === 1]
+);
+
+
+checks.push(
+  ["shared API client validates HTTP(S) base URLs", apiClient.includes("function normalizeApiBase") && apiClient.includes('["http:", "https:"]')],
+  ["shared API client rejects unsafe relative paths", apiClient.includes("function buildApiUrl") && apiClient.includes('route.startsWith("//")') && apiClient.includes('part === ".."')],
+  ["shared API client centralizes JSON and HTTP errors", apiClient.includes("async function requestJson") && apiClient.includes("INVALID_JSON") && apiClient.includes("HTTP_ERROR")],
+  ["backend diagnostics uses the shared API client", app.includes('requestJson("/status",{baseUrl:AYAH_API_BASE})')],
+  ["Qur’an search uses the shared API client with cancellation", app.includes("requestJson(\"/search?q=\"") && app.includes("signal:controller.signal")],
+  ["persistent preferences are isolated in a reusable hook", app.includes('from "./src/hooks/use-persistent-state"') && persistentHook.includes("export default function usePersistentState") && persistentHook.includes("AsyncStorage.getItem")],
+  ["preference storage namespace remains stable after extraction", app.includes("PREFERENCES_KEY") && persistentHook.includes('export const PREFERENCES_KEY = "@ayah/preferences-v1"')],
+  ["unit test command includes all test files", packageJson.includes('node --test scripts/test-*.mjs')]
 );
 
 for (const [name, passed] of checks) {
