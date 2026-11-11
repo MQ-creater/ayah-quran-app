@@ -1355,6 +1355,8 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
   const restartSurah=()=>{chapterPlayer.seekTo(0);chapterPlayer.play();setLastAudioPosition(0);};
   const [activeAudioKey,setActiveAudioKey] = useState(null);
   const [repeatCount,setRepeatCount] = usePersistentState("recitationRepeatCount",3);
+  const [audioPlaybackRate,setAudioPlaybackRate] = usePersistentState("audioPlaybackRate",1);
+  useEffect(()=>{const rate=Number(audioPlaybackRate)||1;chapterPlayer.setPlaybackRate(rate,"high");wordPlayer.setPlaybackRate(rate,"high");},[audioPlaybackRate]);
   const [repeatsRemaining,setRepeatsRemaining] = useState(0);
   const [audioQueueKeys,setAudioQueueKeys] = useState([]);
   const [audioQueueIndex,setAudioQueueIndex] = useState(0);
@@ -1491,6 +1493,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
         <View style={{height:7,backgroundColor:BORDER,borderRadius:8,overflow:"hidden"}}><View style={{height:7,width:(Number(chapterAudioStatus?.duration)>0?Math.min(100,Number(chapterAudioStatus.currentTime||0)/Number(chapterAudioStatus.duration)*100):0)+"%",backgroundColor:GOLD,borderRadius:8}} /></View>
         <View style={{flexDirection:"row",justifyContent:"space-between",marginTop:6}}><Text style={styles.reference}>{formatAudioTime(chapterAudioStatus?.currentTime)}</Text><Text style={styles.reference}>{formatAudioTime(chapterAudioStatus?.duration)}</Text></View>
         <View style={styles.readerToggleRow}><Pressable onPress={()=>chapterPlayer.seekTo(Math.max(0,Number(chapterAudioStatus?.currentTime||0)-10))} style={styles.readerToggle}><Text style={styles.readerToggleText}>−10 sec</Text></Pressable><Pressable onPress={()=>chapterPlayer.seekTo(Number(chapterAudioStatus?.currentTime||0)+10)} style={styles.readerToggle}><Text style={styles.readerToggleText}>+10 sec</Text></Pressable><Pressable onPress={()=>setAutoAdvance(value=>!value)} style={[styles.readerToggle,autoAdvance&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,autoAdvance&&styles.readerToggleTextActive]}>{autoAdvance?"Auto-next on":"Auto-next off"}</Text></Pressable></View>
+        <View style={styles.readerToggleRow}><Text style={styles.reference}>Playback speed</Text>{[0.75,1,1.25,1.5].map(rate=><Pressable key={rate} accessibilityRole="button" accessibilityState={{selected:Number(audioPlaybackRate)===rate}} onPress={()=>setAudioPlaybackRate(rate)} style={[styles.readerToggle,Number(audioPlaybackRate)===rate&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,Number(audioPlaybackRate)===rate&&styles.readerToggleTextActive]}>{rate}×</Text></Pressable>)}</View>
         <View style={styles.readerToggleRow}><Text style={styles.reference}>Repeat surah</Text>{[1,2,3].map(count=><Pressable key={count} onPress={()=>{setSurahRepeatCount(count);setSurahRepeatsRemaining(count-1);setAutoAdvance(count===1);}} style={[styles.readerToggle,Number(surahRepeatCount)===count&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,Number(surahRepeatCount)===count&&styles.readerToggleTextActive]}>{count===1?"Off":count+"×"}</Text></Pressable>)}</View>
       </View>
       {chapterAudioError?<Text style={styles.tinyNote}>{chapterAudioError}</Text>:null}
