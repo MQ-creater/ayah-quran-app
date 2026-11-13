@@ -165,6 +165,15 @@ checks.push(
   ["offline packages reject a translation that differs from the requested ID", offlineSource.includes("TRANSLATION_MISMATCH") && offlineSource.includes("returned translation does not match"))
 );
 
+checks.push(
+  ["reader can save up to three named reading bookmarks", app.includes("readingBookmarks = []") && app.includes("onSaveReadingBookmark") && app.includes('title="Reading bookmarks"')],
+  ["reading bookmark manager supports resume, rename, and removal", app.includes("function ReadingBookmarksScreen") && app.includes("onRename(item.id,value)") && app.includes("onDelete(item.id)")],
+  ["reading bookmarks persist locally and appear on home", app.includes('usePersistentState("readingBookmarks", [])') && app.includes('onNavigate("readingBookmarks")')],
+  ["reading bookmarks are included in backup restore and reset", app.includes("setReadingBookmarks(data.readingBookmarks)") && app.includes("setReadingBookmarks([])")],
+  ["backup validation limits reading bookmarks to three valid ayah references", utilities.includes('"readingBookmarks"') && utilities.includes("data.readingBookmarks.length > 3") && utilities.includes("normalizeVerseKey(String(item.chapterId)+\":\"+String(item.ayah))")],
+  ["reading bookmark backup tests cover limits and malformed data", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("validates up to three named reading bookmarks in backups")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
