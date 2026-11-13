@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAudioPlayer, useAudioPlayerStatus, useAudioRecorder, useAudioRecorderState, RecordingPresets, AudioModule, setAudioModeAsync } from "expo-audio";
 import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
-  Pressable, TextInput, ImageBackground, Alert, ActivityIndicator, Share
+  Pressable, TextInput, ImageBackground, Alert, ActivityIndicator, Share, useWindowDimensions
 } from "react-native";
 import ayahUtils from "./src/lib/ayah-utils";
 import usePersistentState from "./src/hooks/use-persistent-state";
@@ -2318,6 +2318,8 @@ function ProgressScreen({ practiceCount, dailyGoal, language, onLearn, onSetting
   </>;
 }
 export default function App() {
+  const { width: viewportWidth } = useWindowDimensions();
+  const isWideScreen = viewportWidth >= 900;
   const [signedIn, setSignedIn] = useState(false);
   const [tab, setTab] = useState("home");
   const [practiceCount, setPracticeCount] = usePersistentState("practiceCount", 0);
@@ -2410,11 +2412,11 @@ export default function App() {
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => { setTafsirTarget({ surah:"1", ayah:"1" }); setTafsirReturnTab("premium"); setTab("tafsir"); }} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} lastReadPosition={lastReadPosition} readingBookmarks={readingBookmarks} onContinueReading={() => { if (lastReadPosition?.chapter) { setSearchInitialAyah(Number(lastReadPosition.ayah||1)); setSelectedChapter(lastReadPosition.chapter); setTab("libraryReader"); } }} />;
   const tabs = [["home", "⌂", "Home"], ["library", "📖", "Qur’an"], ["memorize", "۞", "Learn"], ["settings", "⚙", "Settings"], ["premium", "✧", "Ayah Plus"]];
-  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.container}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected:tab===key}} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
+  return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} backgroundColor={THEME_PALETTES[activeTheme].bg} /><View style={styles.appShell}><ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={[styles.container, isWideScreen && styles.containerWide]}>{screen}</ScrollView><View style={styles.bottomNav}>{tabs.map(([key, icon, label]) => <Pressable key={key} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{selected:tab===key}} onPress={() => navigate(key)} style={styles.navButton}><Text style={[styles.navIcon, tab === key && styles.navSelected]}>{icon}</Text><Text style={[styles.navLabel, tab === key && styles.navSelected]}>{label}</Text></Pressable>)}</View></View></SafeAreaView>;
 }
 const createStyles = (p) => StyleSheet.create({
   goalProgressTrack:{height:9,backgroundColor:p.surface,borderRadius:8,overflow:"hidden",marginTop:7,marginBottom:16}, goalProgressFill:{height:9,backgroundColor:p.accent,borderRadius:8}, goalStatRow:{flexDirection:"row",justifyContent:"space-around",gap:8,marginVertical:12}, goalStat:{flex:1,alignItems:"center",backgroundColor:p.surface,borderRadius:12,padding:12}, goalStatValue:{fontSize:26,fontWeight:"800",color:p.accent}, reciterRow:{flexDirection:"row",alignItems:"center",gap:10},calendarGrid:{flexDirection:"row",flexWrap:"wrap",marginTop:12},calendarDay:{width:"14.2857%",minHeight:48,alignItems:"center",justifyContent:"center",borderRadius:10,marginBottom:4},calendarToday:{borderWidth:1,borderColor:p.accent},calendarMarks:{flexDirection:"row",gap:4,marginTop:4,minHeight:7},calendarDot:{width:6,height:6,borderRadius:3,backgroundColor:"transparent"},calendarAssignmentDot:{backgroundColor:p.accent},calendarActivityDot:{backgroundColor:"#58B88A"},calendarLegend:{flexDirection:"row",justifyContent:"space-around",marginTop:10},weekActivityRow:{flexDirection:"row",justifyContent:"space-between",gap:5,marginVertical:16}, weekDay:{flex:1,alignItems:"center",gap:6}, weekDayDot:{width:34,height:34,borderRadius:17,backgroundColor:p.surface,alignItems:"center",justifyContent:"center"}, weekDayDotActive:{backgroundColor:p.accent}, weekDayCount:{fontSize:12,fontWeight:"700",color:p.text},
-  safeArea:{flex:1,backgroundColor:p.bg}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1},
+  safeArea:{flex:1,backgroundColor:p.bg}, appShell:{flex:1}, container:{padding:22,paddingBottom:28,flexGrow:1}, containerWide:{width:"100%",maxWidth:1120,alignSelf:"center",paddingHorizontal:36},
   welcomeBackground:{flex:1,justifyContent:"center"}, welcomeShade:{flex:1,backgroundColor:"rgba(8,17,30,0.68)",padding:20,justifyContent:"center"},
   welcomeTop:{alignItems:"center",marginBottom:18}, logo:{width:54,height:54,borderRadius:18,backgroundColor:p.panel,borderWidth:1,borderColor:"#53617A",alignItems:"center",justifyContent:"center",marginBottom:8},
   logoArabic:{color:p.accent,fontSize:24,fontWeight:"700"},brand:{color:p.text,fontSize:17,fontWeight:"800",letterSpacing:5},tagline:{color:"#D5DCE6",fontSize:12,marginTop:7,textAlign:"center"},
