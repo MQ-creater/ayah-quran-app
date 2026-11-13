@@ -135,6 +135,16 @@ checks.push(
   ["cloud sync contract has dedicated unit tests", cloudSyncTests.includes("cloud sync validates schema and prevents cross-account restore"))
 );
 
+const offlineSource = await readFile(new URL("../src/services/offline-library.js", import.meta.url), "utf8");
+const offlineTests = await readFile(new URL("../scripts/test-offline-library.mjs", import.meta.url), "utf8");
+checks.push(
+  ["offline library uses a versioned local storage namespace", offlineSource.includes("OFFLINE_SCHEMA_VERSION = 1") && offlineSource.includes("@ayah/offline-surah-v1:")],
+  ["offline surah packages require every ayah in the selected chapter", offlineSource.includes("INCOMPLETE_SURAH") && offlineSource.includes("MISSING_VERSE") && offlineSource.includes("DUPLICATE_VERSE")],
+  ["offline surah validation checks Arabic text and chapter references", offlineSource.includes("MISSING_ARABIC") && offlineSource.includes("VERSE_MISMATCH")],
+  ["offline storage supports listing, retrieval, removal, and clearing", offlineSource.includes("async function list()") && offlineSource.includes("async function get(chapterId)") && offlineSource.includes("async function remove(chapterId)") && offlineSource.includes("async function clear()")],
+  ["offline storage tests cover validation and lifecycle", offlineTests.includes("offline storage saves, lists, reads, replaces, and removes selected surahs") && offlineTests.includes("offline storage clears only its own indexed surah packages"))
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
