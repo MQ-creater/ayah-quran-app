@@ -1,3 +1,5 @@
+const { normalizeVerseKey } = require("./ayah-utils");
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 const RATINGS = ["again", "hard", "good", "easy"];
 
@@ -23,7 +25,7 @@ function isWordKey(value) {
   const surah = Number(match[1]);
   const ayah = Number(match[2]);
   const position = Number(match[3]);
-  return surah >= 1 && surah <= 114 && ayah >= 1 && ayah <= 286 && position >= 1 && position <= 100;
+  return surah >= 1 && surah <= 114 && normalizeVerseKey(surah + ":" + ayah) !== null && position >= 1 && position <= 100;
 }
 
 function normalizeRecord(value) {
