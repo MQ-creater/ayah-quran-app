@@ -5,6 +5,16 @@
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
+    "plugins": [
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Ayah uses the microphone only when you choose to record a recitation practice take.",
+          "recordAudioAndroid": true,
+          "enableBackgroundRecording": false
+        }
+      ]
+    ],
     "android": {
       "package": "com.mqcreater.ayah"
     }
