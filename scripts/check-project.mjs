@@ -199,7 +199,8 @@ checks.push(
   ["word explorer exposes only provider-supplied morphology", app.includes("selectedWord.root") && app.includes("Root, lemma, and grammar details are shown only when the content provider supplies them.")],
   ["word pronunciation reuses validated audio URL handling", app.includes("normalizeAudioUrl(selectedWord.audioUrl)") && app.includes("Hear word")],
   ["saved vocabulary is bounded and persistent", app.includes('usePersistentState("savedWordItems",[])') && app.includes(".slice(-300)") && utilities.includes('"savedWordItems"')],
-  ["saved vocabulary backups are validated", utilities.includes("normalizeSavedWordItems") && utilities.includes("data.savedWordItems.length > 300")]
+  ["saved vocabulary backups are validated", utilities.includes("normalizeSavedWordItems") && utilities.includes("data.savedWordItems.length > 300")],
+  ["saved vocabulary sanitizer tests cover invalid references", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("normalizes and bounds saved vocabulary") && (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("validates saved vocabulary in Ayah backups")]
 );
 
 for (const [name, passed] of checks) {
