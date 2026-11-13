@@ -195,3 +195,12 @@ The Expo app uses `expo-audio`. After pulling the changes in Codespaces, run `np
 - Accessibility, performance, privacy, security, licensing, and app-store release review
 
 Qur’an text, translations, tafsir, fonts, and audio must be checked against trusted sources and usage permissions before release. Authentication, cloud sync, live AI, push notifications, and billing are not connected. Audio and Tafsir require a configured backend and approved provider access. Local data can be lost when device storage is cleared, so users should export a backup before resetting or changing devices.
+
+
+## Cross-device foundation
+
+- The Expo app is configured for Android, iPhone, iPad, and Android tablets. The app can rotate to landscape, and wide-screen content is centered with a readable maximum width rather than stretching across desktop monitors.
+- The web build uses Expo's Metro web bundler and static export target. Run `npm run export:web` to produce a web export; deployment and browser/device QA are still required.
+- Desktop access is intended through the responsive web app on Windows, macOS, and ChromeOS browsers.
+- Smartwatches are a separate companion-app phase for Apple Watch and Wear OS. They are not supported by the current Expo app yet; watch-specific apps, limited glanceable experiences, and secure sync need separate design and implementation.
+- Cross-device cloud sync remains a foundation contract only. Accounts, authenticated sync transport, conflict resolution, encryption, privacy controls, and production deployment are not connected.
