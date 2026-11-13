@@ -23,6 +23,7 @@ test("accepts bounded verse-word keys only", () => {
   assert.equal(isWordKey("115:1:1"), false);
   assert.equal(isWordKey("1:1:0"), false);
   assert.equal(isWordKey("1:1:101"), false);
+  assert.equal(isWordKey("1:8:1"), false);
   assert.equal(isWordKey("1:999:1"), false);
 });
 
