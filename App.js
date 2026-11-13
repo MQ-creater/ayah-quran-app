@@ -11,9 +11,11 @@ import usePersistentState from "./src/hooks/use-persistent-state";
 import ayahApi from "./src/services/ayah-api";
 import OfflineLibraryScreen from "./src/screens/offline-library-screen";
 import offlineStorage from "./src/services/offline-library-storage";
+import vocabularyReview from "./src/lib/vocabulary-review";
 
 const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, getActiveAudioTiming, normalizeSavedWordItems } = ayahUtils;
 const { requestJson } = ayahApi;
+const { getVocabularyReviewQueue, summarizeVocabularyReview, scheduleVocabularyReview } = vocabularyReview;
 
 const PREFERENCES_KEY = "@ayah/preferences-v1";
 const PRACTICE_HISTORY_LIMIT = 250;
@@ -1961,67 +1963,96 @@ const ALPHABET_JOINING_FORMS = {
 };
 
 
-function VocabularyPracticeScreen({ savedWords = [], onRemoveWord, onBack }) {
+function VocabularyPracticeScreen({ savedWords = [], reviewRecords = {}, onReviewRecordsChange, dailyGoal = 10, onDailyGoalChange, onBack, onRemoveWord }) {
   const words = normalizeSavedWordItems(savedWords).filter(item => item.meaning && item.meaning.trim());
-  const [mode,setMode] = useState("cards");
+  const summary = summarizeVocabularyReview(words,reviewRecords,new Date());
+  const dueWords = getVocabularyReviewQueue(words,reviewRecords,new Date());
+  const [mode,setMode] = useState("review");
   const [index,setIndex] = useState(0);
   const [revealed,setRevealed] = useState(false);
   const [answer,setAnswer] = useState("");
   const [score,setScore] = useState(0);
   const [finished,setFinished] = useState(false);
+  const [sessionReviewed,setSessionReviewed] = useState(0);
+  const current = mode==="review" ? dueWords[index] : words[index % Math.max(1,words.length)];
   const questionCount = Math.min(5,words.length);
-  const current = words[index % Math.max(1,words.length)];
-  const options = current ? [current, ...Array.from({length:Math.min(3,words.length-1)},(_,i)=>words[(index+i+1)%words.length])].filter((item,i,array)=>array.findIndex(x=>x.key===item.key)===i).slice(0,4) : [];
+  const options = current ? [current,...Array.from({length:Math.min(3,words.length-1)},(_,i)=>words[(Math.max(0,words.findIndex(word=>word.key===current.key))+i+1)%words.length])].filter((item,i,array)=>array.findIndex(x=>x.key===item.key)===i).slice(0,4) : [];
   const submit = () => {
     if (!answer || !current) return;
-    const nextScore = score + (answer === current.key ? 1 : 0);
+    const nextScore=score+(answer===current.key?1:0);
     setScore(nextScore);
-    if (index + 1 >= questionCount) setFinished(true);
-    else { setIndex(value=>value+1); setAnswer(""); }
+    if(index+1>=questionCount)setFinished(true);
+    else{setIndex(value=>value+1);setAnswer("");}
   };
-  const restart = () => { setIndex(0);setAnswer("");setScore(0);setFinished(false);setRevealed(false); };
+  const restart = () => {setIndex(0);setAnswer("");setScore(0);setFinished(false);setRevealed(false);setSessionReviewed(0);};
+  const rateWord = rating => {
+    if(!current)return;
+    onReviewRecordsChange?.(previous=>scheduleVocabularyReview(previous,current.key,rating,new Date()));
+    setSessionReviewed(value=>value+1);
+    setIndex(value=>value+1);
+    setRevealed(false);
+  };
+  const nextDue = Object.values(reviewRecords||{}).map(record=>new Date(record.dueAt)).filter(date=>Number.isFinite(date.getTime())&&date.getTime()>Date.now()).sort((a,b)=>a-b)[0];
   return <>
-    <Header eyebrow="ARABIC ACADEMY · VOCABULARY" title="Your saved word collection" />
+    <Header eyebrow="ARABIC ACADEMY · VOCABULARY" title="Your word practice" />
     <View style={styles.lessonCard}>
-      <Text style={styles.cardEyebrow}>PERSONAL VOCABULARY</Text>
+      <Text style={styles.cardEyebrow}>YOUR LEARNING OVERVIEW</Text>
       <View style={styles.goalStatRow}>
-        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{savedWords.length}</Text><Text style={styles.reference}>Saved words</Text></View>
-        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{words.length}</Text><Text style={styles.reference}>Ready to practise</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{summary.due}</Text><Text style={styles.reference}>Due now</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{summary.newWords}</Text><Text style={styles.reference}>New words</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{summary.scheduled}</Text><Text style={styles.reference}>Scheduled</Text></View>
       </View>
-      <Text style={styles.progressHint}>Words are collected from the Qur’an reader’s word-by-word content. Their meanings and transliterations remain tied to the selected content source.</Text>
-      <View style={{flexDirection:"row",gap:8,marginTop:12}}>
-        <Button title="Flashcards" secondary={mode!=="cards"} onPress={()=>{setMode("cards");restart();}} />
+      <Text style={styles.progressHint}>Reviews are scheduled from your own ratings. This is a simple study aid; intervals are adjustable estimates, not a scientifically validated guarantee of retention.</Text>
+      <Text style={styles.readerToolLabel}>Daily review goal</Text>
+      <View style={styles.readerToggleRow}>{[5,10,15,20].map(target=><Pressable key={target} accessibilityRole="button" accessibilityState={{selected:dailyGoal===target}} onPress={()=>onDailyGoalChange?.(target)} style={[styles.readerToggle,dailyGoal===target&&styles.readerToggleActive]}><Text style={[styles.readerToggleText,dailyGoal===target&&styles.readerToggleTextActive]}>{target}</Text></Pressable>)}</View>
+      <Text style={styles.reference}>Reviewed today · {summary.reviewedToday} / {dailyGoal}</Text>
+      <View style={styles.goalProgressTrack}><View style={[styles.goalProgressFill,{width:Math.min(100,summary.reviewedToday/Math.max(1,dailyGoal)*100)+"%"}]}/></View>
+      <View style={{flexDirection:"row",gap:8,marginTop:10}}>
+        <Button title="Due reviews" secondary={mode!=="review"} disabled={dueWords.length===0} onPress={()=>{setMode("review");restart();}} />
         <Button title="Quick quiz" secondary={mode!=="quiz"} disabled={words.length<3} onPress={()=>{setMode("quiz");restart();}} />
+        <Button title="All flashcards" secondary={mode!=="cards"} disabled={!words.length} onPress={()=>{setMode("cards");restart();}} />
       </View>
     </View>
     {!words.length ? <View style={styles.infoCard}>
-      <Text style={styles.sectionTitle}>Build your vocabulary first</Text>
-      <Text style={styles.progressHint}>Open the Qur’an reader, turn on word-by-word view, tap a word, then choose Save word. Saved words with meanings will appear here.</Text>
+      <Text style={styles.sectionTitle}>Start your word collection</Text>
+      <Text style={styles.progressHint}>In the Qur’an reader, enable word-by-word view, select a word and save it. Words with a supplied meaning can be practised here.</Text>
       <Button title="Back to home" onPress={onBack}/>
-    </View> : mode==="cards" ? <>
-      <View style={styles.lessonCard}>
-        <Text style={styles.cardEyebrow}>FLASHCARD {index+1} OF {words.length}</Text>
-        <Text style={[styles.alphabetHeroLetter,{fontSize:42}]} writingDirection="rtl">{words[index%words.length].arabic}</Text>
-        <Text style={styles.progressHint}>{words[index%words.length].transliteration || "Transliteration not supplied"}</Text>
-        {revealed ? <Text style={styles.sectionTitle}>{words[index%words.length].meaning}</Text> : <Text style={styles.progressHint}>Try to recall the meaning before revealing it.</Text>}
-        <Button title={revealed?"Hide meaning":"Reveal meaning"} onPress={()=>setRevealed(value=>!value)} />
-        <Button title="Next word" secondary onPress={()=>{setIndex(value=>(value+1)%words.length);setRevealed(false);}} />
-      </View>
-      <View style={styles.infoCard}>
-        <Text style={styles.reference}>SOURCE REFERENCE</Text>
-        <Text style={styles.progressHint}>{words[index%words.length].chapterName || "Qur’an"} · {words[index%words.length].reference}</Text>
-        <Button title="Remove this saved word" secondary onPress={()=>onRemoveWord?.(words[index%words.length].key)}/>
-      </View>
-    </> : finished ? <View style={styles.lessonCard}>
+    </View> : mode==="review" && dueWords.length===0 ? <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>You're all caught up</Text>
+      <Text style={styles.progressHint}>{nextDue?"Your next scheduled review is "+nextDue.toLocaleDateString()+".":"Your saved words are ready whenever you want to practise."} You can still browse all your flashcards or take a quiz.</Text>
+      <Button title="Browse all flashcards" onPress={()=>{setMode("cards");restart();}}/>
+      <Button title="Back to home" secondary onPress={onBack}/>
+    </View> : mode==="review" || mode==="cards" ? <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>{mode==="review"?"SPACED REVIEW":"FLASHCARDS"} · {index+1} / {mode==="review"?dueWords.length:words.length}</Text>
+      <Text style={[styles.alphabetHeroLetter,{fontSize:42}]} writingDirection="rtl">{current?.arabic}</Text>
+      <Text style={styles.progressHint}>{current?.transliteration||"Transliteration not supplied"}</Text>
+      {revealed?<Text style={styles.sectionTitle}>{current?.meaning}</Text>:<Text style={styles.progressHint}>Pause and recall the meaning before revealing it.</Text>}
+      <Button title={revealed?"Hide meaning":"Reveal meaning"} onPress={()=>setRevealed(value=>!value)}/>
+      {revealed&&mode==="review"?<>
+        <Text style={styles.readerToolLabel}>How well did you remember?</Text>
+        <View style={{gap:8}}>
+          <Button title="Again · Review tomorrow" secondary onPress={()=>rateWord("again")}/>
+          <Button title="Hard · Short interval" secondary onPress={()=>rateWord("hard")}/>
+          <Button title="Good · Normal interval" onPress={()=>rateWord("good")}/>
+          <Button title="Easy · Longer interval" secondary onPress={()=>rateWord("easy")}/>
+        </View>
+      </>:null}
+      {mode==="cards"?<>
+        <Button title="Next word" secondary onPress={()=>{setIndex(value=>(value+1)%words.length);setRevealed(false);}}/>
+        <Text style={styles.reference}>{current?.chapterName||"Qur’an"} · {current?.reference}</Text>
+        <Button title="Remove saved word" secondary onPress={()=>onRemoveWord?.(current?.key)}/>
+      </>:null}
+      {mode==="review"?<Text style={styles.tinyNote}>Reviewed in this session: {sessionReviewed}. Your rating schedules the next review on this device.</Text>:null}
+    </View> : finished ? <View style={styles.lessonCard}>
       <Text style={styles.cardEyebrow}>VOCABULARY CHECKPOINT</Text>
       <Text style={styles.sectionTitle}>Practice complete</Text>
       <Text style={styles.quizScore}>{score} / {questionCount}</Text>
-      <Text style={styles.progressHint}>This is a practice check using your saved words, not a formal Arabic proficiency assessment.</Text>
+      <Text style={styles.progressHint}>This short quiz uses only saved word meanings. It is a practice check, not a formal Arabic proficiency assessment.</Text>
       <Button title="Try again" onPress={restart}/>
-      <Button title="Review flashcards" secondary onPress={()=>{setMode("cards");restart();}}/>
+      <Button title="Review due words" secondary onPress={()=>{setMode("review");restart();}}/>
     </View> : <View style={styles.lessonCard}>
       <Text style={styles.cardEyebrow}>QUESTION {index+1} OF {questionCount}</Text>
-      <Text style={styles.quizPrompt} writingDirection="rtl">{current.arabic}</Text>
+      <Text style={styles.quizPrompt} writingDirection="rtl">{current?.arabic}</Text>
       <Text style={styles.progressHint}>Choose the meaning supplied with this saved word.</Text>
       {options.map(option=><Pressable key={option.key} accessibilityRole="button" accessibilityState={{selected:answer===option.key}} onPress={()=>setAnswer(option.key)} style={[styles.choice,answer===option.key&&styles.choiceSelected]}><Text style={[styles.choiceText,answer===option.key&&styles.choiceTextSelected]}>{option.meaning}</Text></Pressable>)}
       <Button title={index+1===questionCount?"Finish quiz":"Next question"} disabled={!answer} onPress={submit}/>
@@ -2442,6 +2473,8 @@ export default function App() {
   const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (current[id]?.attempts || 0) + 1 } })); };
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
   const [savedWordItems,setSavedWordItems] = usePersistentState("savedWordItems",[]);
+  const [vocabularyReviewRecords,setVocabularyReviewRecords] = usePersistentState("vocabularyReviewRecords",{});
+  const [vocabularyDailyGoal,setVocabularyDailyGoal] = usePersistentState("vocabularyDailyGoal",10);
   const [favoriteReciterIds,setFavoriteReciterIds] = usePersistentState("favoriteReciterIds", []);
   const [preferredReciterId,setPreferredReciterId] = usePersistentState("preferredReciterId", "");
   const [preferredReciterName,setPreferredReciterName] = usePersistentState("preferredReciterName", "");
@@ -2503,7 +2536,7 @@ export default function App() {
   else if (tab === "notebook") screen = <StudyNotebookScreen notes={readerNotes} savedIds={savedIds} savedVerseDetails={savedVerseDetails} collections={ayahCollections} onAssignCollection={(key,name) => setAyahCollections(current => ({ ...current, [key]:toggleCollectionMembership(current[key],name) }))} onBack={() => setTab("home")} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen progress={arabicLessonProgress} onProgress={setArabicLessonProgress} onPremium={() => setTab("premium")} />;
-  else if (tab === "vocabulary") screen = <VocabularyPracticeScreen savedWords={savedWordItems} onRemoveWord={key=>setSavedWordItems(current=>normalizeSavedWordItems(current).filter(item=>item.key!==key))} onBack={()=>setTab("home")} />;
+  else if (tab === "vocabulary") screen = <VocabularyPracticeScreen savedWords={savedWordItems} reviewRecords={vocabularyReviewRecords} onReviewRecordsChange={setVocabularyReviewRecords} dailyGoal={vocabularyDailyGoal} onDailyGoalChange={setVocabularyDailyGoal} onRemoveWord={key=>{setSavedWordItems(current=>normalizeSavedWordItems(current).filter(item=>item.key!==key));setVocabularyReviewRecords(current=>{const next={...current};delete next[key];return next;});}} onBack={()=>setTab("home")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen progress={arabicAlphabetProgress} onProgress={setArabicAlphabetProgress} onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("premium")} onPremium={() => setTab("premium")} />;
   else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
@@ -2516,7 +2549,7 @@ export default function App() {
   else if (tab === "khatmah") screen = <KhatmahPlanScreen plan={khatmahPlan} activity={dailyActivity} onSavePlan={setKhatmahPlan} onBack={destination=>setTab(destination||"home")} />;
   else if (tab === "backend") screen = <BackendStatusScreen onBack={()=>setTab("home")} />;
   else if (tab === "insights") screen = <LearningInsightsScreen practiceHistory={practiceHistory} activity={dailyActivity} progress={memorizationProgress} reviewRecords={reviewRecords} onNavigate={navigate} onBack={()=>setTab("home")} />;
-  else if (tab === "data") screen = <DataPrivacyScreen stats={{sessions:(Array.isArray(practiceHistory)?practiceHistory.length:0),bookmarks:savedIds.length,notes:Object.keys(readerNotes||{}).length}} onBack={()=>setTab("home")} onRestore={raw=>{if(String(raw||"").length>1000000){Alert.alert("Backup too large","Choose an Ayah backup smaller than 1 MB.");return;}let parsed;try{parsed=JSON.parse(raw);}catch(error){Alert.alert("Invalid JSON","The pasted backup is not valid JSON.");return;}const checked=validateAyahBackup(parsed);if(!checked.valid){Alert.alert("Backup not recognized",checked.error);return;}Alert.alert("Restore this backup?","This replaces matching Ayah learning data and settings stored on this device. Export your current data first if you may need it.",[{text:"Cancel",style:"cancel"},{text:"Restore",onPress:async()=>{try{const data=checked.data;await AsyncStorage.multiSet(Object.entries(data).map(([key,value])=>[PREFERENCES_KEY+":"+key,JSON.stringify(value)]));if(data.practiceCount!==undefined)setPracticeCount(data.practiceCount);if(data.practiceHistory!==undefined)setPracticeHistory(data.practiceHistory);if(data.dailyTargets!==undefined)setDailyTargets(data.dailyTargets);if(data.memorizationPlan!==undefined)setMemorizationPlan(data.memorizationPlan);if(data.reviewRecords!==undefined)setReviewRecords(data.reviewRecords);if(data.memorizationProgress!==undefined)setMemorizationProgress(data.memorizationProgress);if(data.savedIds!==undefined)setSavedIds(data.savedIds);if(data.favoriteReciterIds!==undefined)setFavoriteReciterIds(data.favoriteReciterIds);if(data.preferredReciterId!==undefined)setPreferredReciterId(data.preferredReciterId);if(data.preferredReciterName!==undefined)setPreferredReciterName(data.preferredReciterName);if(data.savedVerseDetails!==undefined)setSavedVerseDetails(data.savedVerseDetails);if(data.readerNotes!==undefined)setReaderNotes(data.readerNotes);if(data.ayahCollections!==undefined)setAyahCollections(data.ayahCollections);if(data.lastReadPosition!==undefined)setLastReadPosition(data.lastReadPosition);if(data.readingBookmarks!==undefined)setReadingBookmarks(data.readingBookmarks);if(data.themeName!==undefined)setThemeName(data.themeName);if(data.learningLanguage!==undefined)setLearningLanguage(data.learningLanguage);if(data.dailyGoal!==undefined)setDailyGoal(data.dailyGoal);if(data.dailyActivity!==undefined)setDailyActivity(data.dailyActivity);if(data.remindersEnabled!==undefined)setRemindersEnabled(data.remindersEnabled);if(data.recentSearches!==undefined)setRecentSearches(data.recentSearches);if(data.compareTranslationId!==undefined)setCompareTranslationId(data.compareTranslationId);if(data.pinnedCompareKeys!==undefined)setPinnedCompareKeys(data.pinnedCompareKeys);if(data.pinnedCompareDetails!==undefined)setPinnedCompareDetails(data.pinnedCompareDetails);if(data.khatmahPlan!==undefined)setKhatmahPlan(data.khatmahPlan);if(data.savedWordItems!==undefined)setSavedWordItems(data.savedWordItems);if(data.arabicLessonProgress!==undefined)setArabicLessonProgress(data.arabicLessonProgress);if(data.arabicAlphabetProgress!==undefined)setArabicAlphabetProgress(data.arabicAlphabetProgress);setTab("home");Alert.alert("Backup restored","Your supported Ayah data has been restored on this device.");}catch(error){Alert.alert("Restore failed","Ayah could not save this backup. Your previous data may be partly updated; try again after checking device storage.");}}}]);}} onExport={async()=>{try{const keys=await AsyncStorage.getAllKeys();const appKeys=keys.filter(key=>key.startsWith(PREFERENCES_KEY+":"));const pairs=await AsyncStorage.multiGet(appKeys);const preferences={};pairs.forEach(([key,raw])=>{try{preferences[key.slice(PREFERENCES_KEY.length+1)]=JSON.parse(raw);}catch(parseError){preferences[key.slice(PREFERENCES_KEY.length+1)]=null;}});const backup={app:"Ayah",schemaVersion:1,exportedAt:new Date().toISOString(),data:preferences};const json=JSON.stringify(backup,null,2);try{await Share.share({title:"Ayah study backup",message:json});}catch(shareError){/* The copyable backup text remains available on screen. */}return json;}catch(error){Alert.alert("Backup unavailable","Ayah could not read its saved data. Please try again.");return null;}}} onReset={()=>Alert.alert("Clear local Ayah data?","This removes your saved learning progress, notes, bookmarks, settings and session history from this device. This cannot be undone unless you exported a backup.",[{text:"Cancel",style:"cancel"},{text:"Clear data",style:"destructive",onPress:async()=>{try{const keys=await AsyncStorage.getAllKeys();await AsyncStorage.multiRemove(keys.filter(key=>key.startsWith(PREFERENCES_KEY+":")));setPracticeCount(0);setPracticeHistory([]);setRecentSearches([]);setCompareTranslationId("");setPinnedCompareKeys([]);setPinnedCompareDetails({});setKhatmahPlan(null);setArabicLessonProgress({highestWord:0,bestQuizScore:0,completed:false});setArabicAlphabetProgress({highestLetter:0,bestQuizScore:0});setDailyTargets({reading:5,memorization:1});setMemorizationPlan({dailyTarget:1,daysPerWeek:5,focus:"balanced"});setReviewRecords({});setMemorizationProgress({});setSavedIds([]);setFavoriteReciterIds([]);setPreferredReciterId("");setPreferredReciterName("");setSavedVerseDetails({});setReaderNotes({});setAyahCollections({});setLastReadPosition(null);setReadingBookmarks([]);setThemeName("auto");setLearningLanguage("English");setDailyGoal(10);setDailyActivity({});setRemindersEnabled(false);setSelectedChapter(null);setActiveAssignment(null);setTab("home");Alert.alert("Local data cleared","Ayah is ready for a fresh start.");}catch(error){Alert.alert("Could not clear data","Please try again.");}}}])} />;
+  else if (tab === "data") screen = <DataPrivacyScreen stats={{sessions:(Array.isArray(practiceHistory)?practiceHistory.length:0),bookmarks:savedIds.length,notes:Object.keys(readerNotes||{}).length}} onBack={()=>setTab("home")} onRestore={raw=>{if(String(raw||"").length>1000000){Alert.alert("Backup too large","Choose an Ayah backup smaller than 1 MB.");return;}let parsed;try{parsed=JSON.parse(raw);}catch(error){Alert.alert("Invalid JSON","The pasted backup is not valid JSON.");return;}const checked=validateAyahBackup(parsed);if(!checked.valid){Alert.alert("Backup not recognized",checked.error);return;}Alert.alert("Restore this backup?","This replaces matching Ayah learning data and settings stored on this device. Export your current data first if you may need it.",[{text:"Cancel",style:"cancel"},{text:"Restore",onPress:async()=>{try{const data=checked.data;await AsyncStorage.multiSet(Object.entries(data).map(([key,value])=>[PREFERENCES_KEY+":"+key,JSON.stringify(value)]));if(data.practiceCount!==undefined)setPracticeCount(data.practiceCount);if(data.practiceHistory!==undefined)setPracticeHistory(data.practiceHistory);if(data.dailyTargets!==undefined)setDailyTargets(data.dailyTargets);if(data.memorizationPlan!==undefined)setMemorizationPlan(data.memorizationPlan);if(data.reviewRecords!==undefined)setReviewRecords(data.reviewRecords);if(data.memorizationProgress!==undefined)setMemorizationProgress(data.memorizationProgress);if(data.savedIds!==undefined)setSavedIds(data.savedIds);if(data.favoriteReciterIds!==undefined)setFavoriteReciterIds(data.favoriteReciterIds);if(data.preferredReciterId!==undefined)setPreferredReciterId(data.preferredReciterId);if(data.preferredReciterName!==undefined)setPreferredReciterName(data.preferredReciterName);if(data.savedVerseDetails!==undefined)setSavedVerseDetails(data.savedVerseDetails);if(data.readerNotes!==undefined)setReaderNotes(data.readerNotes);if(data.ayahCollections!==undefined)setAyahCollections(data.ayahCollections);if(data.lastReadPosition!==undefined)setLastReadPosition(data.lastReadPosition);if(data.readingBookmarks!==undefined)setReadingBookmarks(data.readingBookmarks);if(data.themeName!==undefined)setThemeName(data.themeName);if(data.learningLanguage!==undefined)setLearningLanguage(data.learningLanguage);if(data.dailyGoal!==undefined)setDailyGoal(data.dailyGoal);if(data.dailyActivity!==undefined)setDailyActivity(data.dailyActivity);if(data.remindersEnabled!==undefined)setRemindersEnabled(data.remindersEnabled);if(data.recentSearches!==undefined)setRecentSearches(data.recentSearches);if(data.compareTranslationId!==undefined)setCompareTranslationId(data.compareTranslationId);if(data.pinnedCompareKeys!==undefined)setPinnedCompareKeys(data.pinnedCompareKeys);if(data.pinnedCompareDetails!==undefined)setPinnedCompareDetails(data.pinnedCompareDetails);if(data.khatmahPlan!==undefined)setKhatmahPlan(data.khatmahPlan);if(data.savedWordItems!==undefined)setSavedWordItems(data.savedWordItems);if(data.vocabularyReviewRecords!==undefined)setVocabularyReviewRecords(data.vocabularyReviewRecords);if(data.vocabularyDailyGoal!==undefined)setVocabularyDailyGoal(data.vocabularyDailyGoal);if(data.arabicLessonProgress!==undefined)setArabicLessonProgress(data.arabicLessonProgress);if(data.arabicAlphabetProgress!==undefined)setArabicAlphabetProgress(data.arabicAlphabetProgress);setTab("home");Alert.alert("Backup restored","Your supported Ayah data has been restored on this device.");}catch(error){Alert.alert("Restore failed","Ayah could not save this backup. Your previous data may be partly updated; try again after checking device storage.");}}}]);}} onExport={async()=>{try{const keys=await AsyncStorage.getAllKeys();const appKeys=keys.filter(key=>key.startsWith(PREFERENCES_KEY+":"));const pairs=await AsyncStorage.multiGet(appKeys);const preferences={};pairs.forEach(([key,raw])=>{try{preferences[key.slice(PREFERENCES_KEY.length+1)]=JSON.parse(raw);}catch(parseError){preferences[key.slice(PREFERENCES_KEY.length+1)]=null;}});const backup={app:"Ayah",schemaVersion:1,exportedAt:new Date().toISOString(),data:preferences};const json=JSON.stringify(backup,null,2);try{await Share.share({title:"Ayah study backup",message:json});}catch(shareError){/* The copyable backup text remains available on screen. */}return json;}catch(error){Alert.alert("Backup unavailable","Ayah could not read its saved data. Please try again.");return null;}}} onReset={()=>Alert.alert("Clear local Ayah data?","This removes your saved learning progress, notes, bookmarks, settings and session history from this device. This cannot be undone unless you exported a backup.",[{text:"Cancel",style:"cancel"},{text:"Clear data",style:"destructive",onPress:async()=>{try{const keys=await AsyncStorage.getAllKeys();await AsyncStorage.multiRemove(keys.filter(key=>key.startsWith(PREFERENCES_KEY+":")));setPracticeCount(0);setPracticeHistory([]);setRecentSearches([]);setCompareTranslationId("");setPinnedCompareKeys([]);setPinnedCompareDetails({});setKhatmahPlan(null);setArabicLessonProgress({highestWord:0,bestQuizScore:0,completed:false});setArabicAlphabetProgress({highestLetter:0,bestQuizScore:0});setDailyTargets({reading:5,memorization:1});setMemorizationPlan({dailyTarget:1,daysPerWeek:5,focus:"balanced"});setReviewRecords({});setMemorizationProgress({});setSavedIds([]);setFavoriteReciterIds([]);setPreferredReciterId("");setPreferredReciterName("");setSavedVerseDetails({});setReaderNotes({});setAyahCollections({});setLastReadPosition(null);setReadingBookmarks([]);setThemeName("auto");setLearningLanguage("English");setDailyGoal(10);setDailyActivity({});setRemindersEnabled(false);setSelectedChapter(null);setActiveAssignment(null);setTab("home");Alert.alert("Local data cleared","Ayah is ready for a fresh start.");}catch(error){Alert.alert("Could not clear data","Please try again.");}}}])} />;
   else if (tab === "progress") screen = <ProgressScreen practiceCount={practiceCount} dailyGoal={dailyGoal} language={learningLanguage} reviewRecords={reviewRecords} onRevision={() => setTab("revision")} onTracking={() => setTab("tracking")} onLearn={() => setTab("memorize")} onSettings={() => setTab("settings")} />;
   else if (tab === "premium") screen = <PremiumScreen onBack={() => setTab("home")} onTeacher={() => setTab("teacher")} onTafsir={() => { setTafsirTarget({ surah:"1", ayah:"1" }); setTafsirReturnTab("premium"); setTab("tafsir"); }} />;
   else screen = <HomeScreen onNavigate={navigate} onPractice={() => setTab("memorize")} lastReadPosition={lastReadPosition} readingBookmarks={readingBookmarks} onContinueReading={() => { if (lastReadPosition?.chapter) { setSearchInitialAyah(Number(lastReadPosition.ayah||1)); setSelectedChapter(lastReadPosition.chapter); setTab("libraryReader"); } }} />;
