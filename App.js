@@ -7,7 +7,7 @@ import {
   Pressable, TextInput, ImageBackground, Alert, ActivityIndicator, Share
 } from "react-native";
 import ayahUtils from "./src/lib/ayah-utils";
-import usePersistentState, { PREFERENCES_KEY } from "./src/hooks/use-persistent-state";
+import usePersistentState from "./src/hooks/use-persistent-state";
 import ayahApi from "./src/services/ayah-api";
 
 const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, getActiveAudioTiming } = ayahUtils;
