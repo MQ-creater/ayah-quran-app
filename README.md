@@ -119,7 +119,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 128 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs forty-three Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, and reading bookmark backup validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
+The 140 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs forty-three Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, and reading bookmark backup validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
