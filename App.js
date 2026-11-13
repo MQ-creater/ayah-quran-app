@@ -12,7 +12,7 @@ import ayahApi from "./src/services/ayah-api";
 import OfflineLibraryScreen from "./src/screens/offline-library-screen";
 import offlineStorage from "./src/services/offline-library-storage";
 
-const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, getActiveAudioTiming } = ayahUtils;
+const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, getActiveAudioTiming, normalizeSavedWordItems } = ayahUtils;
 const { requestJson } = ayahApi;
 
 const PREFERENCES_KEY = "@ayah/preferences-v1";
@@ -1471,6 +1471,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
   const [studyContextVerses,setStudyContextVerses] = useState([]);
   const [selectedWord,setSelectedWord] = useState(null);
   const [savedWordItems,setSavedWordItems] = usePersistentState("savedWordItems",[]);
+  const savedWordList = normalizeSavedWordItems(savedWordItems);
   const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : readerPageForAyah(initialAyah));
   const [jumpAyah, setJumpAyah] = useState("");
   const [noteEditorKey, setNoteEditorKey] = useState(null);
@@ -1761,21 +1762,21 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
               <Text style={{ color:GOLD, fontSize:15, textAlign:"center", marginTop:2 }}>{selectedWord.transliteration || "Transliteration unavailable"}</Text>
               <Text style={{ color:TEXT, fontSize:16, textAlign:"center", marginTop:9, lineHeight:24 }}>{selectedWord.meaning || "Word meaning unavailable from the selected content response."}</Text>
               {(selectedWord.root || selectedWord.lemma || selectedWord.partOfSpeech) ? <View style={{ flexDirection:"row", flexWrap:"wrap", gap:7, marginTop:12 }}>
-                {selectedWord.root ? <View style={{ backgroundColor:styles.readerToggle.backgroundColor || "#24354C", borderRadius:9, padding:8 }}><Text style={{ color:TEXT, fontSize:12 }}>Root: {selectedWord.root}</Text></View> : null}
+                {selectedWord.root ? <View style={{ backgroundColor:PANEL, borderRadius:9, padding:8 }}><Text style={{ color:TEXT, fontSize:12 }}>Root: {selectedWord.root}</Text></View> : null}
                 {selectedWord.lemma ? <View style={{ backgroundColor:"#24354C", borderRadius:9, padding:8 }}><Text style={{ color:TEXT, fontSize:12 }}>Lemma: {selectedWord.lemma}</Text></View> : null}
                 {selectedWord.partOfSpeech ? <View style={{ backgroundColor:"#24354C", borderRadius:9, padding:8 }}><Text style={{ color:TEXT, fontSize:12 }}>Type: {selectedWord.partOfSpeech}</Text></View> : null}
               </View> : <Text style={styles.tinyNote}>Root, lemma, and grammar details are shown only when the content provider supplies them.</Text>}
               <View style={{ flexDirection:"row", gap:8, marginTop:14 }}>
                 {selectedWord.audioUrl ? <Pressable accessibilityRole="button" onPress={()=>{const url=normalizeAudioUrl(selectedWord.audioUrl);if(!url)return;chapterPlayer.pause();setActiveSyncedVerseKey("");setActiveAudioKey(null);setAudioQueueKeys([]);setAudioQueueIndex(0);setRepeatsRemaining(0);wordPlayer.replace(url);wordPlayer.play();}} style={[styles.readerToggle,{flex:1}]}><Text style={styles.readerToggleText}>▶ Hear word</Text></Pressable> : null}
-                <Pressable accessibilityRole="button" onPress={()=>setSavedWordItems(current=>{const safe=Array.isArray(current)?current:[];if(safe.some(item=>item.key===selectedWord.key))return safe;return [...safe,{...selectedWord,audioUrl:undefined}].slice(-300);})} style={[styles.readerToggle,{flex:1}]}>
-                  <Text style={styles.readerToggleText}>{savedWordItems.some(item=>item.key===selectedWord.key)?"✓ Saved":"＋ Save word"}</Text>
+                <Pressable accessibilityRole="button" onPress={()=>setSavedWordItems(current=>normalizeSavedWordItems([...normalizeSavedWordItems(current),selectedWord]))} style={[styles.readerToggle,{flex:1}]}>
+                  <Text style={styles.readerToggleText}>{savedWordList.some(item=>item.key===selectedWord.key)?"✓ Saved":"＋ Save word"}</Text>
                 </Pressable>
               </View>
             </View> : null}
             <Text style={styles.tinyNote}>Word meanings and transliterations are supplied by Quran Foundation. Transliteration is a reading aid, not a replacement for learning pronunciation from a qualified teacher.</Text>
-            {savedWordItems.length ? <View style={{ marginTop:14 }}>
-              <Text style={styles.readerToolLabel}>SAVED WORDS · {savedWordItems.length}</Text>
-              {savedWordItems.slice(-8).reverse().map(item=><View key={item.key} style={{ flexDirection:"row", alignItems:"center", justifyContent:"space-between", gap:10, backgroundColor:PANEL, borderRadius:11, padding:10, marginTop:7 }}>
+            {savedWordList.length ? <View style={{ marginTop:14 }}>
+              <Text style={styles.readerToolLabel}>SAVED WORDS · {savedWordList.length}</Text>
+              {savedWordList.slice(-8).reverse().map(item=><View key={item.key} style={{ flexDirection:"row", alignItems:"center", justifyContent:"space-between", gap:10, backgroundColor:PANEL, borderRadius:11, padding:10, marginTop:7 }}>
                 <View style={{ flex:1 }}>
                   <Text style={{ color:TEXT, fontSize:19, textAlign:"right" }}>{item.arabic}</Text>
                   <Text style={{ color:MUTED, fontSize:11, marginTop:3 }}>{item.transliteration || item.reference} · {item.meaning || "Meaning unavailable"}</Text>
