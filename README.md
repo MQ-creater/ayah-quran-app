@@ -64,7 +64,7 @@ The unit test command discovers all `scripts/test-*.mjs` files. The API-client t
 
 ## Selected-surah offline foundation
 
-The local offline-library service lives in `src/services/offline-library.js`. It stores one complete selected surah per package, validates the expected ayah count and every ayah reference, requires Arabic text, records the selected translation ID, and exposes list/read/remove/clear operations through an AsyncStorage-compatible adapter. The index and surah packages use versioned, app-owned storage keys. The service deliberately rejects incomplete or duplicate ayah sets rather than presenting a partial surah as a complete offline download.
+The local offline-library service lives in `src/services/offline-library.js`, with an AsyncStorage adapter in `src/services/offline-library-storage.js`. It stores one complete selected surah per package, validates the expected ayah count and every ayah reference, requires Arabic text, records the selected translation ID, and exposes list/read/remove/clear operations through an AsyncStorage-compatible adapter. The index and surah packages use versioned, app-owned storage keys. The service deliberately rejects incomplete or duplicate ayah sets rather than presenting a partial surah as a complete offline download.
 
 This is the storage and validation foundation only. The reader download screen, progress UI, actual API pagination/download flow, storage-size display, and audio downloads are not connected yet. Offline text is kept separate from recitation audio; audio must be separately selected and downloaded only after its provider permissions and caching terms are confirmed.
 
@@ -105,7 +105,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 102 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs forty-one Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+The 103 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs forty-one Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
