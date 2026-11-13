@@ -62,6 +62,10 @@ The shared API client lives in `src/services/ayah-api.js`. It validates the conf
 
 The unit test command discovers all `scripts/test-*.mjs` files. The API-client tests cover URL validation, route validation, successful JSON responses, HTTP errors, malformed JSON, and cancellation. Five additional cloud-sync contract tests cover allowlisting, required metadata, malformed data, schema validation, and cross-account restore protection. Seven offline-library tests cover complete-surah validation, ayah uniqueness and references, Arabic text requirements, storage lifecycle, and safe clearing.
 
+## Local recitation practice recorder
+
+A Recitation Practice screen is available from the home page and from each ayah in the reader. It requests microphone permission only after the learner taps Start, records one practice take at a time, caps a take at 90 seconds, and lets the learner replay or discard that take. The app does not upload the audio, transcribe it, grade Tajweed, or claim to verify memorization. Recordings use the temporary app cache and are not a permanent recording library; they may be cleared by the operating system or when the practice screen is left. Background recording is deliberately disabled. Browser microphone access requires a secure context and permission, and actual behavior still needs testing on Android, iOS, and supported browsers.
+
 ## Multiple reading bookmarks
 
 The reader can save up to three named reading positions. Each bookmark stores its surah metadata, ayah number, and reader page, can be renamed or removed from the Reading Bookmarks screen, and opens the reader at the saved ayah. Saving the same surah-and-ayah bookmark again updates that saved position rather than creating a duplicate. Reading bookmarks are included in local preference storage and validated backup export/import. This is local-device functionality; cross-device synchronization is not active.
@@ -109,7 +113,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 117 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, and reading bookmarks. The `npm run check` command also runs forty-three Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, and reading bookmark backup validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
+The 124 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, and the local recitation recorder. The `npm run check` command also runs forty-three Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, and reading bookmark backup validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
