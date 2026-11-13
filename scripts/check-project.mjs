@@ -194,6 +194,14 @@ checks.push(
   ["Study Mode shares the context passage and can be dismissed", app.includes("Share passage") && app.includes("setStudyTarget(null)")]
 );
 
+checks.push(
+  ["word explorer opens source-backed details", app.includes("WORD EXPLORER") && app.includes("selectedWord.transliteration") && app.includes("selectedWord.meaning")],
+  ["word explorer exposes only provider-supplied morphology", app.includes("selectedWord.root") && app.includes("Root, lemma, and grammar details are shown only when the content provider supplies them.")],
+  ["word pronunciation reuses validated audio URL handling", app.includes("normalizeAudioUrl(selectedWord.audioUrl)") && app.includes("Hear word")],
+  ["saved vocabulary is bounded and persistent", app.includes('usePersistentState("savedWordItems",[])') && app.includes(".slice(-300)") && utilities.includes('"savedWordItems"')],
+  ["saved vocabulary backups are validated", utilities.includes("normalizeSavedWordItems") && utilities.includes("data.savedWordItems.length > 300")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
