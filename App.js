@@ -760,10 +760,15 @@ function RecitationPracticeScreen({ initialReference="", initialSurahName="", on
       try { await setAudioModeAsync({allowsRecording:false,playsInSilentMode:true}); } catch {}
     } finally { setBusy(false); }
   };
+  const playerUri = useRef(null);
   const playRecording = () => {
     if(!recordingUri)return;
-    try { player.replace(recordingUri);player.play(); }
-    catch(err) { setError("This recording is no longer available. Please make a new recording."); }
+    try {
+      if(playerStatus?.playing){player.pause();return;}
+      if(playerUri.current!==recordingUri){player.replace(recordingUri);playerUri.current=recordingUri;}
+      if(playerStatus?.didJustFinish)player.seekTo(0);
+      player.play();
+    } catch(err) { setError("This recording is no longer available. Please make a new recording."); }
   };
   return <>
     <Header eyebrow="RECITATION PRACTICE" title="Record and listen back" />
@@ -786,8 +791,8 @@ function RecitationPracticeScreen({ initialReference="", initialSurahName="", on
     {recordingUri?<View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Your latest practice take</Text>
       <Text style={styles.progressHint}>This take stays in temporary app storage and is available only while this practice screen remains open. It is not uploaded or shared, and the device may clear temporary files.</Text>
-      <Button title={playerStatus?.playing?"Playing…":"▶ Listen to my recording"} onPress={playRecording} disabled={Boolean(playerStatus?.playing)}/>
-      <Button title="Discard this take" secondary onPress={()=>{player.pause();setRecordingUri(null);}}/>
+      <Button title={playerStatus?.playing?"Ⅱ Pause recording":"▶ Listen to my recording"} onPress={playRecording}/>
+      <Button title="Discard this take" secondary onPress={()=>{player.pause();playerUri.current=null;setRecordingUri(null);}}/>
     </View>:null}
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Privacy and accuracy</Text>
