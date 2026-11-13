@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
-import { requestJson } from "./ayah-api";
+import ayahApi from "./ayah-api";
 import offlineStorage from "./offline-library-storage";
 import offlineLibrary from "./offline-library";
+
+const { requestJson } = ayahApi;
 
 const API_BASE = process.env.EXPO_PUBLIC_AYAH_API_URL || "";
 const COLORS = { text:"#FFFFFF", muted:"#AAB6C7", panel:"#1B2A40", surface:"#24354C", gold:"#D9B96E", border:"#34445B" };
