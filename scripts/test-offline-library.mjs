@@ -23,6 +23,7 @@ test("offline surah refuses incomplete, duplicate, or mismatched ayahs", () => {
 
 test("offline surah requires Arabic text and a valid chapter number", () => {
   assert.throws(() => offline.createOfflineSurah({ chapter: { ...chapter, id: 115 }, verses }), error => error.code === "INVALID_SURAH");
+  assert.throws(() => offline.createOfflineSurah({ chapter: { ...chapter, id: 119 }, verses }), error => error.code === "INVALID_SURAH");
   assert.throws(() => offline.createOfflineSurah({ chapter, verses: verses.map(v => ({ ...v, text_uthmani: "" })) }), error => error.code === "MISSING_ARABIC");
 });
 
