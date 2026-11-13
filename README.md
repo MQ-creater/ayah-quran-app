@@ -60,7 +60,11 @@ The app shell now imports the reusable local-preferences hook from `src/hooks/us
 
 The shared API client lives in `src/services/ayah-api.js`. It validates the configured HTTP(S) backend URL, rejects unsafe relative routes, applies a JSON Accept header, handles non-JSON and HTTP error responses consistently, supports caller-provided abort signals, and applies a bounded request timeout when the caller has not supplied a signal. Backend diagnostics and Qur’an search use this client; the remaining screens will be migrated in focused batches rather than through a risky one-shot rewrite.
 
-The unit test command discovers all `scripts/test-*.mjs` files. The new API-client tests cover URL validation, route validation, successful JSON responses, HTTP errors, malformed JSON, and cancellation.
+The unit test command discovers all `scripts/test-*.mjs` files. The API-client tests cover URL validation, route validation, successful JSON responses, HTTP errors, malformed JSON, and cancellation. Five additional cloud-sync contract tests cover allowlisting, required metadata, malformed data, schema validation, and cross-account restore protection.
+
+## Account and cloud-sync foundation
+
+A provider-neutral cloud-sync contract now lives in `src/services/cloud-sync.js`. It defines a versioned envelope, an explicit allowlist of learning data, timestamp validation, and an account-ownership check before data is accepted for restore. Authentication tokens, email addresses, and billing data are intentionally excluded. This is a data-contract foundation only: no identity provider, database, cloud transport, or automatic sync is connected yet. A production implementation must add authenticated server-side authorization, encrypted transport and storage, conflict resolution, account deletion/export controls, and privacy review before any learner data is uploaded.
 
 ## Technology
 
@@ -95,7 +99,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 93 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs twenty-nine Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
+The 93 source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, and server security settings. The `npm run check` command also runs thirty-four Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, and pinned verse validation. The Expo export confirms that the web preview bundles successfully. The GitHub Actions workflow runs both checks on pushes and pull requests.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
