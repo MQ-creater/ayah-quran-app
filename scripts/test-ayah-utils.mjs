@@ -162,10 +162,11 @@ test("accepts supported recitation speeds and rejects unsafe backup values",()=>
 });
 
 test("validates up to three named reading bookmarks in backups",()=>{
-  const valid=[{id:"2:255",title:"Morning reading",chapterId:"2",ayah:255},{id:"18:10",title:"Review",chapterId:"18",ayah:10}];
+  const valid=[{id:"2:255",title:"Morning reading",chapterId:"2",ayah:255,chapter:{id:2,name_simple:"Al-Baqarah"}},{id:"18:10",title:"Review",chapterId:"18",ayah:10,chapter:{id:18,name_simple:"Al-Kahf"}}];
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:valid}}).valid,true);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:[...valid,...valid.slice(0,2)]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:[{...valid[0],id:"3:18"}]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:[{...valid[0],title:"x".repeat(31)}]}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:[{...valid[0],chapter:{id:3}}]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:"not-an-array"}}).valid,false);
 });
