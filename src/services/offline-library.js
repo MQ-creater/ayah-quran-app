@@ -14,7 +14,8 @@ class OfflineLibraryError extends Error {
 
 function safeId(value) {
   const id = String(value == null ? "" : value);
-  if (!/^([1-9]|[1-9][0-9]|1[01][0-9]|11[0-4])$/.test(id)) {
+  const number = Number(id);
+  if (!Number.isInteger(number) || number < 1 || number > 114 || String(number) !== id) {
     throw new OfflineLibraryError("Choose a valid surah number.", "INVALID_SURAH");
   }
   return id;
