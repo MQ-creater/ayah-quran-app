@@ -150,6 +150,16 @@ checks.push(
   ["offline library is connected to device AsyncStorage through an adapter", offlineStorageAdapter.includes('from "@react-native-async-storage/async-storage"') && offlineStorageAdapter.includes("createOfflineStorage") && offlineStorageAdapter.includes("AsyncStorage.setItem")]
 );
 
+const offlineScreen = await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8");
+checks.push(
+  ["offline library screen is reachable from the home screen", app.includes('title="Offline library"') && app.includes('tab === "offline"') && app.includes("OfflineLibraryScreen")],
+  ["offline download fetches every page of a selected surah", offlineScreen.includes("Math.ceil(total/pageSize)") && offlineScreen.includes("for(let page=1;page<=pages;page++)")],
+  ["offline download requires a selected translation and reports progress", offlineScreen.includes("translationId") && offlineScreen.includes("setProgress({done:Math.min(all.length,total)")],
+  ["offline screen manages saved packages and approximate storage", offlineScreen.includes("offlineStorage.list()") && offlineScreen.includes("offlineStorage.remove(id)") && offlineScreen.includes("totalBytes")],
+  ["reader can fall back to a matching saved surah when network access fails", app.includes("offlineStorage.get(chapter.id)") && app.includes("saved.translationId") && app.includes("Offline mode")],
+  ["offline screen clearly separates text downloads from audio", offlineScreen.includes("Recitation audio is not included"))
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
