@@ -20,6 +20,7 @@ const checks = [
   ["vocabulary daily goal persists and is adjustable", app.includes('usePersistentState("vocabularyDailyGoal",10)') && app.includes("Reviewed today") && app.includes("onDailyGoalChange")],
   ["vocabulary review data and daily goal restore from backup", app.includes("if(data.vocabularyReviewRecords!==undefined)setVocabularyReviewRecords(data.vocabularyReviewRecords)") && app.includes("if(data.vocabularyDailyGoal!==undefined)setVocabularyDailyGoal(data.vocabularyDailyGoal)")],
   ["vocabulary rating choices are explicit and accessible", app.includes("Again · Review tomorrow") && app.includes("Hard · Short interval") && app.includes("Good · Normal interval") && app.includes("Easy · Longer interval")],
+  ["vocabulary review advances without skipping queue items", app.includes("setIndex(value=>Math.min(value,Math.max(0,dueWords.length-2)))")],
   ["responsive desktop content width", app.includes("useWindowDimensions") && app.includes("isWideScreen") && app.includes("containerWide:{width:\"100%\",maxWidth:1120")],
   ["tablet landscape orientation support", config.includes('"orientation": "default"') && config.includes('"supportsTablet": true')],
   ["static web export command", packageJson.includes('"export:web": "expo export --platform web"')],
