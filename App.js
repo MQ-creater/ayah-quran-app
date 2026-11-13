@@ -1406,9 +1406,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
     let active = true;
     setTranslationListLoading(true);
     setTranslationListError("");
-    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
-    fetch(base + "/translations?language=" + translationLanguage)
-      .then(response => { if (!response.ok) throw new Error("Server returned " + response.status); return response.json(); })
+    requestJson("/translations?language=" + encodeURIComponent(translationLanguage), { baseUrl: AYAH_API_BASE })
       .then(data => {
         if (!active) return;
         const items = Array.isArray(data.translations) ? data.translations : [];
@@ -1425,9 +1423,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, onMarkAyahRead, readToday
     if (!AYAH_API_BASE || !chapter?.id) return;
     let active = true;
     setLoading(true); setError("");
-    const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE;
-    fetch(base + "/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=" + encodeURIComponent(normalizeTranslationIds(translationId, compareTranslationId)) + "&script=" + (arabicScript === "IndoPak" ? "indopak" : "uthmani") + "&language=" + encodeURIComponent(translationLanguage))
-      .then(response => { if (!response.ok) throw new Error("Server returned " + response.status); return response.json(); })
+    requestJson("/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=" + encodeURIComponent(normalizeTranslationIds(translationId, compareTranslationId)) + "&script=" + (arabicScript === "IndoPak" ? "indopak" : "uthmani") + "&language=" + encodeURIComponent(translationLanguage), { baseUrl: AYAH_API_BASE })
       .then(data => {
         if (!active) return;
         const incoming = Array.isArray(data.verses) ? data.verses : [];
