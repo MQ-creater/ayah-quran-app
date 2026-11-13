@@ -12,6 +12,9 @@ const [app,server,config,utilities,apiClient,persistentHook,packageJson] = await
 ]);
 
 const checks = [
+  ["saved vocabulary is shared between reader and academy", app.includes("savedWordItems={savedWordItems}") && app.includes("function VocabularyPracticeScreen") && app.includes("setSavedWordItems={setSavedWordItems}")],
+  ["vocabulary flashcards and saved-word quiz", app.includes("Reveal meaning") && app.includes("VOCABULARY CHECKPOINT") && app.includes("Choose the meaning supplied with this saved word")],
+  ["vocabulary quiz uses saved source meanings", app.includes("normalizeSavedWordItems(savedWords).filter(item => item.meaning") && app.includes("words.length<3")],
   ["responsive desktop content width", app.includes("useWindowDimensions") && app.includes("isWideScreen") && app.includes("containerWide:{width:\"100%\",maxWidth:1120")],
   ["tablet landscape orientation support", config.includes('"orientation": "default"') && config.includes('"supportsTablet": true')],
   ["static web export command", packageJson.includes('"export:web": "expo export --platform web"')],
