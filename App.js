@@ -1467,6 +1467,8 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
   }, [audioStatus?.didJustFinish,repeatsRemaining,audioQueueIndex,audioQueueKeys,verses,chapter.id]);
 
   const [verses, setVerses] = useState([]);
+  const [studyTarget,setStudyTarget] = useState(null);
+  const [studyContextVerses,setStudyContextVerses] = useState([]);
   const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : readerPageForAyah(initialAyah));
   const [jumpAyah, setJumpAyah] = useState("");
   const [noteEditorKey, setNoteEditorKey] = useState(null);
@@ -1541,6 +1543,15 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
   }, [chapter?.id, page, translationId, compareTranslationId, arabicScript, translationLanguage]);
+  const openStudyMode = (verse,index,key) => {
+    const firstIndex=Math.max(0,index-2);
+    const context=verses.slice(firstIndex,Math.min(verses.length,index+3)).map((item,offset)=>({
+      verse:item,key:item.verse_key||(chapter.id+":"+(firstIndex+offset+1))
+    }));
+    setStudyTarget({key,ayah:Number(String(key).split(":")[1])});
+    setStudyContextVerses(context);
+  };
+  const studyVerseTranslation = verse => String((Array.isArray(verse?.translations)?verse.translations[0]?.text:"")||"").replace(/<[^>]*>/g,"");
   return <>
     <Header eyebrow={"SURAH " + chapter.id} title={chapter.name_simple} />
     <View style={styles.infoCard}>
@@ -1661,6 +1672,23 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
         {audioQueueKeys.length>0?<Pressable onPress={()=>{wordPlayer.pause();setActiveAudioKey(null);setAudioQueueKeys([]);setAudioQueueIndex(0);setRepeatsRemaining(0);}} style={styles.readerToggle}><Text style={styles.readerToggleText}>Stop ayah queue</Text></Pressable>:null}
       </View>
       {pinnedCompareKeys.length>0?<View style={styles.infoCard}><Text style={styles.sectionTitle}>Compare pinned ayahs</Text><Text style={styles.progressHint}>Pin up to two ayahs. Your comparison stays available when you change surahs or pages.</Text>{pinnedCompareKeys.map(key=>{const detail=pinnedCompareDetails?.[key]||{};return <View key={key} style={styles.savedAyah}><Text style={styles.reference}>{detail.reference||key}</Text><Text style={styles.dailyArabic} writingDirection="rtl">{detail.arabic||"Arabic text was not included in the saved comparison."}</Text>{detail.translation?<Text style={styles.translation}>{detail.translation}</Text>:null}{detail.comparisonTranslation?<View style={{marginTop:8,paddingTop:8,borderTopWidth:1,borderTopColor:BORDER}}><Text style={styles.readerToolLabel}>{detail.comparisonName||"Second translation"}</Text><Text style={styles.translation}>{detail.comparisonTranslation}</Text></View>:null}<Pressable accessibilityRole="button" onPress={()=>{setPinnedCompareKeys(current=>current.filter(item=>item!==key));setPinnedCompareDetails(current=>{const next={...current};delete next[key];return next;});}} style={styles.readerToggle}><Text style={styles.readerToggleText}>Remove this pinned ayah</Text></Pressable></View>;})}<Button title="Clear comparison" secondary onPress={()=>{setPinnedCompareKeys([]);setPinnedCompareDetails({});}}/></View>:null}
+    {studyTarget?<View style={[styles.infoCard,{borderWidth:1,borderColor:GOLD}]}>
+      <View style={{flexDirection:"row",justifyContent:"space-between",alignItems:"center",gap:12}}>
+        <View style={{flex:1}}><Text style={styles.cardEyebrow}>AYAH STUDY MODE</Text><Text style={styles.sectionTitle}>{chapter.name_simple} · {studyTarget.key}</Text></View>
+        <Pressable accessibilityRole="button" onPress={()=>setStudyTarget(null)} style={styles.readerToggle}><Text style={styles.readerToggleText}>Close</Text></Pressable>
+      </View>
+      <Text style={styles.progressHint}>Read this ayah alongside the nearby passage. These verses are taken from the currently loaded, source-provided Qur’an text and translation.</Text>
+      {studyContextVerses.map(item=><View key={item.key} style={{paddingVertical:12,borderBottomWidth:1,borderBottomColor:BORDER,backgroundColor:item.key===studyTarget.key?PANEL:"transparent",paddingHorizontal:8,borderRadius:10}}>
+        <Text style={styles.verseNumber}>{chapter.name_simple} · {item.key}</Text>
+        <Text style={[styles.verseArabic,{fontSize:24,lineHeight:48}]} writingDirection="rtl">{item.verse.text_uthmani||item.verse.text_qpc_hafs||""}</Text>
+        <Text style={styles.translation}>{studyVerseTranslation(item.verse)||"Translation unavailable for this ayah."}</Text>
+      </View>)}
+      <View style={{flexDirection:"row",flexWrap:"wrap",gap:8,marginTop:12}}>
+        <Pressable accessibilityRole="button" onPress={()=>onOpenTafsir?.(chapter.id,studyTarget.ayah)} style={styles.readerToggle}><Text style={styles.readerToggleText}>Open sourced Tafsir</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>onOpenRecorder?.(studyTarget.key,chapter.name_simple)} style={styles.readerToggle}><Text style={styles.readerToggleText}>Practice this ayah</Text></Pressable>
+        <Pressable accessibilityRole="button" onPress={()=>Share.share({title:chapter.name_simple+" · "+studyTarget.key,message:[chapter.name_simple+" · "+studyTarget.key,...studyContextVerses.map(item=>item.key+"\n"+(item.verse.text_uthmani||item.verse.text_qpc_hafs||"")+"\n"+studyVerseTranslation(item.verse))].join("\n\n")})} style={styles.readerToggle}><Text style={styles.readerToggleText}>Share passage</Text></Pressable>
+      </View>
+    </View>:null}
       {verses.map((verse,index)=>({verse,index,key:verse.verse_key||(chapter.id+":"+(index+1))})).filter(item=>!noteFilter||Boolean(notes?.[item.key])).map(({verse,index,key})=>{
         const verseTranslations = Array.isArray(verse.translations) ? verse.translations : [];
         const translation = verseTranslations[0]?.text || "";
@@ -1671,7 +1699,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
         const isActiveAyahAudio=activeAudioKey===key;
         const isPinnedForCompare=pinnedCompareKeys.includes(key);
         return <View key={key} style={[styles.verseCard,(isSyncedVerse||isActiveAyahAudio)&&{borderWidth:2,borderColor:GOLD,backgroundColor:PANEL}]}>
-          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{isSyncedVerse||isActiveAyahAudio?"▶ "+key:key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={()=>onMarkAyahRead?.(key)}><Text style={styles.verseBookmark}>{readTodayIds.includes(key)?"✓ Read today":"Mark read"}</Text></Pressable><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={()=>onOpenRecorder?.(key,chapter.name_simple)}><Text style={styles.verseBookmark}>Record recitation</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onSaveReadingBookmark?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{readingBookmarks.some(item=>item.id===String(chapter.id)+":"+String(key).split(":")[1]) ? "✓ Saved reading bookmark" : "＋ Save reading bookmark"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
+          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{isSyncedVerse||isActiveAyahAudio?"▶ "+key:key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={()=>onMarkAyahRead?.(key)}><Text style={styles.verseBookmark}>{readTodayIds.includes(key)?"✓ Read today":"Mark read"}</Text></Pressable><Pressable onPress={()=>openStudyMode(verse,index,key)}><Text style={styles.verseBookmark}>Study this ayah</Text></Pressable><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={()=>onOpenRecorder?.(key,chapter.name_simple)}><Text style={styles.verseBookmark}>Record recitation</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onSaveReadingBookmark?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{readingBookmarks.some(item=>item.id===String(chapter.id)+":"+String(key).split(":")[1]) ? "✓ Saved reading bookmark" : "＋ Save reading bookmark"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
           {showArabic && !recallMode && !translationReadingMode ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {(showTranslation || translationReadingMode) ? <Text style={[styles.translation, translationReadingMode?{fontSize:16,lineHeight:29,textAlign:"left"}:null,translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
           {(showTranslation || translationReadingMode) && comparisonTranslation ? <View style={{marginTop:10,paddingTop:9,borderTopWidth:1,borderTopColor:BORDER}}><Text style={styles.readerToolLabel}>{comparisonName}</Text><Text style={[styles.translation,translationFontFamily?{fontFamily:translationFontFamily}:null]}>{comparisonTranslation.replace(/<[^>]*>/g,"")}</Text></View> : null}
