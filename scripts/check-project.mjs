@@ -16,6 +16,7 @@ const checks = [
   ["vocabulary flashcards and saved-word quiz", app.includes("Reveal meaning") && app.includes("VOCABULARY CHECKPOINT") && app.includes("Choose the meaning supplied with this saved word")],
   ["vocabulary quiz uses saved source meanings", app.includes("normalizeSavedWordItems(savedWords).filter(item => item.meaning") && app.includes("words.length<3")],
   ["saved vocabulary restored from local backup", app.includes("if(data.savedWordItems!==undefined)setSavedWordItems(data.savedWordItems)")],
+  ["vocabulary scheduler module is imported", app.includes('import vocabularyReview from "./src/lib/vocabulary-review"') && app.includes("const { getVocabularyReviewQueue, summarizeVocabularyReview, scheduleVocabularyReview } = vocabularyReview;")],
   ["vocabulary spaced repetition is connected to review ratings", app.includes("scheduleVocabularyReview(previous,current.key,rating,new Date())") && app.includes("getVocabularyReviewQueue(words,reviewRecords,new Date())")],
   ["vocabulary daily goal persists and is adjustable", app.includes('usePersistentState("vocabularyDailyGoal",10)') && app.includes("Reviewed today") && app.includes("onDailyGoalChange")],
   ["vocabulary review data and daily goal restore from backup", app.includes("if(data.vocabularyReviewRecords!==undefined)setVocabularyReviewRecords(data.vocabularyReviewRecords)") && app.includes("if(data.vocabularyDailyGoal!==undefined)setVocabularyDailyGoal(data.vocabularyDailyGoal)")],
