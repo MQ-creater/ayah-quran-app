@@ -16,7 +16,7 @@ test("offline surah accepts a complete ordered or unordered set of ayahs", () =>
 });
 
 test("offline surah refuses incomplete, duplicate, or mismatched ayahs", () => {
-  assert.throws(() => offline.createOfflineSurah({ chapter, verses: verses.slice(0, 1) }), error => error.code === "INCOMPLETE_SURAH");
+  assert.throws(() => offline.createOfflineSurah({ chapter, verses: verses.slice(0, 1), translationId: 131 }), error => error.code === "INCOMPLETE_SURAH");
   assert.throws(() => offline.createOfflineSurah({ chapter, verses: [verses[0], verses[0]], translationId: 131 }), error => error.code === "DUPLICATE_VERSE");
   assert.throws(() => offline.createOfflineSurah({ chapter, verses: [verses[0], { ...verses[1], verse_key: "2:2" }], translationId: 131 }), error => error.code === "VERSE_MISMATCH");
 });
