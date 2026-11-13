@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import * as Font from "expo-font";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useAudioPlayer, useAudioPlayerStatus } from "expo-audio";
+import { useAudioPlayer, useAudioPlayerStatus, useAudioRecorder, useAudioRecorderState, RecordingPresets, AudioModule, setAudioModeAsync } from "expo-audio";
 import {
   SafeAreaView, ScrollView, StatusBar, StyleSheet, Text, View, useColorScheme,
   Pressable, TextInput, ImageBackground, Alert, ActivityIndicator, Share
@@ -121,6 +121,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
       <Text style={styles.settingLabel}>MEMORIZE & REVIEW</Text>
       <View style={styles.actionGrid}>
         <ActionTile icon="۞" title="Memorize" subtitle="Learn step by step" onPress={onPractice} />
+        <ActionTile icon="🎙" title="Recitation practice" subtitle="Record yourself and listen back" onPress={() => onNavigate("recitationPractice")} />
         <ActionTile icon="▤" title="Memorization plan" subtitle="Build your hifdh routine" onPress={() => onNavigate("plan")} />
         <ActionTile icon="↻" title="Smart revision" subtitle="Review ayahs when due" onPress={() => onNavigate("revision")} />
         <ActionTile icon="▥" title="My progress" subtitle="See your learning activity" onPress={() => onNavigate("progress")} />
@@ -717,6 +718,85 @@ function PersonalLearningCalendarScreen({ plan, activity, onStartAssignment, onB
 }
 
 
+function RecitationPracticeScreen({ initialReference="", initialSurahName="", onBack }) {
+  const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const recorderState = useAudioRecorderState(recorder,250);
+  const player = useAudioPlayer(null);
+  const playerStatus = useAudioPlayerStatus(player);
+  const [reference,setReference] = useState(initialReference);
+  const [surahName,setSurahName] = useState(initialSurahName);
+  const [recordingUri,setRecordingUri] = useState(null);
+  const [busy,setBusy] = useState(false);
+  const [error,setError] = useState("");
+  const stopping = useRef(false);
+  const MAX_DURATION_MS = 90000;
+  const stopRecording = async () => {
+    if(stopping.current || !recorderState.isRecording)return;
+    stopping.current=true;
+    try {
+      await recorder.stop();
+      const uri=recorder.uri;
+      if(uri)setRecordingUri(uri);
+      await setAudioModeAsync({allowsRecording:false,playsInSilentMode:true});
+      setError(uri?"":"The recording could not be saved by this device. Please try again.");
+    } catch(err) { setError(err?.message||"Could not finish the recording."); }
+    finally { setBusy(false); }
+  };
+  useEffect(()=>{
+    if(recorderState.isRecording && Number(recorderState.durationMillis)>=MAX_DURATION_MS) stopRecording();
+  },[recorderState.isRecording,recorderState.durationMillis]);
+  const startRecording = async () => {
+    if(busy || recorderState.isRecording)return;
+    setBusy(true);setError("");setRecordingUri(null);player.pause();
+    try {
+      const permission=await AudioModule.requestRecordingPermissionsAsync();
+      if(!permission.granted){setError("Microphone access was not granted. You can enable it in your device settings.");setBusy(false);return;}
+      await setAudioModeAsync({allowsRecording:true,playsInSilentMode:true});
+      await recorder.prepareToRecordAsync();
+      stopping.current=false;
+      recorder.record();
+    } catch(err) {
+      setError(err?.message||"Recording could not start on this device.");
+      try { await setAudioModeAsync({allowsRecording:false,playsInSilentMode:true}); } catch {}
+    } finally { setBusy(false); }
+  };
+  const playRecording = () => {
+    if(!recordingUri)return;
+    try { player.replace(recordingUri);player.play(); }
+    catch(err) { setError("This recording is no longer available. Please make a new recording."); }
+  };
+  return <>
+    <Header eyebrow="RECITATION PRACTICE" title="Record and listen back" />
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Your practice reference</Text>
+      <TextInput value={reference} onChangeText={setReference} placeholder="Surah and ayah, e.g. 2:255" placeholderTextColor={MUTED} style={styles.emailInput} maxLength={40}/>
+      <TextInput value={surahName} onChangeText={setSurahName} placeholder="Surah name (optional)" placeholderTextColor={MUTED} style={styles.emailInput} maxLength={60}/>
+      <Text style={styles.progressHint}>Use this label to remember what you practised. Ayah does not verify the words or judge Tajweed in this version.</Text>
+    </View>
+    <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>MICROPHONE PRACTICE</Text>
+      <Text style={styles.sectionTitle}>{recorderState.isRecording?"Recording in progress":"Take your time and recite clearly"}</Text>
+      <Text style={styles.dailyArabic}>{formatAudioTime((recorderState.durationMillis||0)/1000)}</Text>
+      <Text style={styles.progressHint}>Maximum recording length: 90 seconds per attempt</Text>
+      {recorderState.isRecording
+        ? <Button title="■ Stop recording" onPress={stopRecording}/>
+        : <Button title={busy?"Preparing microphone…":"● Start recording"} disabled={busy} onPress={startRecording}/>}
+      {error?<Text style={styles.tinyNote}>{error}</Text>:null}
+    </View>
+    {recordingUri?<View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Your latest practice take</Text>
+      <Text style={styles.progressHint}>This recording is kept locally in the app's temporary recording storage. It is not uploaded or shared. The device may clear temporary files.</Text>
+      <Button title={playerStatus?.playing?"Playing…":"▶ Listen to my recording"} onPress={playRecording} disabled={Boolean(playerStatus?.playing)}/>
+      <Button title="Delete this recording" secondary onPress={()=>{player.pause();setRecordingUri(null);}}/>
+    </View>:null}
+    <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Privacy and accuracy</Text>
+      <Text style={styles.progressHint}>Ayah asks for microphone permission only when you start recording. The audio stays on this device and is not sent to an AI service. This tool is for listening back to your own practice, not an assessment of Qur’an accuracy.</Text>
+    </View>
+    <Button title="Back" secondary onPress={onBack}/>
+  </>;
+}
+
 function ReciterLibraryScreen({ favoriteIds, setFavoriteIds, preferredId, setPreferredId, setPreferredName, onBack }) {
   const player=useAudioPlayer(null),status=useAudioPlayerStatus(player);
   const [reciters,setReciters]=useState([]),[loading,setLoading]=useState(false),[error,setError]=useState("");
@@ -1299,7 +1379,7 @@ function SurahInfoSection({ chapterId, language = "en" }) {
   </View>;
 }
 
-function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], onSaveReadingBookmark, onMarkAyahRead, readTodayIds = [], onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, compareTranslationId, setCompareTranslationId, pinnedCompareKeys, setPinnedCompareKeys, pinnedCompareDetails, setPinnedCompareDetails, onChangeChapter }) {
+function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], onSaveReadingBookmark, onOpenRecorder, onMarkAyahRead, readTodayIds = [], onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, compareTranslationId, setCompareTranslationId, pinnedCompareKeys, setPinnedCompareKeys, pinnedCompareDetails, setPinnedCompareDetails, onChangeChapter }) {
   const wordPlayer = useAudioPlayer(null);
   const audioStatus = useAudioPlayerStatus(wordPlayer);
   const chapterPlayer = useAudioPlayer(null);
@@ -1586,7 +1666,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
         const isActiveAyahAudio=activeAudioKey===key;
         const isPinnedForCompare=pinnedCompareKeys.includes(key);
         return <View key={key} style={[styles.verseCard,(isSyncedVerse||isActiveAyahAudio)&&{borderWidth:2,borderColor:GOLD,backgroundColor:PANEL}]}>
-          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{isSyncedVerse||isActiveAyahAudio?"▶ "+key:key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={()=>onMarkAyahRead?.(key)}><Text style={styles.verseBookmark}>{readTodayIds.includes(key)?"✓ Read today":"Mark read"}</Text></Pressable><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onSaveReadingBookmark?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{readingBookmarks.some(item=>item.id===String(chapter.id)+":"+String(key).split(":")[1]) ? "✓ Saved reading bookmark" : "＋ Save reading bookmark"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
+          <View style={styles.verseMeta}><Text style={styles.verseNumber}>{isSyncedVerse||isActiveAyahAudio?"▶ "+key:key}</Text><View style={{flexDirection:"row",alignItems:"center",gap:12}}><Pressable onPress={()=>onMarkAyahRead?.(key)}><Text style={styles.verseBookmark}>{readTodayIds.includes(key)?"✓ Read today":"Mark read"}</Text></Pressable><Pressable onPress={() => onOpenTafsir?.(chapter.id, Number(String(key).split(":")[1]))}><Text style={styles.verseBookmark}>Read Tafsir · Plus</Text></Pressable><Pressable onPress={()=>onOpenRecorder?.(key,chapter.name_simple)}><Text style={styles.verseBookmark}>Record recitation</Text></Pressable><Pressable onPress={() => onSetReadingPosition?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{lastReadPosition?.chapterId === String(chapter.id) && Number(lastReadPosition.ayah) === Number(String(key).split(":")[1]) ? "✓ Reading position" : "Set reading position"}</Text></Pressable><Pressable onPress={() => onSaveReadingBookmark?.({ chapter, chapterId:String(chapter.id), chapterName:chapter.name_simple, ayah:Number(String(key).split(":")[1]), page, updatedAt:new Date().toISOString() })}><Text style={styles.verseBookmark}>{readingBookmarks.some(item=>item.id===String(chapter.id)+":"+String(key).split(":")[1]) ? "✓ Saved reading bookmark" : "＋ Save reading bookmark"}</Text></Pressable><Pressable onPress={() => onToggleSave(key, { arabic: verse.text_uthmani || "", translation: plainTranslation, reference: chapter.name_simple + " · " + key })}><Text style={styles.verseBookmark}>{savedIds.includes(key) ? "★ Saved" : "☆ Save"}</Text></Pressable></View></View>
           {showArabic && !recallMode && !translationReadingMode ? (arabicFontReady ? <Text style={[styles.verseArabic, { fontSize: arabicSize, lineHeight: Math.round(arabicSize * 2.2), fontFamily: arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs" }]} writingDirection="rtl">{arabicScript === "IndoPak" ? (verse.text_indopak_nastaleeq || "") : (verse.text_qpc_hafs || "")}</Text> : <Text style={styles.tinyNote}>{arabicFontError || "Loading the selected Qur’an font…"}</Text>) : null}
           {(showTranslation || translationReadingMode) ? <Text style={[styles.translation, translationReadingMode?{fontSize:16,lineHeight:29,textAlign:"left"}:null,translationFontFamily ? { fontFamily: translationFontFamily } : null]}>{plainTranslation}</Text> : null}
           {(showTranslation || translationReadingMode) && comparisonTranslation ? <View style={{marginTop:10,paddingTop:9,borderTopWidth:1,borderTopColor:BORDER}}><Text style={styles.readerToolLabel}>{comparisonName}</Text><Text style={[styles.translation,translationFontFamily?{fontFamily:translationFontFamily}:null]}>{comparisonTranslation.replace(/<[^>]*>/g,"")}</Text></View> : null}
@@ -2231,6 +2311,7 @@ export default function App() {
   const [pinnedCompareDetails, setPinnedCompareDetails] = usePersistentState("pinnedCompareDetails", {});
   const [lastReadPosition, setLastReadPosition] = usePersistentState("lastReadPosition", null);
   const [readingBookmarks, setReadingBookmarks] = usePersistentState("readingBookmarks", []);
+  const [recitationTarget,setRecitationTarget] = useState({reference:"",surahName:""});
   const [selectedChapter, setSelectedChapter] = useState(null);
   const [searchInitialAyah, setSearchInitialAyah] = useState(1);
   const [tafsirTarget, setTafsirTarget] = useState({ surah:"1", ayah:"1" });
@@ -2262,9 +2343,10 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication is not connected yet. You can enter the app using preview mode.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen readingBookmarks={readingBookmarks} onSaveReadingBookmark={position=>{const id=String(position.chapterId)+":"+String(position.ayah);const existing=readingBookmarks.find(item=>item.id===id);if(existing){setReadingBookmarks(current=>current.map(item=>item.id===id?{...item,...position}:item));Alert.alert("Bookmark updated","This reading bookmark now points to the selected ayah.");}else if(readingBookmarks.length>=3){Alert.alert("Three bookmarks already saved","Open Reading bookmarks and remove one before saving another.");}else{const title="Reading "+(readingBookmarks.length+1);setReadingBookmarks(current=>[...current,{...position,id,title}]);Alert.alert("Reading bookmark saved",title+" was added to your reading bookmarks.");}}} compareTranslationId={compareTranslationId} setCompareTranslationId={setCompareTranslationId} pinnedCompareKeys={pinnedCompareKeys} setPinnedCompareKeys={setPinnedCompareKeys} pinnedCompareDetails={pinnedCompareDetails} setPinnedCompareDetails={setPinnedCompareDetails} preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} onChangeChapter={setSelectedChapter} chapter={selectedChapter} initialAyah={searchInitialAyah} onMarkAyahRead={key=>recordDailyActivity("readingAyahs",[key])} readTodayIds={dailyActivity?.[localDateKey()]?.readingAyahs||[]} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen onOpenRecorder={(reference,surahName)=>{setRecitationTarget({reference,surahName});setTab("recitationPractice");}} readingBookmarks={readingBookmarks} onSaveReadingBookmark={position=>{const id=String(position.chapterId)+":"+String(position.ayah);const existing=readingBookmarks.find(item=>item.id===id);if(existing){setReadingBookmarks(current=>current.map(item=>item.id===id?{...item,...position}:item));Alert.alert("Bookmark updated","This reading bookmark now points to the selected ayah.");}else if(readingBookmarks.length>=3){Alert.alert("Three bookmarks already saved","Open Reading bookmarks and remove one before saving another.");}else{const title="Reading "+(readingBookmarks.length+1);setReadingBookmarks(current=>[...current,{...position,id,title}]);Alert.alert("Reading bookmark saved",title+" was added to your reading bookmarks.");}}} compareTranslationId={compareTranslationId} setCompareTranslationId={setCompareTranslationId} pinnedCompareKeys={pinnedCompareKeys} setPinnedCompareKeys={setPinnedCompareKeys} pinnedCompareDetails={pinnedCompareDetails} setPinnedCompareDetails={setPinnedCompareDetails} preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} onChangeChapter={setSelectedChapter} chapter={selectedChapter} initialAyah={searchInitialAyah} onMarkAyahRead={key=>recordDailyActivity("readingAyahs",[key])} readTodayIds={dailyActivity?.[localDateKey()]?.readingAyahs||[]} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} recentSearches={recentSearches} onSaveRecentSearch={query=>setRecentSearches(current=>query?mergeRecentSearches(current,query):[])} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
   else if (tab === "quranNavigation") screen = <QuranNavigationScreen language={learningLanguage} onOpenVerse={async result=>{if(result.navigateToLibrary){setTab("library");return;}try{const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;const response=await fetch(base+"/chapters");if(!response.ok)throw new Error("Could not load surah details.");const data=await response.json();const chapter=(data.chapters||[]).find(item=>Number(item.id)===Number(result.chapter_id));if(!chapter)throw new Error("This surah is unavailable in the reader.");setSearchInitialAyah(Number(result.verse_number));setSelectedChapter(chapter);setTab("libraryReader");}catch(error){Alert.alert("Unable to open ayah",error.message||"Please try again.");}}} />;
+  else if (tab === "recitationPractice") screen = <RecitationPracticeScreen initialReference={recitationTarget.reference} initialSurahName={recitationTarget.surahName} onBack={()=>setTab(selectedChapter?"libraryReader":"home")} />;
   else if (tab === "readingBookmarks") screen = <ReadingBookmarksScreen bookmarks={readingBookmarks} onOpen={item=>{setSearchInitialAyah(Number(item.ayah||1));setSelectedChapter(item.chapter);setTab("libraryReader");}} onRename={(id,title)=>setReadingBookmarks(current=>current.map(item=>item.id===id?{...item,title}:item))} onDelete={id=>setReadingBookmarks(current=>current.filter(item=>item.id!==id))} onBack={()=>setTab("home")} />;
   else if (tab === "offline") screen = <OfflineLibraryScreen language={learningLanguage} onBack={() => setTab("home")} />;
   else if (tab === "library") screen = <QuranLibraryScreen onOpenNavigation={()=>setTab("quranNavigation")} onOpenChapter={chapter => { setSelectedChapter(chapter); setTab("libraryReader"); }} />;
