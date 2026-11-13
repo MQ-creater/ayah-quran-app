@@ -187,6 +187,16 @@ test("normalizes and bounds saved vocabulary",()=>{
   assert.equal(normalizeSavedWordItems(Array.from({length:305},(_,i)=>({key:"2:255:"+i,reference:"2:255",arabic:"كلمة"}))).length,300);
 });
 
+test("validates vocabulary review schedules and daily goals in backups",()=>{
+  const saved=[{key:"1:1:1",reference:"1:1",arabic:"بِسْمِ",meaning:"In the name"}];
+  const record={intervalDays:3,easeFactor:2.5,repetitions:2,attempts:2,lastRating:"good",lastReviewedAt:"2026-11-13T12:00:00.000Z",dueAt:"2026-11-16T12:00:00.000Z"};
+  const valid=validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedWordItems:saved,vocabularyReviewRecords:{"1:1:1":record},vocabularyDailyGoal:10}});
+  assert.equal(valid.valid,true);
+  assert.deepEqual(valid.data.vocabularyReviewRecords,{"1:1:1":record});
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedWordItems:saved,vocabularyReviewRecords:{"1:1:2":record}}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{vocabularyDailyGoal:7}}).valid,false);
+});
+
 test("validates saved vocabulary in Ayah backups",()=>{
   const saved=[{key:"1:1:1",reference:"1:1",arabic:"بِسْمِ",meaning:"In the name"}];
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedWordItems:saved}}).valid,true);
