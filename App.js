@@ -785,9 +785,9 @@ function RecitationPracticeScreen({ initialReference="", initialSurahName="", on
     </View>
     {recordingUri?<View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Your latest practice take</Text>
-      <Text style={styles.progressHint}>This recording is kept locally in the app's temporary recording storage. It is not uploaded or shared. The device may clear temporary files.</Text>
+      <Text style={styles.progressHint}>This take stays in temporary app storage and is available only while this practice screen remains open. It is not uploaded or shared, and the device may clear temporary files.</Text>
       <Button title={playerStatus?.playing?"Playing…":"▶ Listen to my recording"} onPress={playRecording} disabled={Boolean(playerStatus?.playing)}/>
-      <Button title="Delete this recording" secondary onPress={()=>{player.pause();setRecordingUri(null);}}/>
+      <Button title="Discard this take" secondary onPress={()=>{player.pause();setRecordingUri(null);}}/>
     </View>:null}
     <View style={styles.infoCard}>
       <Text style={styles.sectionTitle}>Privacy and accuracy</Text>
