@@ -206,3 +206,10 @@ Qur’an text, translations, tafsir, fonts, and audio must be checked against tr
 - Desktop access is intended through the responsive web app on Windows, macOS, and ChromeOS browsers.
 - Smartwatches are a separate companion-app phase for Apple Watch and Wear OS. They are not supported by the current Expo app yet; watch-specific apps, limited glanceable experiences, and secure sync need separate design and implementation.
 - Cross-device cloud sync remains a foundation contract only. Accounts, authenticated sync transport, conflict resolution, encryption, privacy controls, and production deployment are not connected.
+
+### Saved-word Vocabulary Practice
+- Added a dedicated Arabic vocabulary practice screen linked from the home learning section.
+- Flashcards reveal meanings only after the learner chooses to reveal them; a short multiple-choice quiz uses meanings already present in the user's saved Qur'an word records.
+- Reader and vocabulary screen share one persistent local saved-word state; removing a word in the collection updates the reader's saved list.
+- Quiz requires at least three saved words with source-provided meanings. No Arabic words, translations, roots, or grammar are invented for quiz distractors.
+- Practice is a lightweight learning aid, not a formal Arabic assessment. Data remains local until a secure sync service is implemented.
