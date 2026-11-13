@@ -145,6 +145,7 @@ function HomeScreen({ onNavigate, onPractice, lastReadPosition, onContinueReadin
       <Text style={styles.settingLabel}>ARABIC & LEARNING</Text>
       <View style={styles.actionGrid}>
         <ActionTile icon="ا" title="Arabic lessons" subtitle="Everyday words" onPress={() => onNavigate("arabic")} />
+        <ActionTile icon="📚" title="Vocabulary practice" subtitle="Flashcards and quizzes from saved words" onPress={() => onNavigate("vocabulary")} />
         <ActionTile icon="ح" title="Arabic alphabet" subtitle="Recognize your first letters" onPress={() => onNavigate("arabicAlphabet")} />
         <ActionTile icon="✧" title="AI teacher" subtitle="Hamza or Maryam · Plus" locked onPress={() => onNavigate("premium")} />
       </View>
@@ -1384,7 +1385,7 @@ function SurahInfoSection({ chapterId, language = "en" }) {
   </View>;
 }
 
-function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], onSaveReadingBookmark, onOpenRecorder, onMarkAyahRead, readTodayIds = [], onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, compareTranslationId, setCompareTranslationId, pinnedCompareKeys, setPinnedCompareKeys, pinnedCompareDetails, setPinnedCompareDetails, onChangeChapter }) {
+function QuranReaderScreen({ chapter, initialAyah = 1, savedWordItems = [], setSavedWordItems, readingBookmarks = [], onSaveReadingBookmark, onOpenRecorder, onMarkAyahRead, readTodayIds = [], onBack, savedIds, onToggleSave, onOpenTafsir, notes, onSaveNote, lastReadPosition, onSetReadingPosition, preferredReciterId, preferredReciterName, compareTranslationId, setCompareTranslationId, pinnedCompareKeys, setPinnedCompareKeys, pinnedCompareDetails, setPinnedCompareDetails, onChangeChapter }) {
   const wordPlayer = useAudioPlayer(null);
   const audioStatus = useAudioPlayerStatus(wordPlayer);
   const chapterPlayer = useAudioPlayer(null);
@@ -1470,7 +1471,6 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
   const [studyTarget,setStudyTarget] = useState(null);
   const [studyContextVerses,setStudyContextVerses] = useState([]);
   const [selectedWord,setSelectedWord] = useState(null);
-  const [savedWordItems,setSavedWordItems] = usePersistentState("savedWordItems",[]);
   const savedWordList = normalizeSavedWordItems(savedWordItems);
   const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : readerPageForAyah(initialAyah));
   const [jumpAyah, setJumpAyah] = useState("");
@@ -1960,6 +1960,76 @@ const ALPHABET_JOINING_FORMS = {
   "ي":{isolated:"ي",initial:"يـ",medial:"ـيـ",final:"ـي",connectsNext:true}
 };
 
+
+function VocabularyPracticeScreen({ savedWords = [], onRemoveWord, onBack }) {
+  const words = normalizeSavedWordItems(savedWords).filter(item => item.meaning && item.meaning.trim());
+  const [mode,setMode] = useState("cards");
+  const [index,setIndex] = useState(0);
+  const [revealed,setRevealed] = useState(false);
+  const [answer,setAnswer] = useState("");
+  const [score,setScore] = useState(0);
+  const [finished,setFinished] = useState(false);
+  const questionCount = Math.min(5,words.length);
+  const current = words[index % Math.max(1,words.length)];
+  const options = current ? [current, ...Array.from({length:Math.min(3,words.length-1)},(_,i)=>words[(index+i+1)%words.length])].filter((item,i,array)=>array.findIndex(x=>x.key===item.key)===i).slice(0,4) : [];
+  const submit = () => {
+    if (!answer || !current) return;
+    const nextScore = score + (answer === current.key ? 1 : 0);
+    setScore(nextScore);
+    if (index + 1 >= questionCount) setFinished(true);
+    else { setIndex(value=>value+1); setAnswer(""); }
+  };
+  const restart = () => { setIndex(0);setAnswer("");setScore(0);setFinished(false);setRevealed(false); };
+  return <>
+    <Header eyebrow="ARABIC ACADEMY · VOCABULARY" title="Your saved word collection" />
+    <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>PERSONAL VOCABULARY</Text>
+      <View style={styles.goalStatRow}>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{savedWords.length}</Text><Text style={styles.reference}>Saved words</Text></View>
+        <View style={styles.goalStat}><Text style={styles.goalStatValue}>{words.length}</Text><Text style={styles.reference}>Ready to practise</Text></View>
+      </View>
+      <Text style={styles.progressHint}>Words are collected from the Qur’an reader’s word-by-word content. Their meanings and transliterations remain tied to the selected content source.</Text>
+      <View style={{flexDirection:"row",gap:8,marginTop:12}}>
+        <Button title="Flashcards" secondary={mode!=="cards"} onPress={()=>{setMode("cards");restart();}} />
+        <Button title="Quick quiz" secondary={mode!=="quiz"} disabled={words.length<3} onPress={()=>{setMode("quiz");restart();}} />
+      </View>
+    </View>
+    {!words.length ? <View style={styles.infoCard}>
+      <Text style={styles.sectionTitle}>Build your vocabulary first</Text>
+      <Text style={styles.progressHint}>Open the Qur’an reader, turn on word-by-word view, tap a word, then choose Save word. Saved words with meanings will appear here.</Text>
+      <Button title="Back to home" onPress={onBack}/>
+    </View> : mode==="cards" ? <>
+      <View style={styles.lessonCard}>
+        <Text style={styles.cardEyebrow}>FLASHCARD {index+1} OF {words.length}</Text>
+        <Text style={[styles.alphabetHeroLetter,{fontSize:42}]} writingDirection="rtl">{words[index%words.length].arabic}</Text>
+        <Text style={styles.progressHint}>{words[index%words.length].transliteration || "Transliteration not supplied"}</Text>
+        {revealed ? <Text style={styles.sectionTitle}>{words[index%words.length].meaning}</Text> : <Text style={styles.progressHint}>Try to recall the meaning before revealing it.</Text>}
+        <Button title={revealed?"Hide meaning":"Reveal meaning"} onPress={()=>setRevealed(value=>!value)} />
+        <Button title="Next word" secondary onPress={()=>{setIndex(value=>(value+1)%words.length);setRevealed(false);}} />
+      </View>
+      <View style={styles.infoCard}>
+        <Text style={styles.reference}>SOURCE REFERENCE</Text>
+        <Text style={styles.progressHint}>{words[index%words.length].chapterName || "Qur’an"} · {words[index%words.length].reference}</Text>
+        <Button title="Remove this saved word" secondary onPress={()=>onRemoveWord?.(words[index%words.length].key)}/>
+      </View>
+    </> : finished ? <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>VOCABULARY CHECKPOINT</Text>
+      <Text style={styles.sectionTitle}>Practice complete</Text>
+      <Text style={styles.quizScore}>{score} / {questionCount}</Text>
+      <Text style={styles.progressHint}>This is a practice check using your saved words, not a formal Arabic proficiency assessment.</Text>
+      <Button title="Try again" onPress={restart}/>
+      <Button title="Review flashcards" secondary onPress={()=>{setMode("cards");restart();}}/>
+    </View> : <View style={styles.lessonCard}>
+      <Text style={styles.cardEyebrow}>QUESTION {index+1} OF {questionCount}</Text>
+      <Text style={styles.quizPrompt} writingDirection="rtl">{current.arabic}</Text>
+      <Text style={styles.progressHint}>Choose the meaning supplied with this saved word.</Text>
+      {options.map(option=><Pressable key={option.key} accessibilityRole="button" accessibilityState={{selected:answer===option.key}} onPress={()=>setAnswer(option.key)} style={[styles.choice,answer===option.key&&styles.choiceSelected]}><Text style={[styles.choiceText,answer===option.key&&styles.choiceTextSelected]}>{option.meaning}</Text></Pressable>)}
+      <Button title={index+1===questionCount?"Finish quiz":"Next question"} disabled={!answer} onPress={submit}/>
+    </View>}
+    <Button title="Back to home" secondary onPress={onBack}/>
+  </>;
+}
+
 function ArabicAlphabetScreen({ onPremium, progress = {}, onProgress }) {
   const [selected, setSelected] = useState(Math.min(ALPHABET_LESSON.length-1,Math.max(0,Number(progress.highestLetter||0)-1)));
   const [showWord, setShowWord] = useState(false);
@@ -2371,6 +2441,7 @@ export default function App() {
   const [memorizationProgress, setMemorizationProgress] = usePersistentState("memorizationProgress", {});
   const saveReviewRating = (id, rating) => { const days = rating === "difficult" ? 1 : rating === "medium" ? 3 : 7; setReviewRecords(current => ({ ...current, [id]: { rating, lastReviewedAt: new Date().toISOString(), dueAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(), attempts: (current[id]?.attempts || 0) + 1 } })); };
   const [savedIds, setSavedIds] = usePersistentState("savedIds", []);
+  const [savedWordItems,setSavedWordItems] = usePersistentState("savedWordItems",[]);
   const [favoriteReciterIds,setFavoriteReciterIds] = usePersistentState("favoriteReciterIds", []);
   const [preferredReciterId,setPreferredReciterId] = usePersistentState("preferredReciterId", "");
   const [preferredReciterName,setPreferredReciterName] = usePersistentState("preferredReciterName", "");
@@ -2417,7 +2488,7 @@ export default function App() {
   const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication is not connected yet. You can enter the app using preview mode.");
   if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
   let screen;
-  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen onOpenRecorder={(reference,surahName)=>{setRecitationTarget({reference,surahName});setRecitationReturnTab("libraryReader");setTab("recitationPractice");}} readingBookmarks={readingBookmarks} onSaveReadingBookmark={position=>{const id=String(position.chapterId)+":"+String(position.ayah);const existing=readingBookmarks.find(item=>item.id===id);if(existing){setReadingBookmarks(current=>current.map(item=>item.id===id?{...item,...position}:item));Alert.alert("Bookmark updated","This reading bookmark now points to the selected ayah.");}else if(readingBookmarks.length>=3){Alert.alert("Three bookmarks already saved","Open Reading bookmarks and remove one before saving another.");}else{const title="Reading "+(readingBookmarks.length+1);setReadingBookmarks(current=>[...current,{...position,id,title}]);Alert.alert("Reading bookmark saved",title+" was added to your reading bookmarks.");}}} compareTranslationId={compareTranslationId} setCompareTranslationId={setCompareTranslationId} pinnedCompareKeys={pinnedCompareKeys} setPinnedCompareKeys={setPinnedCompareKeys} pinnedCompareDetails={pinnedCompareDetails} setPinnedCompareDetails={setPinnedCompareDetails} preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} onChangeChapter={setSelectedChapter} chapter={selectedChapter} initialAyah={searchInitialAyah} onMarkAyahRead={key=>recordDailyActivity("readingAyahs",[key])} readTodayIds={dailyActivity?.[localDateKey()]?.readingAyahs||[]} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
+  if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen savedWordItems={savedWordItems} setSavedWordItems={setSavedWordItems} onOpenRecorder={(reference,surahName)=>{setRecitationTarget({reference,surahName});setRecitationReturnTab("libraryReader");setTab("recitationPractice");}} readingBookmarks={readingBookmarks} onSaveReadingBookmark={position=>{const id=String(position.chapterId)+":"+String(position.ayah);const existing=readingBookmarks.find(item=>item.id===id);if(existing){setReadingBookmarks(current=>current.map(item=>item.id===id?{...item,...position}:item));Alert.alert("Bookmark updated","This reading bookmark now points to the selected ayah.");}else if(readingBookmarks.length>=3){Alert.alert("Three bookmarks already saved","Open Reading bookmarks and remove one before saving another.");}else{const title="Reading "+(readingBookmarks.length+1);setReadingBookmarks(current=>[...current,{...position,id,title}]);Alert.alert("Reading bookmark saved",title+" was added to your reading bookmarks.");}}} compareTranslationId={compareTranslationId} setCompareTranslationId={setCompareTranslationId} pinnedCompareKeys={pinnedCompareKeys} setPinnedCompareKeys={setPinnedCompareKeys} pinnedCompareDetails={pinnedCompareDetails} setPinnedCompareDetails={setPinnedCompareDetails} preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} onChangeChapter={setSelectedChapter} chapter={selectedChapter} initialAyah={searchInitialAyah} onMarkAyahRead={key=>recordDailyActivity("readingAyahs",[key])} readTodayIds={dailyActivity?.[localDateKey()]?.readingAyahs||[]} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} recentSearches={recentSearches} onSaveRecentSearch={query=>setRecentSearches(current=>query?mergeRecentSearches(current,query):[])} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
   else if (tab === "quranNavigation") screen = <QuranNavigationScreen language={learningLanguage} onOpenVerse={async result=>{if(result.navigateToLibrary){setTab("library");return;}try{const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;const response=await fetch(base+"/chapters");if(!response.ok)throw new Error("Could not load surah details.");const data=await response.json();const chapter=(data.chapters||[]).find(item=>Number(item.id)===Number(result.chapter_id));if(!chapter)throw new Error("This surah is unavailable in the reader.");setSearchInitialAyah(Number(result.verse_number));setSelectedChapter(chapter);setTab("libraryReader");}catch(error){Alert.alert("Unable to open ayah",error.message||"Please try again.");}}} />;
   else if (tab === "recitationPractice") screen = <RecitationPracticeScreen initialReference={recitationTarget.reference} initialSurahName={recitationTarget.surahName} onBack={()=>setTab(recitationReturnTab)} />;
@@ -2432,6 +2503,7 @@ export default function App() {
   else if (tab === "notebook") screen = <StudyNotebookScreen notes={readerNotes} savedIds={savedIds} savedVerseDetails={savedVerseDetails} collections={ayahCollections} onAssignCollection={(key,name) => setAyahCollections(current => ({ ...current, [key]:toggleCollectionMembership(current[key],name) }))} onBack={() => setTab("home")} />;
   else if (tab === "saved") screen = <SavedAyahsScreen savedIds={savedIds} savedVerseDetails={savedVerseDetails} onToggleSave={id => { setSavedIds(ids => ids.filter(x => x !== id)); setSavedVerseDetails(current => { const next = { ...current }; delete next[id]; return next; }); }} onLearn={() => setTab("memorize")} />;
   else if (tab === "arabic") screen = <ArabicLessonsScreen progress={arabicLessonProgress} onProgress={setArabicLessonProgress} onPremium={() => setTab("premium")} />;
+  else if (tab === "vocabulary") screen = <VocabularyPracticeScreen savedWords={savedWordItems} onRemoveWord={key=>setSavedWordItems(current=>normalizeSavedWordItems(current).filter(item=>item.key!==key))} onBack={()=>setTab("home")} />;
   else if (tab === "arabicAlphabet") screen = <ArabicAlphabetScreen progress={arabicAlphabetProgress} onProgress={setArabicAlphabetProgress} onPremium={() => setTab("premium")} />;
   else if (tab === "teacher") screen = <TeacherPreviewScreen onBack={() => setTab("premium")} onPremium={() => setTab("premium")} />;
   else if (tab === "tafsir") screen = <TafsirLibraryScreen initialTarget={tafsirTarget} onBack={() => setTab(tafsirReturnTab)} />;
