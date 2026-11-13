@@ -126,6 +126,15 @@ checks.push(
   ["unit test command includes all test files", packageJson.includes('node --test scripts/test-*.mjs')]
 );
 
+const cloudSyncSource = await readFile(new URL("../src/services/cloud-sync.js", import.meta.url), "utf8");
+const cloudSyncTests = await readFile(new URL("../scripts/test-cloud-sync.mjs", import.meta.url), "utf8");
+checks.push(
+  ["cloud sync payload has a versioned schema and explicit allowlist", cloudSyncSource.includes("CLOUD_SYNC_SCHEMA_VERSION = 1") && cloudSyncSource.includes("SYNCABLE_KEYS")],
+  ["cloud sync excludes credentials and personal contact fields", !cloudSyncSource.includes('"accessToken"') && !cloudSyncSource.includes('"email"') && cloudSyncTests.includes('includes("accessToken"), false')],
+  ["cloud sync restore checks account ownership", cloudSyncSource.includes("USER_MISMATCH") && cloudSyncSource.includes("expectedUserId")],
+  ["cloud sync contract has dedicated unit tests", cloudSyncTests.includes("cloud sync validates schema and prevents cross-account restore"))
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
