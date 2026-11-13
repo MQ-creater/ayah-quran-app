@@ -145,6 +145,11 @@ checks.push(
   ["offline storage tests cover validation and lifecycle", offlineTests.includes("offline storage saves, lists, reads, replaces, and removes selected surahs") && offlineTests.includes("offline storage clears only its own indexed surah packages"))
 );
 
+const offlineStorageAdapter = await readFile(new URL("../src/services/offline-library-storage.js", import.meta.url), "utf8");
+checks.push(
+  ["offline library is connected to device AsyncStorage through an adapter", offlineStorageAdapter.includes('from "@react-native-async-storage/async-storage"') && offlineStorageAdapter.includes("createOfflineStorage") && offlineStorageAdapter.includes("AsyncStorage.setItem")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
