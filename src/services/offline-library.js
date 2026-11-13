@@ -29,13 +29,15 @@ function normalizeVerse(verse, chapterId) {
   if (!match || match[1] !== chapterId) {
     throw new OfflineLibraryError("An ayah reference does not match the selected surah.", "VERSE_MISMATCH");
   }
-  const arabic = String(verse.text_uthmani || verse.text_qpc_hafs || verse.text_indopak_nastaleeq || "").trim();
-  if (!arabic) {
+  const arabicEdition = verse.text_uthmani ? "uthmani" : verse.text_qpc_hafs ? "qpc-hafs" : verse.text_indopak_nastaleeq ? "indopak" : null;
+  const arabicText = String(verse.text_uthmani || verse.text_qpc_hafs || verse.text_indopak_nastaleeq || "").trim();
+  if (!arabicText) {
     throw new OfflineLibraryError("An ayah is missing verified Arabic text.", "MISSING_ARABIC");
   }
   return {
     verse_key: key,
-    text_uthmani: String(verse.text_uthmani || verse.text_qpc_hafs || verse.text_indopak_nastaleeq),
+    arabicText,
+    arabicEdition,
     translation: verse.translations?.[0]?.text ? String(verse.translations[0].text) : "",
     translationId: verse.translations?.[0]?.resource_id == null ? null : String(verse.translations[0].resource_id)
   };
