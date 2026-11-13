@@ -29,7 +29,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Ayah Plus Tafsir catalogue and commentary UI, subject to provider access approval and content licensing
 - AI Teacher and Ayah Plus previews; live AI, user accounts, subscriptions, and billing are not connected
 
-## Current product-quality improvements
+- Advanced Word Explorer: tap a word to see its provider-supplied Arabic form, transliteration, translation, and any available root/lemma/part-of-speech fields; play available word audio and save up to 300 words locally. Saved-word backup data is validated.\n\n## Current product-quality improvements
 
 - Local preference loading now resets malformed saved JSON safely instead of parsing it twice or leaving an unreadable value in place.
 - Verse keys stay tied to their original ayah numbers when the reader's notes-only filter is active.
