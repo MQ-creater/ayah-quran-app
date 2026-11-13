@@ -6,8 +6,29 @@ const BACKUP_PREFERENCE_KEYS = [
   "learningLanguage","dailyGoal","dailyActivity","remindersEnabled","readerArabicSize",
   "readerShowArabic","readerShowTranslation","readerShowWordByWord","readerArabicScript",
   "readerTranslationFont","readerTranslationLanguage","readerTranslationId","readerTranslationReadingMode","pinnedCompareKeys","pinnedCompareDetails","recitationRepeatCount","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
-  "arabicLessonProgress","arabicAlphabetProgress","recentSearches","compareTranslationId","khatmahPlan","audioPlaybackRate"
+  "arabicLessonProgress","arabicAlphabetProgress","recentSearches","savedWordItems","compareTranslationId","khatmahPlan","audioPlaybackRate"
 ];
+function normalizeSavedWordItems(value) {
+  if (!Array.isArray(value)) return [];
+  const seen = new Set();
+  const result = [];
+  for (const item of value) {
+    if (!item || typeof item !== "object" || Array.isArray(item)) continue;
+    const key = typeof item.key === "string" ? item.key.slice(0, 32) : "";
+    const reference = normalizeVerseKey(item.reference);
+    const arabic = typeof item.arabic === "string" ? item.arabic.trim().slice(0, 100) : "";
+    if (!key || !reference || !arabic || seen.has(key)) continue;
+    seen.add(key);
+    const clean = { key, reference, arabic };
+    for (const field of ["chapterName","meaning","transliteration","root","lemma","partOfSpeech"]) {
+      if (typeof item[field] === "string" && item[field].trim()) clean[field] = item[field].trim().slice(0, 240);
+    }
+    if (Number.isInteger(Number(item.position)) && Number(item.position) > 0 && Number(item.position) <= 100) clean.position = Number(item.position);
+    result.push(clean);
+    if (result.length >= 300) break;
+  }
+  return result;
+}
 function normalizeVerseKey(value) {
   const match = /^(\d{1,3}):(\d{1,3})$/.exec(String(value || "").trim());
   if (!match) return null;
@@ -42,9 +63,9 @@ function validateAyahBackup(value) {
   for (const key of objectKeys) if (data[key] !== undefined && (!data[key] || typeof data[key] !== "object" || Array.isArray(data[key]))) return { valid:false, error:"The " + key + " section in this backup is invalid." };
   if (data.lastReadPosition !== undefined && data.lastReadPosition !== null && (typeof data.lastReadPosition !== "object" || Array.isArray(data.lastReadPosition))) return { valid:false, error:"The saved reading position is invalid." };
   if (data.readingBookmarks !== undefined && (data.readingBookmarks.length > 3 || data.readingBookmarks.some(item => !item || typeof item !== "object" || Array.isArray(item) || typeof item.id !== "string" || typeof item.title !== "string" || item.title.length > 30 || !Number.isInteger(Number(item.chapterId)) || Number(item.chapterId) < 1 || Number(item.chapterId) > 114 || !normalizeVerseKey(String(item.chapterId)+":"+String(item.ayah)) || !item.chapter || typeof item.chapter !== "object" || Array.isArray(item.chapter) || Number(item.chapter.id) !== Number(item.chapterId) || item.id !== String(item.chapterId)+":"+String(item.ayah)))) return { valid:false, error:"The reading bookmarks are invalid." };
-  const arrayKeys = ["savedIds","favoriteReciterIds","practiceHistory","recentSearches","readingBookmarks"];
+  const arrayKeys = ["savedIds","favoriteReciterIds","practiceHistory","recentSearches","readingBookmarks","savedWordItems"];
   for (const key of arrayKeys) if (data[key] !== undefined && !Array.isArray(data[key])) return { valid:false, error:"The " + key + " list in this backup is invalid." };
-  if (data.pinnedCompareKeys !== undefined && (!Array.isArray(data.pinnedCompareKeys) || data.pinnedCompareKeys.length > 2 || data.pinnedCompareKeys.some(value => !normalizeVerseKey(value)))) return { valid:false, error:"The pinned verse comparison list is invalid." };
+  if (data.savedWordItems !== undefined && (data.savedWordItems.length > 300 || normalizeSavedWordItems(data.savedWordItems).length !== data.savedWordItems.length)) return { valid:false, error:"The saved word collection is invalid." };\n  if (data.pinnedCompareKeys !== undefined && (!Array.isArray(data.pinnedCompareKeys) || data.pinnedCompareKeys.length > 2 || data.pinnedCompareKeys.some(value => !normalizeVerseKey(value)))) return { valid:false, error:"The pinned verse comparison list is invalid." };
   if (data.pinnedCompareDetails !== undefined && (!data.pinnedCompareDetails || typeof data.pinnedCompareDetails !== "object" || Array.isArray(data.pinnedCompareDetails) || !Array.isArray(data.pinnedCompareKeys) || Object.keys(data.pinnedCompareDetails).length > 2 || Object.entries(data.pinnedCompareDetails).some(([key,value]) => !normalizeVerseKey(key) || !data.pinnedCompareKeys.includes(normalizeVerseKey(key)) || !value || typeof value !== "object" || (value.arabic !== undefined && typeof value.arabic !== "string") || (value.translation !== undefined && typeof value.translation !== "string") || (value.comparisonTranslation !== undefined && typeof value.comparisonTranslation !== "string") || (value.comparisonName !== undefined && typeof value.comparisonName !== "string") || (value.reference !== undefined && typeof value.reference !== "string")))) return { valid:false, error:"The pinned verse comparison details are invalid." };
   if (data.savedIds !== undefined && (data.savedIds.length > 5000 || data.savedIds.some(item => typeof item !== "string" || item.length > 64))) return { valid:false, error:"The bookmark list in this backup is invalid." };
   if (data.favoriteReciterIds !== undefined && (data.favoriteReciterIds.length > 500 || data.favoriteReciterIds.some(item => !["string","number"].includes(typeof item)))) return { valid:false, error:"The favorite reciter list in this backup is invalid." };
@@ -187,4 +208,4 @@ function summarizeKhatmahProgress(activity, plan, today = new Date()) {
   };
 }
 
-module.exports = { SURAH_AYAH_COUNTS, QURAN_TOTAL_AYAHS, getActiveAudioTiming, createKhatmahPlan, summarizeKhatmahProgress, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup };
+module.exports = { SURAH_AYAH_COUNTS, QURAN_TOTAL_AYAHS, getActiveAudioTiming, createKhatmahPlan, summarizeKhatmahProgress, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeSavedWordItems };
