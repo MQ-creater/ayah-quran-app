@@ -17,18 +17,25 @@ test("offline surah accepts a complete ordered or unordered set of ayahs", () =>
 
 test("offline surah refuses incomplete, duplicate, or mismatched ayahs", () => {
   assert.throws(() => offline.createOfflineSurah({ chapter, verses: verses.slice(0, 1) }), error => error.code === "INCOMPLETE_SURAH");
-  assert.throws(() => offline.createOfflineSurah({ chapter, verses: [verses[0], verses[0]] }), error => error.code === "DUPLICATE_VERSE");
-  assert.throws(() => offline.createOfflineSurah({ chapter, verses: [verses[0], { ...verses[1], verse_key: "2:2" }] }), error => error.code === "VERSE_MISMATCH");
+  assert.throws(() => offline.createOfflineSurah({ chapter, verses: [verses[0], verses[0]], translationId: 131 }), error => error.code === "DUPLICATE_VERSE");
+  assert.throws(() => offline.createOfflineSurah({ chapter, verses: [verses[0], { ...verses[1], verse_key: "2:2" }], translationId: 131 }), error => error.code === "VERSE_MISMATCH");
 });
 
 test("offline surah requires Arabic text and a valid chapter number", () => {
   assert.throws(() => offline.createOfflineSurah({ chapter: { ...chapter, id: 115 }, verses }), error => error.code === "INVALID_SURAH");
   assert.throws(() => offline.createOfflineSurah({ chapter: { ...chapter, id: 119 }, verses }), error => error.code === "INVALID_SURAH");
-  assert.throws(() => offline.createOfflineSurah({ chapter, verses: verses.map(v => ({ ...v, text_uthmani: "" })) }), error => error.code === "MISSING_ARABIC");
+  assert.throws(() => offline.createOfflineSurah({ chapter, verses: verses.map(v => ({ ...v, text_uthmani: "" })), translationId: 131 }), error => error.code === "MISSING_ARABIC");
+});
+
+
+test("offline surah requires every selected translation and rejects a different translation ID", () => {
+  assert.throws(() => offline.createOfflineSurah({ chapter, verses, translationId: "not-a-number" }), error => error.code === "INVALID_TRANSLATION");
+  assert.throws(() => offline.createOfflineSurah({ chapter, verses: verses.map(v => ({ ...v, translations: [] })), translationId: 131 }), error => error.code === "MISSING_TRANSLATION");
+  assert.throws(() => offline.createOfflineSurah({ chapter, verses: verses.map(v => ({ ...v, translations: [{ resource_id: 999, text: "Other translation" }] })), translationId: 131 }), error => error.code === "TRANSLATION_MISMATCH");
 });
 
 test("offline download validation binds a saved package to its surah", () => {
-  const saved = offline.createOfflineSurah({ chapter, verses });
+  const saved = offline.createOfflineSurah({ chapter, verses, translationId: 131 });
   assert.equal(offline.validateOfflineSurah(saved, 1).verses.length, 2);
   assert.throws(() => offline.validateOfflineSurah(saved, 2), error => error.code === "SURAH_MISMATCH");
   assert.throws(() => offline.validateOfflineSurah({ schemaVersion: 99 }, 1), error => error.code === "INVALID_DOWNLOAD");
