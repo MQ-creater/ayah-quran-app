@@ -30,22 +30,20 @@ function normalizeVerse(verse, chapterId) {
   if (!match || match[1] !== chapterId) {
     throw new OfflineLibraryError("An ayah reference does not match the selected surah.", "VERSE_MISMATCH");
   }
-  const arabicEdition = verse.text_uthmani ? "uthmani" : verse.text_qpc_hafs ? "qpc-hafs" : verse.text_indopak_nastaleeq ? "indopak" : null;
-  const arabicText = String(verse.text_uthmani || verse.text_qpc_hafs || verse.text_indopak_nastaleeq || "").trim();
+  const arabicEdition = verse.arabicEdition || (verse.text_uthmani ? "uthmani" : verse.text_qpc_hafs ? "qpc-hafs" : verse.text_indopak_nastaleeq ? "indopak" : null);
+  const arabicText = String(verse.arabicText || verse.text_uthmani || verse.text_qpc_hafs || verse.text_indopak_nastaleeq || "").trim();
   if (!arabicText) {
     throw new OfflineLibraryError("An ayah is missing verified Arabic text.", "MISSING_ARABIC");
   }
-  return {
-    verse_key: key,
-    arabicText,
-    arabicEdition,
-    translation: verse.translations?.[0]?.text ? String(verse.translations[0].text) : "",
-    translationId: verse.translations?.[0]?.resource_id == null ? null : String(verse.translations[0].resource_id)
-  };
+  const translation = String(verse.translation || verse.translations?.[0]?.text || "").replace(/<[^>]*>/g, " ").trim();
+  if (!translation) throw new OfflineLibraryError("An ayah is missing the selected translation.", "MISSING_TRANSLATION");
+  const translationId = verse.translationId != null ? String(verse.translationId) : verse.translations?.[0]?.resource_id == null ? null : String(verse.translations[0].resource_id);
+  return { verse_key:key, arabicText, arabicEdition, translation, translationId };
 }
 
 function createOfflineSurah({ chapter, verses, translationId, savedAt } = {}) {
   const chapterId = safeId(chapter?.id);
+  if (translationId == null || !/^\d+$/.test(String(translationId))) throw new OfflineLibraryError("Choose a valid translation before saving this surah.", "INVALID_TRANSLATION");
   const expectedCount = Number(chapter?.verses_count);
   if (!Number.isInteger(expectedCount) || expectedCount < 1 || expectedCount > 300) {
     throw new OfflineLibraryError("The surah verse count is invalid.", "INVALID_COUNT");
@@ -54,6 +52,7 @@ function createOfflineSurah({ chapter, verses, translationId, savedAt } = {}) {
     throw new OfflineLibraryError("The surah is incomplete and cannot be saved offline.", "INCOMPLETE_SURAH");
   }
   const normalized = verses.map(verse => normalizeVerse(verse, chapterId));
+  if (normalized.some(verse => verse.translationId != null && verse.translationId !== String(translationId))) throw new OfflineLibraryError("The returned translation does not match the selected translation.", "TRANSLATION_MISMATCH");
   const seen = new Set(normalized.map(verse => verse.verse_key));
   if (seen.size !== expectedCount) {
     throw new OfflineLibraryError("The surah contains duplicate ayah references.", "DUPLICATE_VERSE");
