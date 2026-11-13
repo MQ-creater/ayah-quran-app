@@ -8,7 +8,8 @@
     "android": "expo start --android",
     "web": "expo start --web",
     "check": "node scripts/check-project.mjs && npm run test:unit",
-    "test:unit": "node --test scripts/test-*.mjs"
+    "test:unit": "node --test scripts/test-*.mjs",
+    "export:web": "expo export --platform web"
   },
   "dependencies": {
     "expo": "~54.0.0",
