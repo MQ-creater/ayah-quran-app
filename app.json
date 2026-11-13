@@ -3,7 +3,7 @@
     "name": "Ayah",
     "slug": "ayah-quran-app",
     "version": "1.0.0",
-    "orientation": "portrait",
+    "orientation": "default",
     "userInterfaceStyle": "automatic",
     "plugins": [
       [
@@ -17,6 +17,14 @@
     ],
     "android": {
       "package": "com.mqcreater.ayah"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mqcreater.ayah"
+    },
+    "web": {
+      "bundler": "metro",
+      "output": "static"
     }
   }
 }
