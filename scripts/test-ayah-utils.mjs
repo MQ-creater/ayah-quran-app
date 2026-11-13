@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import ayahUtils from "../src/lib/ayah-utils.js";
-const { getActiveAudioTiming, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeAudioUrl, SURAH_AYAH_COUNTS, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, QURAN_TOTAL_AYAHS } = ayahUtils;
+const { getActiveAudioTiming, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeAudioUrl, SURAH_AYAH_COUNTS, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, QURAN_TOTAL_AYAHS, normalizeSavedWordItems } = ayahUtils;
 
 test("normalizes valid verse references and rejects invalid ones",()=>{
   assert.equal(normalizeVerseKey("002:255"),"2:255");
@@ -169,4 +169,27 @@ test("validates up to three named reading bookmarks in backups",()=>{
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:[{...valid[0],title:"x".repeat(31)}]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:[{...valid[0],chapter:{id:3}}]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{readingBookmarks:"not-an-array"}}).valid,false);
+});
+
+test("normalizes and bounds saved vocabulary",()=>{
+  const words=[
+    {key:"2:255:1",reference:"2:255",arabic:"اللَّهُ",meaning:"Allah",transliteration:"Allahu",root:"أ ل ه",partOfSpeech:"noun"},
+    {key:"bad",reference:"999:1",arabic:"invalid"},
+    {key:"2:255:1",reference:"2:255",arabic:"duplicate"},
+    {key:"1:1:2",reference:"1:1",arabic:"الرَّحْمَٰنُ",meaning:"The Most Merciful"}
+  ];
+  const normalized=normalizeSavedWordItems(words);
+  assert.equal(normalized.length,2);
+  assert.equal(normalized[0].reference,"2:255");
+  assert.equal(normalized[0].root,"أ ل ه");
+  assert.equal("audioUrl" in normalized[0],false);
+  assert.equal(normalizeSavedWordItems("not-an-array").length,0);
+  assert.equal(normalizeSavedWordItems(Array.from({length:305},(_,i)=>({key:"2:255:"+i,reference:"2:255",arabic:"كلمة"}))).length,300);
+});
+
+test("validates saved vocabulary in Ayah backups",()=>{
+  const saved=[{key:"1:1:1",reference:"1:1",arabic:"بِسْمِ",meaning:"In the name"}];
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedWordItems:saved}}).valid,true);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedWordItems:[{key:"bad",reference:"999:1",arabic:"x"}]}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedWordItems:Array(301).fill(saved[0])}}).valid,false);
 });
