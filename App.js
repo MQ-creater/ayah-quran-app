@@ -1989,7 +1989,9 @@ function VocabularyPracticeScreen({ savedWords = [], reviewRecords = {}, onRevie
     if(!current)return;
     onReviewRecordsChange?.(previous=>scheduleVocabularyReview(previous,current.key,rating,new Date()));
     setSessionReviewed(value=>value+1);
-    setIndex(value=>value+1);
+    // The rated card leaves the due queue immediately, so keep the same index
+    // to show the next item that shifts into its place.
+    setIndex(value=>Math.min(value,Math.max(0,dueWords.length-2)));
     setRevealed(false);
   };
   const nextDue = Object.values(reviewRecords||{}).map(record=>new Date(record.dueAt)).filter(date=>Number.isFinite(date.getTime())&&date.getTime()>Date.now()).sort((a,b)=>a-b)[0];
