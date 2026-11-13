@@ -2,7 +2,7 @@ const BACKUP_SCHEMA_VERSION = 1;
 const BACKUP_PREFERENCE_KEYS = [
   "practiceCount","practiceHistory","dailyTargets","memorizationPlan","reviewRecords",
   "memorizationProgress","savedIds","favoriteReciterIds","preferredReciterId","preferredReciterName",
-  "savedVerseDetails","readerNotes","ayahCollections","lastReadPosition","themeName",
+  "savedVerseDetails","readerNotes","ayahCollections","lastReadPosition","readingBookmarks","themeName",
   "learningLanguage","dailyGoal","dailyActivity","remindersEnabled","readerArabicSize",
   "readerShowArabic","readerShowTranslation","readerShowWordByWord","readerArabicScript",
   "readerTranslationFont","readerTranslationLanguage","readerTranslationId","readerTranslationReadingMode","pinnedCompareKeys","pinnedCompareDetails","recitationRepeatCount","repeatCount","lastAudioPosition","autoAdvance","surahRepeatCount",
@@ -41,7 +41,8 @@ function validateAyahBackup(value) {
   const objectKeys = ["dailyTargets","memorizationPlan","reviewRecords","memorizationProgress","savedVerseDetails","readerNotes","ayahCollections","dailyActivity","arabicLessonProgress","arabicAlphabetProgress"];
   for (const key of objectKeys) if (data[key] !== undefined && (!data[key] || typeof data[key] !== "object" || Array.isArray(data[key]))) return { valid:false, error:"The " + key + " section in this backup is invalid." };
   if (data.lastReadPosition !== undefined && data.lastReadPosition !== null && (typeof data.lastReadPosition !== "object" || Array.isArray(data.lastReadPosition))) return { valid:false, error:"The saved reading position is invalid." };
-  const arrayKeys = ["savedIds","favoriteReciterIds","practiceHistory","recentSearches"];
+  if (data.readingBookmarks !== undefined && (data.readingBookmarks.length > 3 || data.readingBookmarks.some(item => !item || typeof item !== "object" || Array.isArray(item) || typeof item.id !== "string" || typeof item.title !== "string" || item.title.length > 30 || !Number.isInteger(Number(item.chapterId)) || Number(item.chapterId) < 1 || Number(item.chapterId) > 114 || !normalizeVerseKey(String(item.chapterId)+":"+String(item.ayah)) || item.id !== String(item.chapterId)+":"+String(item.ayah)))) return { valid:false, error:"The reading bookmarks are invalid." };
+  const arrayKeys = ["savedIds","favoriteReciterIds","practiceHistory","recentSearches","readingBookmarks"];
   for (const key of arrayKeys) if (data[key] !== undefined && !Array.isArray(data[key])) return { valid:false, error:"The " + key + " list in this backup is invalid." };
   if (data.pinnedCompareKeys !== undefined && (!Array.isArray(data.pinnedCompareKeys) || data.pinnedCompareKeys.length > 2 || data.pinnedCompareKeys.some(value => !normalizeVerseKey(value)))) return { valid:false, error:"The pinned verse comparison list is invalid." };
   if (data.pinnedCompareDetails !== undefined && (!data.pinnedCompareDetails || typeof data.pinnedCompareDetails !== "object" || Array.isArray(data.pinnedCompareDetails) || !Array.isArray(data.pinnedCompareKeys) || Object.keys(data.pinnedCompareDetails).length > 2 || Object.entries(data.pinnedCompareDetails).some(([key,value]) => !normalizeVerseKey(key) || !data.pinnedCompareKeys.includes(normalizeVerseKey(key)) || !value || typeof value !== "object" || (value.arabic !== undefined && typeof value.arabic !== "string") || (value.translation !== undefined && typeof value.translation !== "string") || (value.comparisonTranslation !== undefined && typeof value.comparisonTranslation !== "string") || (value.comparisonName !== undefined && typeof value.comparisonName !== "string") || (value.reference !== undefined && typeof value.reference !== "string")))) return { valid:false, error:"The pinned verse comparison details are invalid." };
