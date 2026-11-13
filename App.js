@@ -1469,6 +1469,8 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
   const [verses, setVerses] = useState([]);
   const [studyTarget,setStudyTarget] = useState(null);
   const [studyContextVerses,setStudyContextVerses] = useState([]);
+  const [selectedWord,setSelectedWord] = useState(null);
+  const [savedWordItems,setSavedWordItems] = usePersistentState("savedWordItems",[]);
   const [page, setPage] = useState(() => lastReadPosition?.chapterId === String(chapter?.id) ? Number(lastReadPosition.page || 1) : readerPageForAyah(initialAyah));
   const [jumpAyah, setJumpAyah] = useState("");
   const [noteEditorKey, setNoteEditorKey] = useState(null);
@@ -1737,16 +1739,50 @@ function QuranReaderScreen({ chapter, initialAyah = 1, readingBookmarks = [], on
             <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "flex-end", gap: 9 }}>
               {(verse.words || []).filter(word => word.char_type_name === "word").map(word => {
                 const wordArabic = arabicScript === "IndoPak" ? (word.text_indopak_nastaleeq || word.text_uthmani || "") : (word.text_qpc_hafs || word.text_uthmani || "");
-                const wordMeaning = (word.translation?.text || "").replace(/<[^>]*>/g, "");
+                const wordMeaning = (word.translation?.text || "").replace(/<[^>]*>/g, "").trim();
                 const wordPronunciation = word.transliteration?.text || "";
-                return <View key={word.id || word.position} style={[{ minWidth: 88, maxWidth: 150, backgroundColor: PANEL, borderColor: BORDER, borderWidth: 1, borderRadius: 12, padding: 9, alignItems: "center" }, isSyncedVerse && Number(word.position) === activeSyncedWordIndex ? { borderColor: GOLD, borderWidth: 2, backgroundColor: PANEL } : null]} accessibilityLabel={isSyncedVerse && Number(word.position) === activeSyncedWordIndex ? "Currently recited word" : undefined}>
+                const position = Number(word.position || 0);
+                const wordKey = key + ":" + position;
+                const fieldText = value => typeof value === "string" ? value : (value?.text || value?.name || "");
+                const isSelected = selectedWord?.key === wordKey;
+                return <Pressable key={word.id || word.position} accessibilityRole="button" accessibilityLabel={"Study word " + (wordPronunciation || wordArabic)} accessibilityState={{selected:isSelected}} onPress={() => setSelectedWord({ key:wordKey, reference:key, chapterName:chapter.name_simple || chapter.name_arabic || ("Surah " + chapter.id), arabic:wordArabic, meaning:wordMeaning, transliteration:wordPronunciation, root:fieldText(word.root), lemma:fieldText(word.lemma), partOfSpeech:fieldText(word.pos || word.part_of_speech), position, audioUrl:word.audio_url || "" })} style={[{ minWidth: 88, maxWidth: 150, backgroundColor: PANEL, borderColor: isSelected ? GOLD : BORDER, borderWidth: isSelected ? 2 : 1, borderRadius: 12, padding: 9, alignItems: "center" }, isSyncedVerse && Number(word.position) === activeSyncedWordIndex ? { borderColor: GOLD, backgroundColor: PANEL } : null]}>
                   <Text style={{ color: TEXT, fontSize: 22, textAlign: "center", writingDirection: "rtl", fontFamily: arabicFontReady ? (arabicScript === "IndoPak" ? "AyahIndoPak" : "AyahUthmanicHafs") : undefined }}>{wordArabic}</Text>
-                  <Text style={{ color: GOLD, fontSize: 12, textAlign: "center", marginTop: 5 }}>{wordPronunciation || "Pronunciation unavailable"}</Text>
+                  <Text style={{ color: GOLD, fontSize: 12, textAlign: "center", marginTop: 5 }}>{wordPronunciation || "Tap to explore"}</Text>
                   <Text style={{ color: TEXT, fontSize: 13, textAlign: "center", marginTop: 4 }}>{wordMeaning || "Meaning unavailable"}</Text>
-                  {word.audio_url ? <Pressable accessibilityRole="button" accessibilityLabel={"Play pronunciation for " + (wordPronunciation || "this word")} onPress={() => { const url=normalizeAudioUrl(word.audio_url); if(!url)return; chapterPlayer.pause(); setActiveSyncedVerseKey(""); setActiveAudioKey(null); setAudioQueueKeys([]); setAudioQueueIndex(0); setRepeatsRemaining(0); wordPlayer.replace(url); wordPlayer.play(); }} style={[styles.readerToggle, { marginTop: 8, paddingVertical: 6 }]}><Text style={styles.readerToggleText}>▶ Hear word</Text></Pressable> : null}
-                </View>;
+                </Pressable>;
               })}
             </View>
+            {selectedWord?.reference === key ? <View style={{ backgroundColor:PANEL, borderColor:BORDER, borderWidth:1, borderRadius:16, padding:15, marginTop:14 }}>
+              <View style={{ flexDirection:"row", alignItems:"center", justifyContent:"space-between", gap:10 }}>
+                <Text style={styles.readerToolLabel}>WORD EXPLORER</Text>
+                <Pressable accessibilityRole="button" onPress={()=>setSelectedWord(null)}><Text style={{ color:MUTED, fontSize:12, fontWeight:"700" }}>Close</Text></Pressable>
+              </View>
+              <Text style={{ color:TEXT, fontSize:30, lineHeight:52, textAlign:"center", writingDirection:"rtl", marginTop:7 }}>{selectedWord.arabic}</Text>
+              <Text style={{ color:GOLD, fontSize:15, textAlign:"center", marginTop:2 }}>{selectedWord.transliteration || "Transliteration unavailable"}</Text>
+              <Text style={{ color:TEXT, fontSize:16, textAlign:"center", marginTop:9, lineHeight:24 }}>{selectedWord.meaning || "Word meaning unavailable from the selected content response."}</Text>
+              {(selectedWord.root || selectedWord.lemma || selectedWord.partOfSpeech) ? <View style={{ flexDirection:"row", flexWrap:"wrap", gap:7, marginTop:12 }}>
+                {selectedWord.root ? <View style={{ backgroundColor:styles.readerToggle.backgroundColor || "#24354C", borderRadius:9, padding:8 }}><Text style={{ color:TEXT, fontSize:12 }}>Root: {selectedWord.root}</Text></View> : null}
+                {selectedWord.lemma ? <View style={{ backgroundColor:"#24354C", borderRadius:9, padding:8 }}><Text style={{ color:TEXT, fontSize:12 }}>Lemma: {selectedWord.lemma}</Text></View> : null}
+                {selectedWord.partOfSpeech ? <View style={{ backgroundColor:"#24354C", borderRadius:9, padding:8 }}><Text style={{ color:TEXT, fontSize:12 }}>Type: {selectedWord.partOfSpeech}</Text></View> : null}
+              </View> : <Text style={styles.tinyNote}>Root, lemma, and grammar details are shown only when the content provider supplies them.</Text>}
+              <View style={{ flexDirection:"row", gap:8, marginTop:14 }}>
+                {selectedWord.audioUrl ? <Pressable accessibilityRole="button" onPress={()=>{const url=normalizeAudioUrl(selectedWord.audioUrl);if(!url)return;chapterPlayer.pause();setActiveSyncedVerseKey("");setActiveAudioKey(null);setAudioQueueKeys([]);setAudioQueueIndex(0);setRepeatsRemaining(0);wordPlayer.replace(url);wordPlayer.play();}} style={[styles.readerToggle,{flex:1}]}><Text style={styles.readerToggleText}>▶ Hear word</Text></Pressable> : null}
+                <Pressable accessibilityRole="button" onPress={()=>setSavedWordItems(current=>{const safe=Array.isArray(current)?current:[];if(safe.some(item=>item.key===selectedWord.key))return safe;return [...safe,{...selectedWord,audioUrl:undefined}].slice(-300);})} style={[styles.readerToggle,{flex:1}]}>
+                  <Text style={styles.readerToggleText}>{savedWordItems.some(item=>item.key===selectedWord.key)?"✓ Saved":"＋ Save word"}</Text>
+                </Pressable>
+              </View>
+            </View> : null}
+            <Text style={styles.tinyNote}>Word meanings and transliterations are supplied by Quran Foundation. Transliteration is a reading aid, not a replacement for learning pronunciation from a qualified teacher.</Text>
+            {savedWordItems.length ? <View style={{ marginTop:14 }}>
+              <Text style={styles.readerToolLabel}>SAVED WORDS · {savedWordItems.length}</Text>
+              {savedWordItems.slice(-8).reverse().map(item=><View key={item.key} style={{ flexDirection:"row", alignItems:"center", justifyContent:"space-between", gap:10, backgroundColor:PANEL, borderRadius:11, padding:10, marginTop:7 }}>
+                <View style={{ flex:1 }}>
+                  <Text style={{ color:TEXT, fontSize:19, textAlign:"right" }}>{item.arabic}</Text>
+                  <Text style={{ color:MUTED, fontSize:11, marginTop:3 }}>{item.transliteration || item.reference} · {item.meaning || "Meaning unavailable"}</Text>
+                </View>
+                <Pressable accessibilityRole="button" accessibilityLabel={"Remove saved word " + item.arabic} onPress={()=>setSavedWordItems(current=>current.filter(saved=>saved.key!==item.key))}><Text style={{ color:GOLD, fontSize:12, fontWeight:"700" }}>Remove</Text></Pressable>
+              </View>)}
+            </View> : null}
             <Text style={styles.tinyNote}>Word meanings and transliterations are supplied by Quran Foundation. Transliteration is a reading aid, not a replacement for learning pronunciation from a qualified teacher.</Text>
           </View> : null}
         </View>;
