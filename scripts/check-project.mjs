@@ -160,6 +160,11 @@ checks.push(
   ["offline screen clearly separates text downloads from audio", offlineScreen.includes("Recitation audio is not included"))
 );
 
+checks.push(
+  ["offline packages require a numeric selected translation", offlineSource.includes("INVALID_TRANSLATION") && offlineSource.includes("MISSING_TRANSLATION")],
+  ["offline packages reject a translation that differs from the requested ID", offlineSource.includes("TRANSLATION_MISMATCH") && offlineSource.includes("returned translation does not match"))
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
