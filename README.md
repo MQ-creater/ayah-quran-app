@@ -62,6 +62,10 @@ The shared API client lives in `src/services/ayah-api.js`. It validates the conf
 
 The unit test command discovers all `scripts/test-*.mjs` files. The API-client tests cover URL validation, route validation, successful JSON responses, HTTP errors, malformed JSON, and cancellation. Five additional cloud-sync contract tests cover allowlisting, required metadata, malformed data, schema validation, and cross-account restore protection. Seven offline-library tests cover complete-surah validation, ayah uniqueness and references, Arabic text requirements, storage lifecycle, and safe clearing.
 
+## Focused ayah Study Mode
+
+Each ayah in the reader now has a **Study this ayah** action. It opens a focused panel with the selected verse and up to two preceding and two following verses from the currently loaded reader page, using the Qur’an text and translation already returned by the configured content source. The panel can open the existing source-attributed Tafsir view, start recitation practice for the selected ayah, or share the displayed passage. At a page boundary, context is limited to the verses currently loaded; it does not silently invent or fetch missing surrounding verses. This is a first Study Mode layer, not yet the full Quran.com experience with related verses, reflections, hadith, Qira’at, or word-level study tabs.
+
 ## Local recitation practice recorder
 
 A Recitation Practice screen is available from the home page and from each ayah in the reader. It requests microphone permission only after the learner taps Start, records one practice take at a time, caps a take at 90 seconds, and lets the learner replay or discard that take. The app does not upload the audio, transcribe it, grade Tajweed, or claim to verify memorization. Recordings use the temporary app cache and are not a permanent recording library; they may be cleared by the operating system or when the practice screen is left. Background recording is deliberately disabled. Browser microphone access requires a secure context and permission, and actual behavior still needs testing on Android, iOS, and supported browsers.
@@ -113,7 +117,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 124 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, and the local recitation recorder. The `npm run check` command also runs forty-three Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, and reading bookmark backup validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
+The 128 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs forty-three Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, and reading bookmark backup validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
