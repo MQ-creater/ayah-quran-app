@@ -174,6 +174,16 @@ checks.push(
   ["reading bookmark backup tests cover limits and malformed data", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("validates up to three named reading bookmarks in backups")]
 );
 
+checks.push(
+  ["recitation practice uses Expo audio recording and playback hooks", app.includes("useAudioRecorder") && app.includes("useAudioRecorderState") && app.includes("useAudioPlayer(null)")],
+  ["microphone permission is requested only when recording starts", app.includes("AudioModule.requestRecordingPermissionsAsync()") && app.includes("const startRecording = async")],
+  ["recitation recording has a bounded 90-second duration", app.includes("MAX_DURATION_MS = 90000") && app.includes("recorderState.durationMillis)>=MAX_DURATION_MS")],
+  ["recorded practice can be replayed and discarded", app.includes("player.replace(recordingUri)") && app.includes("Delete this recording")],
+  ["recitation practice is explicitly local and does not claim AI evaluation", app.includes("not uploaded or shared") && app.includes("does not verify the words or judge Tajweed")],
+  ["recitation practice can open from home and a selected ayah", app.includes('title="Recitation practice"') && app.includes("onOpenRecorder?.(key,chapter.name_simple)")],
+  ["microphone permission copy and background recording setting are explicit", config.includes("microphonePermission") && config.includes("enableBackgroundRecording") && config.includes("false")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
