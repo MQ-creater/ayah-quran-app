@@ -1,6 +1,5 @@
 const { normalizeVerseKey } = require("./ayah-utils");
 
-const DAY_MS = 24 * 60 * 60 * 1000;
 const RATINGS = ["again", "hard", "good", "easy"];
 
 function toDate(value) {
@@ -88,7 +87,10 @@ function scheduleVocabularyReview(previousRecords, wordKey, rating, reviewedAt =
   }
 
   intervalDays = Math.max(1, Math.min(365, Math.round(intervalDays)));
-  const dueAt = new Date(now.getTime() + intervalDays * DAY_MS).toISOString();
+  // Advance by local calendar days so a review stays at the same local time across daylight-saving changes.
+  const dueDate = new Date(now.getTime());
+  dueDate.setDate(dueDate.getDate() + intervalDays);
+  const dueAt = dueDate.toISOString();
   const record = {
     intervalDays,
     easeFactor: Number(easeFactor.toFixed(2)),
