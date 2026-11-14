@@ -39,7 +39,7 @@ test("validates Ayah backups and filters unknown keys",()=>{
 test("normalizes a primary and comparison translation without duplicates",()=>{
   assert.equal(normalizeTranslationIds("131","20"),"131,20");
   assert.equal(normalizeTranslationIds("131","131"),"131");
-  assert.equal(normalizeTranslationIds("bad","20"),"20");
+  assert.equal(normalizeTranslationIds("bad","20"),"");
   assert.equal(normalizeTranslationIds("131;DROP",""),"");
 });
 test("supports legacy and multiple bookmark collections",()=>{
@@ -101,7 +101,7 @@ test("does not silently promote a secondary translation to primary",()=>{
   assert.equal(normalizeTranslationIds("131","131"),"131");
 });
 test("validates pinned comparison detail backups",()=>{
-  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareDetails:{"2:255":{arabic:"test",translation:"meaning"}}}}).valid,true);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareKeys:["2:255"],pinnedCompareDetails:{"2:255":{arabic:"test",translation:"meaning"}}}}).valid,true);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareDetails:{"bad":{arabic:"test"}}}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{pinnedCompareDetails:{"2:255":"text"}}}).valid,false);
 });
