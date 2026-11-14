@@ -63,7 +63,7 @@ test("offline storage clears only its own indexed surah packages", async () => {
     setItem: async (key, value) => map.set(key, value),
     removeItem: async key => map.delete(key)
   });
-  await storage.save(offline.createOfflineSurah({ chapter, verses }));
+  await storage.save(offline.createOfflineSurah({ chapter, verses, translationId: 131 }));
   await storage.clear();
   assert.equal(map.get("unrelated"), "keep");
   assert.equal((await storage.list()).length, 0);
