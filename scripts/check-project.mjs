@@ -214,7 +214,7 @@ checks.push(
 );
 
 checks.push(
-  ["offline surah downloads support cancellation without saving partial content", (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("Cancel download") && (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("signal:controller.signal") && (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("Download cancelled. Nothing was saved.")],
+  ["offline surah downloads support cancellation without saving partial content", (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("Cancel download") && (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("signal:controller.signal") && (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("Download cancelled. Nothing was saved.") && (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("Remove all offline downloads?") && (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("offlineStorage.clear()")],
   ["offline library recognizes Bahasa Indonesia translation language", (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes('"Bahasa Indonesia":"id"')]
 );
 
