@@ -220,7 +220,7 @@ checks.push(
 
 const offlineScreenSource = await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8");
 checks.push(
-  ["offline downloads open directly in the reader", offlineScreenSource.includes("Open in Qur’an reader") && app.includes("onOpenSurah={async item") && app.includes("offlineStorage.get(item.chapterId)")],
+  ["offline downloads open directly in the reader", offlineScreenSource.includes("Open in Qur’an reader") && offlineScreenSource.includes("onOpenSurah") && app.includes("onOpenSurah={async item") && app.includes("offlineStorage.get(item.chapterId)")],
   ["offline reader works without a configured backend", app.includes("if (!chapter?.id) return;") && app.includes("offlineStorage.get(chapter.id)")]
 );
 
