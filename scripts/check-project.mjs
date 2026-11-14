@@ -213,6 +213,11 @@ checks.push(
   ["saved vocabulary sanitizer tests cover invalid references", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("normalizes and bounds saved vocabulary") && (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("validates saved vocabulary in Ayah backups")]
 );
 
+checks.push(
+  ["offline surah downloads support cancellation without saving partial content", (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("Cancel download") && (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("signal:controller.signal") && (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes("Download cancelled. Nothing was saved.")],
+  ["offline library recognizes Bahasa Indonesia translation language", (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes('"Bahasa Indonesia":"id"')]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
