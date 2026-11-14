@@ -136,7 +136,7 @@ function normalizeAudioUrl(value) {
   const raw = String(value || "").trim();
   if (!raw) return "";
   if (/^https:\/\/(?:audio\.qurancdn\.com|verses\.quran\.foundation)\//i.test(raw)) return raw;
-  if (/^(javascript|data):/i.test(raw) || raw.startsWith("//")) return "";
+  if (/^(?:https?:|javascript:|data:)/i.test(raw) || raw.startsWith("//")) return "";
   return "https://audio.qurancdn.com/" + raw.replace(/^\/+/, "");
 }
 
