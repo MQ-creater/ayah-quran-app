@@ -72,3 +72,52 @@ test("offline storage clears only its own indexed surah packages", async () => {
 test("offline storage requires a compatible adapter", () => {
   assert.throws(() => offline.createOfflineStorage({}), error => error.code === "INVALID_STORAGE");
 });
+
+test("offline storage rolls back package and index when the index write fails", async () => {
+  const map = new Map();
+  let failNextIndexWrite = true;
+  const storage = offline.createOfflineStorage({
+    getItem: async key => map.has(key) ? map.get(key) : null,
+    setItem: async (key, value) => {
+      if (key === offline.OFFLINE_INDEX_KEY && failNextIndexWrite) {
+        failNextIndexWrite = false;
+        throw new Error("simulated index write failure");
+      }
+      map.set(key, value);
+    },
+    removeItem: async key => map.delete(key)
+  });
+  await assert.rejects(
+    storage.save(offline.createOfflineSurah({ chapter, verses, translationId: 131 })),
+    /simulated index write failure/
+  );
+  assert.equal(map.has(offline.OFFLINE_SURAH_PREFIX + "1"), false);
+  assert.equal(map.has(offline.OFFLINE_INDEX_KEY), false);
+  assert.deepEqual(await storage.list(), []);
+});
+
+test("offline replacement restores the previous valid package after a failed index write", async () => {
+  const map = new Map();
+  let failNextIndexWrite = false;
+  const storage = offline.createOfflineStorage({
+    getItem: async key => map.has(key) ? map.get(key) : null,
+    setItem: async (key, value) => {
+      if (key === offline.OFFLINE_INDEX_KEY && failNextIndexWrite) {
+        failNextIndexWrite = false;
+        throw new Error("simulated replacement failure");
+      }
+      map.set(key, value);
+    },
+    removeItem: async key => map.delete(key)
+  });
+  const original = offline.createOfflineSurah({ chapter, verses, translationId: 131, savedAt: "2026-01-01T00:00:00.000Z" });
+  await storage.save(original);
+  const previousPackage = map.get(offline.OFFLINE_SURAH_PREFIX + "1");
+  const previousIndex = map.get(offline.OFFLINE_INDEX_KEY);
+  failNextIndexWrite = true;
+  const replacement = offline.createOfflineSurah({ chapter, verses, translationId: 131, savedAt: "2026-02-01T00:00:00.000Z" });
+  await assert.rejects(storage.save(replacement), /simulated replacement failure/);
+  assert.equal(map.get(offline.OFFLINE_SURAH_PREFIX + "1"), previousPackage);
+  assert.equal(map.get(offline.OFFLINE_INDEX_KEY), previousIndex);
+  assert.equal((await storage.get(1)).savedAt, original.savedAt);
+});
