@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
 import ayahApi from "./ayah-api";
 import offlineStorage from "./offline-library-storage";
@@ -8,7 +8,7 @@ const { requestJson } = ayahApi;
 
 const API_BASE = process.env.EXPO_PUBLIC_AYAH_API_URL || "";
 const COLORS = { text:"#FFFFFF", muted:"#AAB6C7", panel:"#1B2A40", surface:"#24354C", gold:"#D9B96E", border:"#34445B" };
-const languageCode = value => ({ English:"en", Urdu:"ur", Arabic:"ar", Bengali:"bn", Turkish:"tr", French:"fr", Indonesian:"id" }[value] || "en");
+const languageCode = value => ({ English:"en", Urdu:"ur", Arabic:"ar", Bengali:"bn", Turkish:"tr", French:"fr", Indonesian:"id", "Bahasa Indonesia":"id" }[value] || "en");
 
 function Action({ title, onPress, secondary=false, disabled=false }) {
   return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={{backgroundColor:secondary?COLORS.surface:COLORS.gold,borderRadius:12,padding:13,marginTop:9,opacity:disabled?0.5:1,borderWidth:secondary?1:0,borderColor:COLORS.border}}><Text style={{color:secondary?COLORS.text:"#101C2D",fontWeight:"800",textAlign:"center"}}>{title}</Text></Pressable>;
@@ -25,6 +25,8 @@ export default function OfflineLibraryScreen({ onBack, language="English" }) {
   const [busy,setBusy]=useState(false);
   const [progress,setProgress]=useState({done:0,total:0,name:""});
   const [error,setError]=useState("");
+  const downloadController=useRef(null);
+  useEffect(()=>()=>{downloadController.current?.abort();},[]);
   const refreshDownloads=useCallback(async()=>{try{setDownloads(await offlineStorage.list());}catch(_){setError("Saved downloads could not be read from this device.");}},[]);
   useEffect(()=>{
     let active=true;
@@ -48,13 +50,15 @@ export default function OfflineLibraryScreen({ onBack, language="English" }) {
     if(!translationId){setError("Choose a translation before downloading.");return;}
     const total=Number(chapter.verses_count);
     if(!Number.isInteger(total)||total<1){setError("The surah information is incomplete.");return;}
+    const controller=new AbortController();
+    downloadController.current=controller;
     setBusy(true);setError("");setProgress({done:0,total,name:chapter.name_simple||"Surah"});
     try{
       const all=[];
       const pageSize=50;
       const pages=Math.ceil(total/pageSize);
       for(let page=1;page<=pages;page++){
-        const data=await requestJson("/chapters/"+chapter.id+"/verses?page="+page+"&per_page="+pageSize+"&translation_id="+encodeURIComponent(translationId)+"&script=uthmani&language="+encodeURIComponent(languageCode(language)),{baseUrl:API_BASE,timeoutMs:30000});
+        const data=await requestJson("/chapters/"+chapter.id+"/verses?page="+page+"&per_page="+pageSize+"&translation_id="+encodeURIComponent(translationId)+"&script=uthmani&language="+encodeURIComponent(languageCode(language)),{baseUrl:API_BASE,timeoutMs:30000,signal:controller.signal});
         const batch=Array.isArray(data.verses)?data.verses:[];
         if(!batch.length)throw new Error("The content service returned an empty page. The surah was not saved.");
         all.push(...batch);
@@ -64,9 +68,10 @@ export default function OfflineLibraryScreen({ onBack, language="English" }) {
       await offlineStorage.save(clean);
       await refreshDownloads();
       Alert.alert("Surah saved offline",chapter.name_simple+" is now available in your offline library. Recitation audio has not been downloaded.");
-    }catch(e){setError(e.message||"The surah could not be saved. Check your connection and try again.");}
-    finally{setBusy(false);}
+    }catch(e){setError(e?.name==="AbortError"?"Download cancelled. Nothing was saved.":e.message||"The surah could not be saved. Check your connection and try again.");}
+    finally{if(downloadController.current===controller)downloadController.current=null;setBusy(false);}
   };
+  const cancelDownload=()=>downloadController.current?.abort();
   const removeDownload=async id=>{try{await offlineStorage.remove(id);await refreshDownloads();}catch(e){setError(e.message||"Could not remove this download.");}};
   const filtered=chapters.filter(ch=>(String(ch.name_simple||"")+" "+String(ch.name_arabic||"")+" "+String(ch.id)).toLowerCase().includes(query.toLowerCase()));
   const downloadedIds=new Set(downloads.map(item=>String(item.chapterId)));
@@ -96,7 +101,7 @@ export default function OfflineLibraryScreen({ onBack, language="English" }) {
           <Text style={{color:COLORS.text,flex:1,fontSize:12}} numberOfLines={2}>{item.name}{item.author_name?" · "+item.author_name:""}</Text>
         </Pressable>)}
         <Action title={busy?"Downloading…":"Download selected surah"} onPress={downloadSelected} disabled={busy||!chapters.length}/>
-        {busy?<View style={{marginTop:12}}><Text style={{color:COLORS.text,fontSize:12}}>{progress.name}: {progress.done} / {progress.total} ayahs</Text><View style={{height:8,backgroundColor:COLORS.surface,borderRadius:8,marginTop:7,overflow:"hidden"}}><View style={{height:8,width:(progress.total?Math.min(100,progress.done/progress.total*100):0)+"%",backgroundColor:COLORS.gold}}/></View></View>:null}
+        {busy?<View style={{marginTop:12}}><Text style={{color:COLORS.text,fontSize:12}}>{progress.name}: {progress.done} / {progress.total} ayahs</Text><View style={{height:8,backgroundColor:COLORS.surface,borderRadius:8,marginTop:7,overflow:"hidden"}}><View style={{height:8,width:(progress.total?Math.min(100,progress.done/progress.total*100):0)+"%",backgroundColor:COLORS.gold}}/></View><Action title="Cancel download" secondary onPress={cancelDownload}/></View>:null}
       </>}
       {error?<Text accessibilityRole="alert" style={{color:"#F0B7A8",marginTop:12,fontSize:12}}>{error}</Text>:null}
     </View>
