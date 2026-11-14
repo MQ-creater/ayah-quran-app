@@ -73,6 +73,7 @@ export default function OfflineLibraryScreen({ onBack, language="English" }) {
   };
   const cancelDownload=()=>downloadController.current?.abort();
   const removeDownload=async id=>{try{await offlineStorage.remove(id);await refreshDownloads();}catch(e){setError(e.message||"Could not remove this download.");}};
+  const clearDownloads=async()=>{try{await offlineStorage.clear();await refreshDownloads();setError("");}catch(e){setError(e.message||"Could not clear offline downloads.");}};
   const filtered=chapters.filter(ch=>(String(ch.name_simple||"")+" "+String(ch.name_arabic||"")+" "+String(ch.id)).toLowerCase().includes(query.toLowerCase()));
   const downloadedIds=new Set(downloads.map(item=>String(item.chapterId)));
   const totalBytes=downloads.reduce((sum,item)=>sum+Number(item.bytes||0),0);
@@ -113,7 +114,7 @@ export default function OfflineLibraryScreen({ onBack, language="English" }) {
         <Text style={{color:COLORS.muted,fontSize:11,marginTop:3}}>{item.ayahCount} ayahs · {formatBytes(item.bytes||0)} · {new Date(item.savedAt).toLocaleDateString()}</Text>
         <Action title="Remove download" secondary onPress={()=>Alert.alert("Remove offline surah?","This removes the saved text and translation from this device.",[{text:"Cancel",style:"cancel"},{text:"Remove",style:"destructive",onPress:()=>removeDownload(item.chapterId)}])}/>
       </View>)}
-      <Action title="Refresh download list" secondary onPress={refreshDownloads}/>
+      {downloads.length>0?<Action title="Remove all downloads" secondary onPress={()=>Alert.alert("Remove all offline downloads?","This removes all saved surah text and translations from this device.",[{text:"Cancel",style:"cancel"},{text:"Remove all",style:"destructive",onPress:clearDownloads}])}/>:null}\n      <Action title="Refresh download list" secondary onPress={refreshDownloads}/>
     </View>
     <Text style={{color:COLORS.muted,fontSize:11,lineHeight:17,marginTop:14}}>Offline text and translation only. Recitation audio is not included. Downloaded material remains on this device and is not synced to an account.</Text>
     <Action title="Back" secondary onPress={onBack}/>
