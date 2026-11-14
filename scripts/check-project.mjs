@@ -25,7 +25,7 @@ const checks = [
   ["responsive desktop content width", app.includes("useWindowDimensions") && app.includes("isWideScreen") && app.includes("containerWide:{width:\"100%\",maxWidth:1120")],
   ["tablet landscape orientation support", config.includes('"orientation": "default"') && config.includes('"supportsTablet": true')],
   ["static web export command", packageJson.includes('"export:web": "expo export --platform web"')],
-  ["safe JSON preference loading", app.includes("setValue(JSON.parse(raw))") && !app.includes("const saved = JSON.parse(raw)")],
+  ["safe JSON preference loading", (await readFile(new URL("../src/hooks/use-persistent-state.js", import.meta.url), "utf8")).includes("setValue(JSON.parse(raw))") && (await readFile(new URL("../src/hooks/use-persistent-state.js", import.meta.url), "utf8")).includes("await AsyncStorage.removeItem(PREFERENCES_KEY + \":\" + key)")] ,
   ["explicit reader completion tracking", app.includes('onMarkAyahRead={key=>recordDailyActivity("readingAyahs",[key])') && !app.includes("onRecordReading?.(incoming.map")],
   ["stable verse references under filters", app.includes("verses.map((verse,index)=>({verse,index,key:verse.verse_key")],
   ["bounded practice history", app.includes("PRACTICE_HISTORY_LIMIT") && app.includes(".slice(0,PRACTICE_HISTORY_LIMIT)")],
