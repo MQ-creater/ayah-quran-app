@@ -155,7 +155,7 @@ checks.push(
   ["offline surah packages require every ayah in the selected chapter", offlineSource.includes("INCOMPLETE_SURAH") && offlineSource.includes("MISSING_VERSE") && offlineSource.includes("DUPLICATE_VERSE")],
   ["offline surah validation checks Arabic text and chapter references", offlineSource.includes("MISSING_ARABIC") && offlineSource.includes("VERSE_MISMATCH")],
   ["offline storage supports listing, retrieval, removal, and clearing", offlineSource.includes("async function list()") && offlineSource.includes("async function get(chapterId)") && offlineSource.includes("async function remove(chapterId)") && offlineSource.includes("async function clear()")],
-  ["offline storage tests cover validation and lifecycle", offlineTests.includes("offline storage saves, lists, reads, replaces, and removes selected surahs") && offlineTests.includes("offline storage clears only its own indexed surah packages")]
+  ["offline storage tests cover validation and lifecycle", offlineTests.includes("offline storage saves, lists, reads, replaces, and removes selected surahs") && offlineTests.includes("offline storage clears only its own indexed surah packages") && offlineTests.includes("offline storage rolls back package and index when the index write fails") && offlineTests.includes("offline replacement restores the previous valid package after a failed index write")]
 );
 
 const offlineStorageAdapter = await readFile(new URL("../src/services/offline-library-storage.js", import.meta.url), "utf8");
