@@ -60,6 +60,8 @@ test("ratings schedule predictable review intervals", () => {
   assert.equal(good.intervalDays, 1);
   assert.equal(easy.intervalDays, 3);
   assert.equal(new Date(easy.dueAt).toISOString(), "2026-11-16T12:00:00.000Z");
+  assert.equal(new Date(easy.dueAt).getHours(), now.getHours());
+  assert.equal(new Date(easy.dueAt).getMinutes(), now.getMinutes());
 });
 
 test("good and easy ratings grow intervals without exceeding one year", () => {
