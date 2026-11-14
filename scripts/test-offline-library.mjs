@@ -48,7 +48,7 @@ test("offline storage saves, lists, reads, replaces, and removes selected surahs
     setItem: async (key, value) => map.set(key, value),
     removeItem: async key => map.delete(key)
   });
-  await storage.save(offline.createOfflineSurah({ chapter, verses }));
+  await storage.save(offline.createOfflineSurah({ chapter, verses, translationId: 131 }));
   assert.equal((await storage.list()).length, 1);
   assert.equal((await storage.get(1)).verses.length, 2);
   await storage.remove(1);
