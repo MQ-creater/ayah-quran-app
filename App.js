@@ -1536,7 +1536,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, initialOfflineTranslation
     return () => { active = false; };
   }, [translationLanguage]);
   useEffect(() => {
-    if (!AYAH_API_BASE || !chapter?.id) return;
+    if (!chapter?.id) return;
     let active = true;
     setLoading(true); setError("");
     requestJson("/chapters/" + chapter.id + "/verses?page=" + page + "&per_page=50&translation_id=" + encodeURIComponent(normalizeTranslationIds(translationId, compareTranslationId)) + "&script=" + (arabicScript === "IndoPak" ? "indopak" : "uthmani") + "&language=" + encodeURIComponent(translationLanguage), { baseUrl: AYAH_API_BASE })
