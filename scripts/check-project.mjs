@@ -89,7 +89,7 @@ checks.push(...[  ["navigation supports Manzil and Ruku", app.includes("manzil:"
 checks.push(...[  ["navigation error messages include Manzil and Ruku", app.includes("manzil:\"Manzil\"") && app.includes("ruku:\"Ruku\"")],
   ["translation reading mode is stored and backed up", app.includes("readerTranslationReadingMode") && utilities.includes('"readerTranslationReadingMode"') && utilities.includes("typeof data[key] !== \"boolean\"")],
   ["Surah information uses the source chapter-info route", app.includes("function SurahInfoSection") && app.includes("/chapters/\"+chapterId+\"/info")],
-  ["random ayah requests include translation and supported page limit", app.includes("/verses/random") && app.includes("translation_id:\"131\"") && app.includes("1–604") && server.includes("/api/verses/random")],
+  ["random ayah requests include the selected translation and supported page limit", app.includes("/verses/random") && app.includes("params.set(\"translation_id\",translationId)") && app.includes("1–604") && server.includes("/api/verses/random")],
   ["reader comparison details are owned by root app state", app.includes("usePersistentState(\"pinnedCompareDetails\", {})") && app.includes("setPinnedCompareDetails={setPinnedCompareDetails}")],]);
 
 checks.push(...[  ["random ayah API rejects malformed verse keys instead of accepting them", server.includes("!/^\\d{1,3}:\\d{1,3}$/.test(String(verse.verse_key||\"\"))")],
