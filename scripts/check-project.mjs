@@ -218,6 +218,12 @@ checks.push(
   ["offline library recognizes Bahasa Indonesia translation language", (await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8")).includes('"Bahasa Indonesia":"id"')]
 );
 
+const offlineScreenSource = await readFile(new URL("../src/screens/offline-library-screen.js", import.meta.url), "utf8");
+checks.push(
+  ["offline downloads open directly in the reader", offlineScreenSource.includes("Open in Qur’an reader") && app.includes("onOpenSurah={async item") && app.includes("offlineStorage.get(item.chapterId)")],
+  ["offline reader works without a configured backend", app.includes("if (!chapter?.id) return;") && app.includes("offlineStorage.get(chapter.id)")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
