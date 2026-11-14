@@ -198,7 +198,7 @@ checks.push(
 );
 
 checks.push(
-  ["focused ayah Study Mode opens from each reader verse", app.includes("function openStudyMode") && app.includes("Study this ayah")],
+  ["focused ayah Study Mode opens from each reader verse", app.includes("const openStudyMode = (verse,index,key) =>") && app.includes("Study this ayah")],
   ["Study Mode displays the selected ayah with nearby loaded context", app.includes("AYAH STUDY MODE") && app.includes("studyContextVerses.map") && app.includes("verses.slice(firstIndex")],
   ["Study Mode links to source-attributed Tafsir and recitation practice", app.includes("Open sourced Tafsir") && app.includes("Practice this ayah") && app.includes("onOpenTafsir?.(chapter.id,studyTarget.ayah)")],
   ["Study Mode shares the context passage and can be dismissed", app.includes("Share passage") && app.includes("setStudyTarget(null)")]
