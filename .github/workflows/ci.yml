@@ -26,6 +26,13 @@ jobs:
         run: npm run check
       - name: Export web preview
         run: npx expo export --platform web
+      - name: Save web preview artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ayah-web-preview
+          path: dist/
+          if-no-files-found: error
+          retention-days: 7
 
   backend-check:
     name: Backend syntax and dependency check
