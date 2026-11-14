@@ -145,7 +145,7 @@ checks.push(
   ["cloud sync payload has a versioned schema and explicit allowlist", cloudSyncSource.includes("CLOUD_SYNC_SCHEMA_VERSION = 1") && cloudSyncSource.includes("SYNCABLE_KEYS")],
   ["cloud sync excludes credentials and personal contact fields", !cloudSyncSource.includes('"accessToken"') && !cloudSyncSource.includes('"email"') && cloudSyncTests.includes('includes("accessToken"), false')],
   ["cloud sync restore checks account ownership", cloudSyncSource.includes("USER_MISMATCH") && cloudSyncSource.includes("expectedUserId")],
-  ["cloud sync contract has dedicated unit tests", cloudSyncTests.includes("cloud sync validates schema and prevents cross-account restore"))
+  ["cloud sync contract has dedicated unit tests", cloudSyncTests.includes("cloud sync validates schema and prevents cross-account restore")]
 );
 
 const offlineSource = await readFile(new URL("../src/services/offline-library.js", import.meta.url), "utf8");
@@ -155,7 +155,7 @@ checks.push(
   ["offline surah packages require every ayah in the selected chapter", offlineSource.includes("INCOMPLETE_SURAH") && offlineSource.includes("MISSING_VERSE") && offlineSource.includes("DUPLICATE_VERSE")],
   ["offline surah validation checks Arabic text and chapter references", offlineSource.includes("MISSING_ARABIC") && offlineSource.includes("VERSE_MISMATCH")],
   ["offline storage supports listing, retrieval, removal, and clearing", offlineSource.includes("async function list()") && offlineSource.includes("async function get(chapterId)") && offlineSource.includes("async function remove(chapterId)") && offlineSource.includes("async function clear()")],
-  ["offline storage tests cover validation and lifecycle", offlineTests.includes("offline storage saves, lists, reads, replaces, and removes selected surahs") && offlineTests.includes("offline storage clears only its own indexed surah packages"))
+  ["offline storage tests cover validation and lifecycle", offlineTests.includes("offline storage saves, lists, reads, replaces, and removes selected surahs") && offlineTests.includes("offline storage clears only its own indexed surah packages")]
 );
 
 const offlineStorageAdapter = await readFile(new URL("../src/services/offline-library-storage.js", import.meta.url), "utf8");
@@ -170,12 +170,12 @@ checks.push(
   ["offline download requires a selected translation and reports progress", offlineScreen.includes("translationId") && offlineScreen.includes("setProgress({done:Math.min(all.length,total)")],
   ["offline screen manages saved packages and approximate storage", offlineScreen.includes("offlineStorage.list()") && offlineScreen.includes("offlineStorage.remove(id)") && offlineScreen.includes("totalBytes")],
   ["reader can fall back to a matching saved surah when network access fails", app.includes("offlineStorage.get(chapter.id)") && app.includes("saved.translationId") && app.includes("Offline mode")],
-  ["offline screen clearly separates text downloads from audio", offlineScreen.includes("Recitation audio is not included"))
+  ["offline screen clearly separates text downloads from audio", offlineScreen.includes("Recitation audio is not included")]
 );
 
 checks.push(
   ["offline packages require a numeric selected translation", offlineSource.includes("INVALID_TRANSLATION") && offlineSource.includes("MISSING_TRANSLATION")],
-  ["offline packages reject a translation that differs from the requested ID", offlineSource.includes("TRANSLATION_MISMATCH") && offlineSource.includes("returned translation does not match"))
+  ["offline packages reject a translation that differs from the requested ID", offlineSource.includes("TRANSLATION_MISMATCH") && offlineSource.includes("returned translation does not match")]
 );
 
 checks.push(
