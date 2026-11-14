@@ -118,8 +118,12 @@ function createOfflineStorage({ getItem, setItem, removeItem } = {}) {
     const clean = validateOfflineSurah(download);
     const id = String(clean.chapter.id);
     const serialized = JSON.stringify(clean);
+    const packageKey = OFFLINE_SURAH_PREFIX + id;
+    const [previousPackage, previousIndexRaw] = await Promise.all([
+      getItem(packageKey),
+      getItem(OFFLINE_INDEX_KEY)
+    ]);
     const index = await readIndex();
-    await setItem(OFFLINE_SURAH_PREFIX + id, serialized);
     index[id] = {
       chapterId: clean.chapter.id,
       name: clean.chapter.name,
@@ -128,7 +132,23 @@ function createOfflineStorage({ getItem, setItem, removeItem } = {}) {
       savedAt: clean.savedAt,
       bytes: typeof TextEncoder === "function" ? new TextEncoder().encode(serialized).length : serialized.length
     };
-    await setItem(OFFLINE_INDEX_KEY, JSON.stringify({ schemaVersion: OFFLINE_SCHEMA_VERSION, surahs: index }));
+    try {
+      await setItem(packageKey, serialized);
+      await setItem(OFFLINE_INDEX_KEY, JSON.stringify({ schemaVersion: OFFLINE_SCHEMA_VERSION, surahs: index }));
+    } catch (error) {
+      // AsyncStorage has no multi-key transaction. Restore both keys if either
+      // write fails so a failed download cannot leave a half-committed package.
+      try {
+        if (previousPackage == null) await removeItem(packageKey);
+        else await setItem(packageKey, previousPackage);
+        if (previousIndexRaw == null) await removeItem(OFFLINE_INDEX_KEY);
+        else await setItem(OFFLINE_INDEX_KEY, previousIndexRaw);
+      } catch (_) {
+        // Preserve the original storage error; a later integrity check can
+        // discard any package whose index and contents no longer agree.
+      }
+      throw error;
+    }
     return index[id];
   }
   async function get(chapterId) {
