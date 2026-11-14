@@ -14,7 +14,7 @@ function Action({ title, onPress, secondary=false, disabled=false }) {
   return <Pressable accessibilityRole="button" disabled={disabled} onPress={onPress} style={{backgroundColor:secondary?COLORS.surface:COLORS.gold,borderRadius:12,padding:13,marginTop:9,opacity:disabled?0.5:1,borderWidth:secondary?1:0,borderColor:COLORS.border}}><Text style={{color:secondary?COLORS.text:"#101C2D",fontWeight:"800",textAlign:"center"}}>{title}</Text></Pressable>;
 }
 
-export default function OfflineLibraryScreen({ onBack, language="English" }) {
+export default function OfflineLibraryScreen({ onBack, onOpenSurah, language="English" }) {
   const [chapters,setChapters]=useState([]);
   const [translations,setTranslations]=useState([]);
   const [translationId,setTranslationId]=useState("");
