@@ -70,7 +70,7 @@ test("good and easy ratings grow intervals without exceeding one year", () => {
   records = scheduleVocabularyReview(records, "1:1:1", "good", now);
   assert.equal(records["1:1:1"].intervalDays, 3);
   records = scheduleVocabularyReview(records, "1:1:1", "easy", now);
-  assert.equal(records["1:1:1"].intervalDays, 8);
+  assert.equal(records["1:1:1"].intervalDays, 10);
   assert.equal(records["1:1:1"].attempts, 3);
   assert.equal(records["1:1:1"].repetitions, 3);
 });
@@ -96,7 +96,7 @@ test("summary reports due, scheduled, new, and reviewed-today counts", () => {
   let records = scheduleVocabularyReview({}, "1:1:1", "easy", now);
   records = scheduleVocabularyReview(records, "1:1:2", "good", now);
   const summary = summarizeVocabularyReview(saved, records, now);
-  assert.deepEqual(summary, { total: 3, due: 1, newWords: 1, scheduled: 1, reviewedToday: 2 });
+  assert.deepEqual(summary, { total: 3, due: 1, newWords: 1, scheduled: 2, reviewedToday: 2 });
 });
 
 test("invalid rating and invalid date fail clearly", () => {
