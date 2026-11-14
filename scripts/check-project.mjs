@@ -108,14 +108,14 @@ checks.push(
   ["reader resolves active verse and word timing", app.includes("getActiveAudioTiming(verseTimestamps,chapterAudioStatus?.currentTime)") && app.includes("activeSyncedWordIndex")],
   ["active word styling uses the reader theme", app.includes("Number(word.position) === activeSyncedWordIndex") && app.includes("backgroundColor: PANEL")],
   ["word timing helper validates verse keys and millisecond ranges", utilities.includes("function getActiveAudioTiming") && utilities.includes("timestamp_from") && utilities.includes("timestamp_to") && utilities.includes("normalizeVerseKey(item.verse_key")],
-  ["audio timing helper is covered by unit tests", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("resolves the active ayah and word"))
+  ["audio timing helper is covered by unit tests", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("resolves the active ayah and word")
 );
 
 checks.push(
   ["recitation speed is stored and applied to both audio players", app.includes('usePersistentState("audioPlaybackRate",1)') && app.includes('setPlaybackRate(rate,"high")') && app.includes("Playback speed")],
   ["audio playback speed is included in validated backups", utilities.includes('"audioPlaybackRate"') && utilities.includes("data.audioPlaybackRate")],
   ["audio playback speed has an allowlisted range", utilities.includes("[0.75,1,1.25,1.5].includes(data.audioPlaybackRate)")],
-  ["audio speed preference has positive and negative unit tests", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("accepts supported recitation speeds"))
+  ["audio speed preference has positive and negative unit tests", (await readFile(new URL("../scripts/test-ayah-utils.mjs", import.meta.url), "utf8")).includes("accepts supported recitation speeds")
 );
 
 
