@@ -212,6 +212,7 @@ Qur’an text, translations, tafsir, fonts, and audio must be checked against tr
 - Added a persistent daily review target (5, 10, 15 or 20) and a reviewed-today progress indicator. Review records and the target are included in the existing validated backup format.
 - Due reviews, all-word flashcards and a separate short quiz are distinct modes. Quiz answers use only source-provided saved meanings; no invented Arabic or translations are generated.
 - The scheduling algorithm is a lightweight study aid and is not presented as validated learning science. Review data remains local until secure cloud sync is implemented.
+- Review intervals advance by local calendar days so the intended review time stays aligned with the learner’s local clock when daylight-saving time changes.
 
 - Added a dedicated Arabic vocabulary practice screen linked from the home learning section.
 - Flashcards reveal meanings only after the learner chooses to reveal them; a short multiple-choice quiz uses meanings already present in the user's saved Qur'an word records.
