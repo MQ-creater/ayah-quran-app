@@ -76,7 +76,7 @@ checks.push(...[  ["Mushaf page and Juz navigation APIs", server.includes("/api/
   ["verse sharing is available from the reader", app.includes("Share ayah") && app.includes("Share.share({title:chapter.name_simple")],
   ["study notebook supports multiple collections", app.includes("toggleCollectionMembership(current[key],name)") && app.includes("Add to or remove from collections")],
   ["learning insights include a 30-day activity heatmap", app.includes("Last 30 days") && app.includes("activeMonthDays")],
-  ["audio URL normalization restricts external hosts", utilities.includes("audio.qurancdn.com") && utilities.includes("verses.quran.foundation") && utilities.includes("normalizeAudioUrl")],]);
+  ["audio URL normalization restricts external hosts", utilities.includes("audio.qurancdn.com") && utilities.includes("normalizeAudioUrl") && utilities.includes("javascript|data") && utilities.includes("raw.startsWith(\"//\")")],]);
 
 checks.push(...[  ["navigation supports Manzil and Ruku", app.includes("manzil:") && app.includes("ruku:") && app.includes("by-manzil/") && app.includes("by-ruku/")],
   ["random ayah discovery is reachable", app.includes("Random ayah") && app.includes("/verses/random")],
