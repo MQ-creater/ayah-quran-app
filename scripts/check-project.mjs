@@ -50,7 +50,7 @@ const checks = [
   ["search handles direct ayah references", app.includes("normalizeVerseKey(term)") && app.includes("readerPageForAyah(ayah)")],
   ["search history is persisted", app.includes('usePersistentState("recentSearches",[])') && app.includes("Recent searches")],
   ["Arabic vocabulary starter expanded", app.includes("مَسْجِدٌ") && app.includes("مَاءٌ")],
-  ["Arabic alphabet classroom expanded", app.includes("LETTER CLASSROOM · FIRST 12 LETTERS")],
+  ["Arabic alphabet classroom expanded to all 28 letters", app.includes("ALL 28 LETTERS")],
   ["Arabic learning progress persists", app.includes('usePersistentState("arabicLessonProgress"') && app.includes('usePersistentState("arabicAlphabetProgress"')],
   ["server caches provider reads", server.includes("RESPONSE_CACHE_LIMIT") && server.includes("cacheKey")],
   ["search endpoint has additional rate limit", server.includes("searchRateLimit") && server.includes("limit:20")],
