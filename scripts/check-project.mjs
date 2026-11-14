@@ -34,7 +34,7 @@ const checks = [
   ["adjustable daily targets", app.includes('usePersistentState("dailyTargets",{reading:5,memorization:1})')],
   ["ayah range queue and stop control", app.includes("Play selected range") && app.includes("Stop ayah queue")],
   ["recall mode", app.includes("Hide Arabic · Recall") && app.includes("showArabic && !recallMode")],
-  ["backend connection diagnostics", app.includes("function BackendStatusScreen") && app.includes('fetch(base+"/status")')],
+  ["backend connection diagnostics", app.includes("function BackendStatusScreen") && app.includes('requestJson("/status",{baseUrl:AYAH_API_BASE})')],
   ["production CORS allowlist", server.includes("ALLOWED_ORIGINS must contain") && server.includes("allowedOrigins.includes(origin)")],
   ["bounded provider request timeouts", server.includes("AbortSignal.timeout(15000)")],
   ["server status endpoint", server.includes('app.get("/api/status"')],
