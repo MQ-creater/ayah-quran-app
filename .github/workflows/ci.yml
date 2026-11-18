@@ -22,6 +22,8 @@ jobs:
           node-version: 22
       - name: Install app dependencies
         run: npm install
+      - name: Align Expo packages with the installed SDK
+        run: npx expo install --fix
       - name: Run project regression checks
         run: npm run check
       - name: Export web preview
