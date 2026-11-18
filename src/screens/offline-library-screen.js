@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from "react-native";
-import ayahApi from "./ayah-api";
-import offlineStorage from "./offline-library-storage";
-import offlineLibrary from "./offline-library";
+import ayahApi from "../services/ayah-api";
+import offlineStorage from "../services/offline-library-storage";
+import offlineLibrary from "../services/offline-library";
 
 const { requestJson } = ayahApi;
 
