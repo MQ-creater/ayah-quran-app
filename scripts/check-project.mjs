@@ -224,6 +224,13 @@ checks.push(
   ["offline reader works without a configured backend", app.includes("if (!chapter?.id) return;") && app.includes("offlineStorage.get(chapter.id)")]
 );
 
+checks.push(
+  ["offline library screen imports services from the shared services directory",
+    offlineScreen.includes('from "../services/ayah-api"') &&
+    offlineScreen.includes('from "../services/offline-library-storage"') &&
+    offlineScreen.includes('from "../services/offline-library"')]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
