@@ -9,6 +9,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - Qur’an library, surah navigation, Uthmani/QPC Hafs and IndoPak reader modes, translations, word-by-word study, personal notes, bookmarks, collections, and search
 - Reader preferences, translation choice, last-reading position, and recent search history saved locally
 - Chapter recitation library, preferred reciter, full-surah playback, repeat controls, position resume, and ayah audio controls when supplied by the content response
+- Background recitation playback with native lock-screen/notification controls and surah/ayah metadata on supported devices; iOS background audio mode is configured, while real-device verification is still required
 - Ayah timestamp highlighting and seek-to-ayah when the selected chapter recording actually includes compatible timing metadata; optional word-level segment timings highlight the current word when supplied
 - Adjustable 0.75×, 1×, 1.25×, and 1.5× recitation speed with pitch correction, shared by surah, ayah-queue, and word playback and included in local backups
 - Ayah-by-ayah practice queue with per-ayah repeat, selected-page queue, pause/resume, and recall mode that hides the Arabic on screen
@@ -49,6 +50,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - The Qur’an reader keeps the selected Arabic text visible while the custom font loads and falls back to the device font if font download fails, instead of hiding the ayah.
 - The daily Qur’an card requests a source-backed random ayah through the configured content service, validates its surah and ayah reference, caches it for the local day, and shows a separately labeled reminder when fresh content is unavailable.
 - All app-side Qur’an API requests now use one shared client for consistent JSON parsing, readable server errors, route validation, request timeouts, and screen-level cancellation.
+- Qur’an listening now requests background-capable audio mode, exposes native lock-screen controls with meaningful surah/ayah metadata, and clears stale lock-screen controls when switching players. iOS background audio capability is configured in the app manifest.
 - The welcome screen now offers transparent guest entry instead of collecting an email or presenting Google sign-in buttons that were only placeholders. It explains that progress is stored locally until secure accounts and sync are implemented.
 - Clear local data removes the offline surah packages as well as saved preferences and vocabulary. Backups explicitly exclude offline surah downloads, so the user knows what is and is not portable.
 
@@ -124,7 +126,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 161 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs sixty-two Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, reading bookmark backup validation, and daily ayah content validation. The latest verified CI run passed 160 source checks and 62 unit tests and completed the Expo web export. One additional Android build-profile check has since been added and is being verified by CI. A successful static export is not a substitute for Android/iPad device testing.
+The 163 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs sixty-two Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, reading bookmark backup validation, and daily ayah content validation. The latest verified CI run passed 160 source checks and 62 unit tests and completed the Expo web export. Android build profiles and the new background audio configuration are being verified by subsequent CI runs. A successful static export is not a substitute for Android/iPad device testing.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
