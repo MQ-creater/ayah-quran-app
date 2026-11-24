@@ -16,7 +16,8 @@
       ]
     ],
     "android": {
-      "package": "com.mqcreater.ayah"
+      "package": "com.mqcreater.ayah",
+      "versionCode": 1
     },
     "ios": {
       "supportsTablet": true,
