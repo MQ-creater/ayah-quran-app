@@ -203,3 +203,11 @@ test("validates saved vocabulary in Ayah backups",()=>{
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedWordItems:[{key:"bad",reference:"999:1",arabic:"x"}]}}).valid,false);
   assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{savedWordItems:Array(301).fill(saved[0])}}).valid,false);
 });
+
+
+test("preserves the audio auto-next preference and rejects malformed backup values",()=>{
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{autoAdvance:true}}).valid,true);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{autoAdvance:false}}).valid,true);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{autoAdvance:"yes"}}).valid,false);
+  assert.equal(validateAyahBackup({app:"Ayah",schemaVersion:1,data:{autoAdvance:1}}).valid,false);
+});
