@@ -272,6 +272,15 @@ checks.push(
     !app.includes("const googlePlaceholder")]
 );
 
+checks.push(
+  ["all Qur’an service requests in the app use the shared API client",
+    !/\\bfetch\\(/.test(app) && app.includes("requestJson")],
+  ["shared API client preserves cancellation while enforcing request timeouts",
+    apiClient.includes("signal.addEventListener") &&
+    apiClient.includes("didTimeout") &&
+    apiClient.includes('code:"TIMEOUT"')]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
