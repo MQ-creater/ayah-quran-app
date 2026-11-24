@@ -46,11 +46,20 @@ async function requestJson(path, options = {}) {
   const url = buildApiUrl(path, baseUrl);
   let timeoutId;
   let controller;
+  let abortListener;
+  let didTimeout = false;
   let requestSignal = signal;
-  if (!signal && typeof AbortController !== "undefined" && Number(timeoutMs) > 0) {
+  if (typeof AbortController !== "undefined" && Number(timeoutMs) > 0) {
     controller = new AbortController();
     requestSignal = controller.signal;
-    timeoutId = setTimeout(() => controller.abort(), Math.min(Number(timeoutMs), 60000));
+    if (signal) {
+      if (signal.aborted) controller.abort();
+      else {
+        abortListener = () => controller.abort();
+        signal.addEventListener("abort", abortListener, { once:true });
+      }
+    }
+    timeoutId = setTimeout(() => { didTimeout = true; controller.abort(); }, Math.min(Number(timeoutMs), 60000));
   }
   try {
     const response = await fetchImpl(url, {
@@ -74,10 +83,12 @@ async function requestJson(path, options = {}) {
     return data;
   } catch (error) {
     if (error instanceof AyahApiError) throw error;
+    if (didTimeout) throw new AyahApiError("The Ayah server took too long to respond.", { code:"TIMEOUT", path });
     if (error?.name === "AbortError") throw error;
     throw new AyahApiError(error?.message || "The Ayah server could not be reached.", { code:"NETWORK_ERROR", path });
   } finally {
     if (timeoutId) clearTimeout(timeoutId);
+    if (signal && abortListener) signal.removeEventListener("abort", abortListener);
   }
 }
 
