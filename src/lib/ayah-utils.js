@@ -36,6 +36,24 @@ function normalizeVerseKey(value) {
   if (!Number.isInteger(surah) || surah < 1 || surah > 114 || !Number.isInteger(ayah) || ayah < 1 || ayah > SURAH_AYAH_COUNTS[surah - 1]) return null;
   return surah + ":" + ayah;
 }
+function normalizeDailyAyah(verse, dateKey) {
+  if (!verse || typeof verse !== "object" || Array.isArray(verse)) return null;
+  const date = String(dateKey || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return null;
+  const parsedDate = new Date(date + "T00:00:00Z");
+  if (Number.isNaN(parsedDate.getTime()) || parsedDate.toISOString().slice(0,10) !== date) return null;
+  const reference = normalizeVerseKey(verse.verse_key);
+  const arabic = String(verse.text_qpc_hafs || verse.text_uthmani || "").trim().slice(0,1200);
+  const translations = Array.isArray(verse.translations) ? verse.translations : [];
+  const translation = String(translations[0]?.text || "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0,3000);
+  if (!reference || !arabic || !translation) return null;
+  return { date, reference, arabic, translation };
+}
 function readerPageForAyah(value, perPage = 50) {
   const ayah = Math.max(1, Math.floor(Number(value) || 1));
   const size = Math.min(100, Math.max(1, Math.floor(Number(perPage) || 50)));
@@ -217,4 +235,4 @@ function summarizeKhatmahProgress(activity, plan, today = new Date()) {
   };
 }
 
-module.exports = { SURAH_AYAH_COUNTS, QURAN_TOTAL_AYAHS, getActiveAudioTiming, createKhatmahPlan, summarizeKhatmahProgress, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeSavedWordItems };
+module.exports = { SURAH_AYAH_COUNTS, QURAN_TOTAL_AYAHS, getActiveAudioTiming, createKhatmahPlan, summarizeKhatmahProgress, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, BACKUP_SCHEMA_VERSION, BACKUP_PREFERENCE_KEYS, normalizeVerseKey, normalizeDailyAyah, readerPageForAyah, languageCodeFor, mergeRecentSearches, validateAyahBackup, normalizeSavedWordItems };
