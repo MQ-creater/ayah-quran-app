@@ -124,7 +124,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 149 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs sixty-two Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, reading bookmark backup validation, and daily ayah content validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
+The 161 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs sixty-two Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, reading bookmark backup validation, and daily ayah content validation. The latest verified CI run passed 160 source checks and 62 unit tests and completed the Expo web export. One additional Android build-profile check has since been added and is being verified by CI. A successful static export is not a substitute for Android/iPad device testing.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
@@ -149,7 +149,12 @@ After these changes are pulled into Codespaces, run `npm install` to install Exp
 
 ## Android
 
-This is an Expo React Native project. Android testing can be done with Expo Go on an Android device or an Android emulator. A distributable Android build will be configured after the core app flow is tested.
+This is an Expo React Native project with EAS build profiles in `eas.json`. Android preview builds are configured as internal APKs, and production builds are configured as Android App Bundles (AABs) with automatic version-code increments. After signing in to your own Expo account and linking the EAS project, run:
+```bash
+npx eas-cli build --platform android --profile preview
+npx eas-cli build --platform android --profile production
+```
+The preview profile is for installation and testing; the production profile creates an uploadable App Bundle, not an automatically published Play Store release. Before Play submission, Ayah still needs a final app icon and store graphics, deployed backend with approved Quran Foundation production credentials, provider/content permission review, privacy policy and Data safety review, and physical-device QA. Authentication, cloud sync, live recitation analysis, push reminders, and billing are not connected.
 
 ## Qur’an content connection
 
