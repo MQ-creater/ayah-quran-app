@@ -48,6 +48,7 @@ Ayah is an Android-first Qur’an reading, memorization, Arabic learning, and st
 - The in-app connection screen checks the configured backend status and reports whether server credentials are configured without revealing the credentials.
 - The Qur’an reader keeps the selected Arabic text visible while the custom font loads and falls back to the device font if font download fails, instead of hiding the ayah.
 - The daily Qur’an card requests a source-backed random ayah through the configured content service, validates its surah and ayah reference, caches it for the local day, and shows a separately labeled reminder when fresh content is unavailable.
+- All app-side Qur’an API requests now use one shared client for consistent JSON parsing, readable server errors, route validation, request timeouts, and screen-level cancellation.
 - The welcome screen now offers transparent guest entry instead of collecting an email or presenting Google sign-in buttons that were only placeholders. It explains that progress is stored locally until secure accounts and sync are implemented.
 - Clear local data removes the offline surah packages as well as saved preferences and vocabulary. Backups explicitly exclude offline surah downloads, so the user knows what is and is not portable.
 
@@ -123,7 +124,7 @@ npm run check
 npx expo export --platform web
 ```
 
-The 147 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs sixty Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, reading bookmark backup validation, and daily ayah content validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
+The 149 configured source regression checks verify app wiring, storage and reader behavior, navigation, hadith and comparison features, backup/privacy screens, audio controls, backend diagnostics, server security settings, reading bookmarks, the local recitation recorder, and focused ayah Study Mode. The `npm run check` command also runs sixty-two Node built-in unit tests for verse references, page calculation, language mapping, recent-search handling, backups, translation comparison, collections, Khatmah calculations, safe audio URLs, pinned verse validation, reading bookmark backup validation, and daily ayah content validation. These counts describe configured checks; run them in the project environment before treating them as passing. No successful Expo export or device test is claimed here.
 
 The CI workflow runs the source checks and unit tests before exporting the Expo web preview.
 
