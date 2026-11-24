@@ -13,7 +13,7 @@ import OfflineLibraryScreen from "./src/screens/offline-library-screen";
 import offlineStorage from "./src/services/offline-library-storage";
 import vocabularyReview from "./src/lib/vocabulary-review";
 
-const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, getActiveAudioTiming, normalizeSavedWordItems } = ayahUtils;
+const { languageCodeFor, mergeRecentSearches, normalizeVerseKey, normalizeDailyAyah, readerPageForAyah, validateAyahBackup, normalizeAudioUrl, normalizeTranslationIds, normalizeCollectionNames, toggleCollectionMembership, createKhatmahPlan, summarizeKhatmahProgress, getActiveAudioTiming, normalizeSavedWordItems } = ayahUtils;
 const { requestJson } = ayahApi;
 const { getVocabularyReviewQueue, summarizeVocabularyReview, scheduleVocabularyReview } = vocabularyReview;
 
@@ -70,7 +70,11 @@ function DailyAyah({ compact = false }) {
       try {
         const raw = await AsyncStorage.getItem(DAILY_AYAH_CACHE_KEY);
         try { cached = raw ? JSON.parse(raw) : null; } catch {}
-        cachedIsValid = Boolean(cached && /^\d{1,3}:\d{1,3}$/.test(String(cached.reference||"")) && cached.arabic && cached.translation);
+        cachedIsValid = Boolean(cached && normalizeDailyAyah({
+          verse_key:cached.reference,
+          text_qpc_hafs:cached.arabic,
+          translations:[{text:cached.translation}]
+        },cached.date));
         if (cachedIsValid && cached.date === today) {
           if (active) setDailyVerse(cached);
           return;
@@ -81,12 +85,8 @@ function DailyAyah({ compact = false }) {
         }
         const result = await requestJson("/verses/random?translation_id=131&language=en&script=uthmani",{baseUrl:AYAH_API_BASE,timeoutMs:12000});
         const verse = result?.verse || result;
-        const reference = String(verse?.verse_key || "");
-        const arabic = String(verse?.text_qpc_hafs || verse?.text_uthmani || "").trim();
-        const translations = Array.isArray(verse?.translations) ? verse.translations : [];
-        const translation = String(translations[0]?.text || "").replace(/<[^>]*>/g," ").replace(/&nbsp;/gi," ").replace(/\s+/g," ").trim();
-        if (!/^\d{1,3}:\d{1,3}$/.test(reference) || !arabic || !translation) throw new Error("The daily ayah response was incomplete.");
-        const nextVerse = {date:today,reference,arabic,translation};
+        const nextVerse = normalizeDailyAyah(verse, today);
+        if (!nextVerse) throw new Error("The daily ayah response was incomplete.");
         await AsyncStorage.setItem(DAILY_AYAH_CACHE_KEY,JSON.stringify(nextVerse));
         if (active) { setDailyVerse(nextVerse); setFeedUnavailable(false); }
       } catch {
