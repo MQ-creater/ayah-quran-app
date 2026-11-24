@@ -1,14 +1,15 @@
 import { readFile } from "node:fs/promises";
 import assert from "node:assert/strict";
 
-const [app,server,config,utilities,apiClient,persistentHook,packageJson] = await Promise.all([
+const [app,server,config,utilities,apiClient,persistentHook,packageJson,easConfig] = await Promise.all([
   readFile(new URL("../App.js", import.meta.url), "utf8"),
   readFile(new URL("../server/index.js", import.meta.url), "utf8"),
   readFile(new URL("../app.json", import.meta.url), "utf8"),
   readFile(new URL("../src/lib/ayah-utils.js", import.meta.url), "utf8"),
   readFile(new URL("../src/services/ayah-api.js", import.meta.url), "utf8"),
   readFile(new URL("../src/hooks/use-persistent-state.js", import.meta.url), "utf8"),
-  readFile(new URL("../package.json", import.meta.url), "utf8")
+  readFile(new URL("../package.json", import.meta.url), "utf8"),
+  readFile(new URL("../eas.json", import.meta.url), "utf8")
 ]);
 
 const checks = [
@@ -279,6 +280,16 @@ checks.push(
     apiClient.includes("signal.addEventListener") &&
     apiClient.includes("didTimeout") &&
     apiClient.includes('code:"TIMEOUT"')]
+);
+
+const eas = JSON.parse(easConfig);
+checks.push(
+  ["Android EAS profiles provide an internal APK and production App Bundle",
+    eas.build?.preview?.distribution === "internal" &&
+    eas.build?.preview?.android?.buildType === "apk" &&
+    eas.build?.production?.android?.buildType === "app-bundle" &&
+    eas.build?.production?.autoIncrement === true &&
+    config.includes('"versionCode": 1')]
 );
 
 for (const [name, passed] of checks) {
