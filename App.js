@@ -111,9 +111,7 @@ function DailyAyah({ compact = false }) {
     </View>
   );
 }
-function WelcomeScreen({ onEmailContinue, onGoogle }) {
-  const [email, setEmail] = useState("");
-  const [showEmail, setShowEmail] = useState(false);
+function WelcomeScreen({ onContinue }) {
   return (
     <ImageBackground
       source={{ uri: "https://images.unsplash.com/photo-1519817650390-64a93db51149?auto=format&fit=crop&w=1200&q=80" }}
@@ -127,19 +125,9 @@ function WelcomeScreen({ onEmailContinue, onGoogle }) {
         <DailyAyah />
         <View style={styles.signInCard}>
           <Text style={styles.signInTitle}>Begin your journey</Text>
-          <Text style={styles.signInCopy}>Explore your learning space. Secure accounts and cloud sync are planned but not connected yet.</Text>
-          <Button title="Continue with Google" onPress={onGoogle} />
-          <Button title="Continue with email" secondary onPress={() => setShowEmail(true)} />
-          {showEmail && (
-            <View style={styles.emailArea}>
-              <TextInput value={email} onChangeText={setEmail} placeholder="Your email address"
-                placeholderTextColor={MUTED} keyboardType="email-address" autoCapitalize="none"
-                style={styles.emailInput} />
-              <Button title="Continue" onPress={() => onEmailContinue(email)} disabled={!/^\S+@\S+\.\S+$/.test(email)} />
-            </View>
-          )}
-          <Text style={styles.tinyNote}>Sign-in is a visual prototype. Secure Google/email authentication will be connected before launch.</Text>
-          <Button title="Explore preview without signing in" secondary onPress={onEmailContinue} />
+          <Text style={styles.signInCopy}>Read, listen, study, and build your hifdh routine. Your learning data stays on this device until secure accounts and cloud sync are available.</Text>
+          <Button title="Continue as guest" onPress={onContinue} />
+          <Text style={styles.tinyNote}>No email or password is collected. You can export a local backup from Settings whenever you need it.</Text>
         </View>
       </View>
     </ImageBackground>
@@ -2559,15 +2547,8 @@ export default function App() {
       setTab(key);
     }
   };
-  const continueEmail = email => {
-    if (typeof email === "string" && email && !/^\S+@\S+\.\S+$/.test(email)) {
-      Alert.alert("Check your email", "Please enter a valid email address.");
-      return;
-    }
-    setSignedIn(true);
-  };
-  const googlePlaceholder = () => Alert.alert("Google sign-in", "Google authentication is not connected yet. You can enter the app using preview mode.");
-  if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onEmailContinue={continueEmail} onGoogle={googlePlaceholder} /></SafeAreaView>;
+  const enterAsGuest = () => setSignedIn(true);
+  if (!signedIn) return <SafeAreaView style={styles.safeArea}><StatusBar barStyle={activeTheme === "light" || activeTheme === "sepia" ? "dark-content" : "light-content"} /><WelcomeScreen onContinue={enterAsGuest} /></SafeAreaView>;
   let screen;
   if (tab === "libraryReader" && selectedChapter) screen = <QuranReaderScreen initialOfflineTranslationId={offlineReaderTranslationId} savedWordItems={savedWordItems} setSavedWordItems={setSavedWordItems} onOpenRecorder={(reference,surahName)=>{setRecitationTarget({reference,surahName});setRecitationReturnTab("libraryReader");setTab("recitationPractice");}} readingBookmarks={readingBookmarks} onSaveReadingBookmark={position=>{const id=String(position.chapterId)+":"+String(position.ayah);const existing=readingBookmarks.find(item=>item.id===id);if(existing){setReadingBookmarks(current=>current.map(item=>item.id===id?{...item,...position}:item));Alert.alert("Bookmark updated","This reading bookmark now points to the selected ayah.");}else if(readingBookmarks.length>=3){Alert.alert("Three bookmarks already saved","Open Reading bookmarks and remove one before saving another.");}else{const title="Reading "+(readingBookmarks.length+1);setReadingBookmarks(current=>[...current,{...position,id,title}]);Alert.alert("Reading bookmark saved",title+" was added to your reading bookmarks.");}}} compareTranslationId={compareTranslationId} setCompareTranslationId={setCompareTranslationId} pinnedCompareKeys={pinnedCompareKeys} setPinnedCompareKeys={setPinnedCompareKeys} pinnedCompareDetails={pinnedCompareDetails} setPinnedCompareDetails={setPinnedCompareDetails} preferredReciterId={preferredReciterId} preferredReciterName={preferredReciterName} onChangeChapter={setSelectedChapter} chapter={selectedChapter} initialAyah={searchInitialAyah} onMarkAyahRead={key=>recordDailyActivity("readingAyahs",[key])} readTodayIds={dailyActivity?.[localDateKey()]?.readingAyahs||[]} lastReadPosition={lastReadPosition} onSetReadingPosition={setLastReadPosition} onBack={() => setTab("library")} onOpenTafsir={(surah, ayah) => { setTafsirTarget({ surah:String(surah), ayah:String(ayah) }); setTafsirReturnTab("libraryReader"); setTab("tafsir"); }} savedIds={savedIds} notes={readerNotes} onSaveNote={(key,note) => setReaderNotes(current => { const next = { ...current }; if (note.trim()) next[key] = note.trim(); else delete next[key]; return next; })} onToggleSave={(id, detail) => { setSavedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]); setSavedVerseDetails(current => { const next = { ...current }; if (savedIds.includes(id)) delete next[id]; else next[id] = detail; return next; }); }} />;
   else if (tab === "search") screen = <QuranSearchScreen language={learningLanguage} recentSearches={recentSearches} onSaveRecentSearch={query=>setRecentSearches(current=>query?mergeRecentSearches(current,query):[])} onOpenResult={async result => { try { const base = AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE; const response = await fetch(base + "/chapters"); if (!response.ok) throw new Error("Could not load surah details."); const data = await response.json(); const chapter = (data.chapters || []).find(item => Number(item.id) === Number(result.chapter_id)); if (!chapter) throw new Error("This surah is not available in the reader yet."); setSearchInitialAyah(Number(result.verse_number)); setSelectedChapter(chapter); setTab("libraryReader"); } catch (error) { Alert.alert("Unable to open ayah", error.message || "Please try again."); } }} />;
