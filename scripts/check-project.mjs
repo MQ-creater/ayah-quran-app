@@ -316,7 +316,7 @@ checks.push(
 
 checks.push(
   ["audio player transitions clear stale lock-screen ownership",
-    app.includes("chapterPlayer.pause();clearQuranLockScreen(wordPlayer)") &&
+    app.includes("wordPlayer.pause();clearQuranLockScreen(wordPlayer)") &&
     app.includes("chapterPlayer.pause();clearQuranLockScreen(chapterPlayer)") &&
     app.includes("clearQuranLockScreen(chapterPlayer);clearQuranLockScreen(wordPlayer)") &&
     app.includes("setAudioQueueIndex(0);clearQuranLockScreen(wordPlayer)")]
