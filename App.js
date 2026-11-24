@@ -1237,7 +1237,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
   const [searched,setSearched] = useState(false);
   const requestRef = useRef(null);
   useEffect(()=>()=>requestRef.current?.abort(),[]);
-  useEffect(()=>{if(!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;setTranslationLoading(true);setTranslationError("");fetch(base+"/translations?language="+encodeURIComponent(languageCodeFor(language))).then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||"Translation catalogue unavailable.");return data;}).then(data=>{if(!active)return;const items=Array.isArray(data.translations)?data.translations:[];setTranslationOptions(items);setTranslationId(current=>items.some(item=>String(item.id)===String(current))?current:String(items[0]?.id||""));}).catch(error=>{if(active)setTranslationError(error.message||"Translations could not be loaded.");}).finally(()=>{if(active)setTranslationLoading(false);});return()=>{active=false;};},[language]);
+  useEffect(()=>{if(!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;setTranslationLoading(true);setTranslationError("");requestJson("/translations?language="+encodeURIComponent(languageCodeFor(language)),{baseUrl:AYAH_API_BASE}).then(data=>{if(!active)return;const items=Array.isArray(data.translations)?data.translations:[];setTranslationOptions(items);setTranslationId(current=>items.some(item=>String(item.id)===String(current))?current:String(items[0]?.id||""));}).catch(error=>{if(active)setTranslationError(error.message||"Translations could not be loaded.");}).finally(()=>{if(active)setTranslationLoading(false);});return()=>{active=false;};},[language]);
   const load = async (nextPage=1) => {
     const value=Number(target);
     const ranges={juz:30,page:700,hizb:60,rub:240,manzil:7,ruku:558};
@@ -1256,9 +1256,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
     if(mode==="page")params.set("mushaf",mushaf);
     const endpoint=({juz:"/verses/by-juz/",page:"/verses/by-page/",hizb:"/verses/by-hizb/",rub:"/verses/by-rub-al-hizb/",manzil:"/verses/by-manzil/",ruku:"/verses/by-ruku/"})[mode]+value;
     try{
-      const response=await fetch(base+endpoint+"?"+params.toString(),{signal:controller.signal});
-      const data=await response.json();
-      if(!response.ok)throw new Error(data.error||"The requested Qur’an section could not be loaded.");
+      const data=await requestJson(endpoint+"?"+params.toString(),{baseUrl:AYAH_API_BASE,signal:controller.signal});
       const incoming=Array.isArray(data.verses)?data.verses:[];
       setVerses(incoming);
       setPagination(data.pagination||null);
@@ -1296,7 +1294,7 @@ function QuranNavigationScreen({ onOpenVerse, language = "English" }) {
         </View>
       </>:null}
       <Button title={loading?"Loading Qur’an section…":"Open "+title} onPress={()=>load(1)} disabled={loading}/>
-      <Button title={randomLoading?"Finding an ayah…":"Pick a random ayah"+(searched?" in this section":" from the Qur’an")} secondary disabled={randomLoading||loading} onPress={async()=>{setRandomLoading(true);setRandomError("");setRandomVerse(null);try{if(!AYAH_API_BASE)throw new Error("Connect the secure Ayah backend to discover a random ayah.");if(translationLoading)throw new Error("Wait for the translation list to finish loading, then try again.");const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;const params=new URLSearchParams({language:languageCodeFor(language),script:mode==="page"&&(mushaf==="6"||mushaf==="7")?"indopak":"uthmani"});if(translationId)params.set("translation_id",translationId);if(searched){if(mode==="page"&&Number(target)>604)throw new Error("Random ayah filtering supports Madani Mushaf pages 1–604. This selected Mushaf page can still be opened normally.");const key=({juz:"juz_number",page:"page_number",hizb:"hizb_number",rub:"rub_el_hizb_number",manzil:"manzil_number",ruku:"ruku_number"})[mode];const value=Number(target);if(key&&Number.isInteger(value))params.set(key,String(value));}const response=await fetch(base+"/verses/random?"+params.toString());const data=await response.json();if(!response.ok)throw new Error(data.error||"Could not find a random ayah.");if(!data.verse?.verse_key)throw new Error("The content source returned no verse.");setRandomVerse(data.verse);}catch(error){setRandomError(error.message||"Please try again.");}finally{setRandomLoading(false);}}}/>
+      <Button title={randomLoading?"Finding an ayah…":"Pick a random ayah"+(searched?" in this section":" from the Qur’an")} secondary disabled={randomLoading||loading} onPress={async()=>{setRandomLoading(true);setRandomError("");setRandomVerse(null);try{if(!AYAH_API_BASE)throw new Error("Connect the secure Ayah backend to discover a random ayah.");if(translationLoading)throw new Error("Wait for the translation list to finish loading, then try again.");const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;const params=new URLSearchParams({language:languageCodeFor(language),script:mode==="page"&&(mushaf==="6"||mushaf==="7")?"indopak":"uthmani"});if(translationId)params.set("translation_id",translationId);if(searched){if(mode==="page"&&Number(target)>604)throw new Error("Random ayah filtering supports Madani Mushaf pages 1–604. This selected Mushaf page can still be opened normally.");const key=({juz:"juz_number",page:"page_number",hizb:"hizb_number",rub:"rub_el_hizb_number",manzil:"manzil_number",ruku:"ruku_number"})[mode];const value=Number(target);if(key&&Number.isInteger(value))params.set(key,String(value));}const data=await requestJson("/verses/random?"+params.toString(),{baseUrl:AYAH_API_BASE});if(!data.verse?.verse_key)throw new Error("The content source returned no verse.");setRandomVerse(data.verse);}catch(error){setRandomError(error.message||"Please try again.");}finally{setRandomLoading(false);}}}/>
       {randomError?<Text style={styles.progressHint}>{randomError}</Text>:null}
       {randomVerse?<Pressable accessibilityRole="button" onPress={()=>open(randomVerse)} style={styles.savedAyah}><Text style={styles.readerToolLabel}>A RANDOM AYAH · {randomVerse.verse_key}</Text><Text style={styles.dailyArabic} writingDirection="rtl">{randomVerse.text_qpc_hafs||randomVerse.text_uthmani||randomVerse.text_indopak_nastaleeq||""}</Text><Text style={styles.translation}>{String(randomVerse.translations?.[0]?.text||"").replace(/<[^>]*>/g,"")}</Text><Text style={styles.reference}>Tap to open in the Qur’an reader</Text></Pressable>:null}
       {error?<Text style={styles.progressHint}>{error}</Text>:null}
@@ -1341,8 +1339,7 @@ function RelatedHadithSection({ verseKey, language = "en" }) {
     const controller=new AbortController();
     const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
     setLoading(true);setError("");
-    fetch(base+"/hadith/"+verseKey.replace(":","/")+"?language="+(String(language).toLowerCase()==="ar"?"ar":"en")+"&page="+page+"&limit=4",{signal:controller.signal})
-      .then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||"Related hadith could not be loaded.");return data;})
+    requestJson("/hadith/"+verseKey.replace(":","/")+"?language="+(String(language).toLowerCase()==="ar"?"ar":"en")+"&page="+page+"&limit=4",{baseUrl:AYAH_API_BASE,signal:controller.signal})
       .then(data=>{setHadiths(current=>page===1?(data.hadiths||[]):[...current,...(data.hadiths||[])]);setHasMore(Boolean(data.has_more));setLoaded(true);})
       .catch(e=>{if(e.name!=="AbortError")setError(e.message||"Please try again.");})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -1386,8 +1383,7 @@ function SurahInfoSection({ chapterId, language = "en" }) {
     const params=new URLSearchParams({language:/^[a-z]{2}$/i.test(String(language))?String(language).toLowerCase():"en",include_resources:"true"});
     if(resourceId)params.set("resource_id",resourceId);
     setLoading(true);setError("");
-    fetch(base+"/chapters/"+chapterId+"/info?"+params.toString(),{signal:controller.signal})
-      .then(async response=>{const data=await response.json();if(!response.ok)throw new Error(data.error||"Surah introduction unavailable.");return data;})
+    requestJson("/chapters/"+encodeURIComponent(chapterId)+"/info?"+params.toString(),{baseUrl:AYAH_API_BASE,signal:controller.signal})
       .then(data=>{setInfo(data.chapter_info||null);setResources(Array.isArray(data.resources)?data.resources:[]);})
       .catch(e=>{if(e.name!=="AbortError")setError(e.message||"Please try again.");})
       .finally(()=>{if(!controller.signal.aborted)setLoading(false);});
@@ -1428,7 +1424,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, initialOfflineTranslation
   const [surahRepeatCount,setSurahRepeatCount] = usePersistentState("surahRepeatCount",1);
   const [surahRepeatsRemaining,setSurahRepeatsRemaining] = useState(0);
   const [resumeAfterLoad,setResumeAfterLoad] = useState(false);
-  useEffect(()=>{if(!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;fetch(base+"/chapters").then(r=>{if(!r.ok)throw new Error("Surah list unavailable");return r.json();}).then(data=>{if(active)setChapterList(Array.isArray(data.chapters)?data.chapters:[]);}).catch(()=>{if(active)setChapterAudioError("Surah navigation is unavailable until the content service responds.");});return()=>{active=false;};},[]);
+  useEffect(()=>{if(!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;requestJson("/chapters",{baseUrl:AYAH_API_BASE}).then(data=>{if(active)setChapterList(Array.isArray(data.chapters)?data.chapters:[]);}).catch(()=>{if(active)setChapterAudioError("Surah navigation is unavailable until the content service responds.");});return()=>{active=false;};},[]);
   const playPreferredReciter = async () => {
     if (!preferredReciterId) { Alert.alert("Choose a reciter first","Open the Recitation Library and choose your preferred reciter."); return; }
     if (!AYAH_API_BASE) { Alert.alert("Backend required","Connect the Ayah content backend to play chapter recitations."); return; }
@@ -1436,9 +1432,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, initialOfflineTranslation
       setChapterAudioLoading(true);setChapterAudioError("");
       wordPlayer.pause();setActiveAudioKey(null);setAudioQueueKeys([]);setAudioQueueIndex(0);setRepeatsRemaining(0);
       const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;
-      const response=await fetch(base+"/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+chapter.id);
-      const data=await response.json();
-      if (!response.ok) throw new Error(data.error || "This recording is unavailable.");
+      const data=await requestJson("/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+chapter.id,{baseUrl:AYAH_API_BASE});
       if (!data.audio?.url) throw new Error("The provider did not return an audio file.");
       setVerseTimestamps(Array.isArray(data.audio.timestamps)?data.audio.timestamps:[]);
       setActiveSyncedVerseKey("");
@@ -1453,7 +1447,7 @@ function QuranReaderScreen({ chapter, initialAyah = 1, initialOfflineTranslation
   const seekToVerse=key=>{const timing=verseTimestamps.find(item=>String(item.verse_key||item.verseKey||item.key||"")===String(key));const start=Number(timing?.timestamp_from??timing?.start??timing?.from??timing?.start_time);if(Number.isFinite(start)){wordPlayer.pause();setActiveAudioKey(null);chapterPlayer.seekTo(Math.max(0,start/1000));chapterPlayer.play();setActiveSyncedVerseKey(String(key));}else Alert.alert("Ayah timing unavailable","This recording does not provide a timestamp for that ayah. You can still use its individual Play ayah button.");};
   useEffect(()=>{if(resumeAfterLoad&&chapterAudioStatus?.isLoaded){chapterPlayer.seekTo(Number(lastAudioPosition)||0);chapterPlayer.play();setResumeAfterLoad(false);}},[resumeAfterLoad,chapterAudioStatus?.isLoaded]);
   useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||surahRepeatsRemaining<=0)return;setSurahRepeatsRemaining(value=>Math.max(0,value-1));chapterPlayer.seekTo(0);chapterPlayer.play();},[chapterAudioStatus?.didJustFinish,surahRepeatsRemaining]);
-  useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||!autoAdvance||surahRepeatsRemaining>0)return;const next=chapterList.find(item=>Number(item.id)===Number(chapter.id)+1);if(!next||!preferredReciterId||!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;fetch(base+"/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+next.id).then(r=>{if(!r.ok)throw new Error("Next surah audio unavailable");return r.json();}).then(data=>{if(!active||!data.audio?.url)return;setVerseTimestamps(Array.isArray(data.audio.timestamps)?data.audio.timestamps:[]);setActiveSyncedVerseKey("");onChangeChapter?.(next);chapterPlayer.replace(data.audio.url);chapterPlayer.play();}).catch(()=>{if(active)setChapterAudioError("The next surah could not be loaded. You can continue manually.");});return()=>{active=false;};},[chapterAudioStatus?.didJustFinish,autoAdvance,chapterList,chapter.id,preferredReciterId]);
+  useEffect(()=>{if(!chapterAudioStatus?.didJustFinish||!autoAdvance||surahRepeatsRemaining>0)return;const next=chapterList.find(item=>Number(item.id)===Number(chapter.id)+1);if(!next||!preferredReciterId||!AYAH_API_BASE)return;let active=true;const base=AYAH_API_BASE.endsWith("/")?AYAH_API_BASE.slice(0,-1):AYAH_API_BASE;requestJson("/audio/chapters/"+encodeURIComponent(preferredReciterId)+"/"+next.id,{baseUrl:AYAH_API_BASE}).then(data=>{if(!active||!data.audio?.url)return;setVerseTimestamps(Array.isArray(data.audio.timestamps)?data.audio.timestamps:[]);setActiveSyncedVerseKey("");onChangeChapter?.(next);chapterPlayer.replace(data.audio.url);chapterPlayer.play();}).catch(()=>{if(active)setChapterAudioError("The next surah could not be loaded. You can continue manually.");});return()=>{active=false;};},[chapterAudioStatus?.didJustFinish,autoAdvance,chapterList,chapter.id,preferredReciterId]);
   const navigateSurah=direction=>{const target=chapterList.find(item=>Number(item.id)===Number(chapter.id)+direction);if(target){chapterPlayer.pause();wordPlayer.pause();setActiveAudioKey(null);setAudioQueueKeys([]);setAudioQueueIndex(0);setSelectedAudioKeys([]);setVerseTimestamps([]);setActiveSyncedVerseKey("");setRepeatsRemaining(0);onChangeChapter?.(target);}};
   const restartSurah=()=>{chapterPlayer.seekTo(0);chapterPlayer.play();setLastAudioPosition(0);};
   const [activeAudioKey,setActiveAudioKey] = useState(null);
