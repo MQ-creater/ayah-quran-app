@@ -307,6 +307,13 @@ checks.push(
     app.includes('title:chapter.name_simple+" · Ayah "+ayahNumber')]
 );
 
+checks.push(
+  ["audio auto-next choice persists across reader sessions and is backed up",
+    app.includes('usePersistentState("autoAdvance",true)') &&
+    utilities.includes('"autoAdvance"') &&
+    utilities.includes('"remindersEnabled","autoAdvance"')]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
