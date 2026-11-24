@@ -64,14 +64,19 @@ function DailyAyah({ compact = false }) {
   useEffect(() => {
     let active = true;
     const loadDailyVerse = async () => {
-      if (!AYAH_API_BASE) return;
       const today = localDateKey();
+      let cached = null;
+      let cachedIsValid = false;
       try {
         const raw = await AsyncStorage.getItem(DAILY_AYAH_CACHE_KEY);
-        let cached = null;
         try { cached = raw ? JSON.parse(raw) : null; } catch {}
-        if (cached?.date === today && /^\\d{1,3}:\\d{1,3}$/.test(String(cached.reference||"")) && cached.arabic && cached.translation) {
+        cachedIsValid = Boolean(cached && /^\d{1,3}:\d{1,3}$/.test(String(cached.reference||"")) && cached.arabic && cached.translation);
+        if (cachedIsValid && cached.date === today) {
           if (active) setDailyVerse(cached);
+          return;
+        }
+        if (!AYAH_API_BASE) {
+          if (active && cachedIsValid) { setDailyVerse(cached); setFeedUnavailable(true); }
           return;
         }
         const result = await requestJson("/verses/random?translation_id=131&language=en&script=uthmani",{baseUrl:AYAH_API_BASE,timeoutMs:12000});
@@ -79,26 +84,30 @@ function DailyAyah({ compact = false }) {
         const reference = String(verse?.verse_key || "");
         const arabic = String(verse?.text_qpc_hafs || verse?.text_uthmani || "").trim();
         const translations = Array.isArray(verse?.translations) ? verse.translations : [];
-        const translation = String(translations[0]?.text || "").replace(/<[^>]*>/g," ").replace(/&nbsp;/gi," ").replace(/\\s+/g," ").trim();
-        if (!/^\\d{1,3}:\\d{1,3}$/.test(reference) || !arabic || !translation) throw new Error("The daily ayah response was incomplete.");
+        const translation = String(translations[0]?.text || "").replace(/<[^>]*>/g," ").replace(/&nbsp;/gi," ").replace(/\s+/g," ").trim();
+        if (!/^\d{1,3}:\d{1,3}$/.test(reference) || !arabic || !translation) throw new Error("The daily ayah response was incomplete.");
         const nextVerse = {date:today,reference,arabic,translation};
         await AsyncStorage.setItem(DAILY_AYAH_CACHE_KEY,JSON.stringify(nextVerse));
         if (active) { setDailyVerse(nextVerse); setFeedUnavailable(false); }
       } catch {
-        if (active) setFeedUnavailable(true);
+        if (active) {
+          if (cachedIsValid) setDailyVerse(cached);
+          setFeedUnavailable(true);
+        }
       }
     };
     loadDailyVerse();
     return () => { active = false; };
   }, []);
   const verse = dailyVerse || DAILY;
+  const isCurrentDailyVerse = dailyVerse?.date === localDateKey();
   return (
     <View style={[styles.dailyCard, compact && styles.dailyCardCompact]}>
-      <Text style={styles.cardEyebrow}>{dailyVerse ? "AYAH OF THE DAY" : "A QUR’AN REMINDER"}</Text>
+      <Text style={styles.cardEyebrow}>{isCurrentDailyVerse ? "AYAH OF THE DAY" : dailyVerse ? "RECENT QUR’AN REMINDER" : "A QUR’AN REMINDER"}</Text>
       <Text style={styles.dailyArabic} writingDirection="rtl">{verse.arabic}</Text>
       <Text style={styles.translation}>“{verse.translation}”</Text>
       <Text style={styles.reference}>{verse.reference}</Text>
-      {feedUnavailable ? <Text style={styles.tinyNote}>The fresh daily selection is unavailable right now. This reminder is shown as a fallback.</Text> : null}
+      {feedUnavailable ? <Text style={styles.tinyNote}>The fresh daily selection is unavailable. Showing your most recent saved Qur’an reminder instead.</Text> : null}
     </View>
   );
 }
