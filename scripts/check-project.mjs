@@ -314,6 +314,14 @@ checks.push(
     utilities.includes('"remindersEnabled","autoAdvance"')]
 );
 
+checks.push(
+  ["audio player transitions clear stale lock-screen ownership",
+    app.includes("chapterPlayer.pause();clearQuranLockScreen(wordPlayer)") &&
+    app.includes("chapterPlayer.pause();clearQuranLockScreen(chapterPlayer)") &&
+    app.includes("clearQuranLockScreen(chapterPlayer);clearQuranLockScreen(wordPlayer)") &&
+    app.includes("setAudioQueueIndex(0);clearQuranLockScreen(wordPlayer)")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
