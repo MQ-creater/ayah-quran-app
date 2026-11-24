@@ -263,6 +263,15 @@ checks.push(
     app.includes("normalizeDailyAyah({") && app.includes("if (cachedIsValid) setDailyVerse(cached)")]
 );
 
+checks.push(
+  ["welcome screen uses honest guest access instead of placeholder authentication",
+    app.includes('function WelcomeScreen({ onContinue })') &&
+    app.includes('Button title="Continue as guest" onPress={onContinue}') &&
+    !app.includes("Continue with Google") &&
+    !app.includes("Continue with email") &&
+    !app.includes("const googlePlaceholder")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
