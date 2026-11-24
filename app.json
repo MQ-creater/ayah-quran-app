@@ -21,7 +21,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.mqcreater.ayah"
+      "bundleIdentifier": "com.mqcreater.ayah",
+      "infoPlist": {
+        "UIBackgroundModes": [
+          "audio"
+        ]
+      }
     },
     "web": {
       "bundler": "metro",
