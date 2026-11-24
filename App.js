@@ -27,6 +27,7 @@ function formatAudioTime(seconds) { const value=Number(seconds);if(!Number.isFin
 async function enableQuranBackgroundAudio(player, metadata) {
   try {
     await setAudioModeAsync({
+      allowsRecording: false,
       playsInSilentMode: true,
       shouldPlayInBackground: true,
       interruptionMode: "doNotMix"
