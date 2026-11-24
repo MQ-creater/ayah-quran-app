@@ -292,6 +292,21 @@ checks.push(
     config.includes('"versionCode": 1')]
 );
 
+checks.push(
+  ["Qur’an audio supports background listening and native lock-screen controls",
+    app.includes("shouldPlayInBackground: true") &&
+    app.includes('interruptionMode: "doNotMix"') &&
+    app.includes("setActiveForLockScreen(true") &&
+    app.includes("showSeekBackward: true") &&
+    app.includes("showSeekForward: true") &&
+    app.includes("clearLockScreenControls") &&
+    config.includes('"UIBackgroundModes": [') &&
+    config.includes('"audio"')],
+  ["surah and ayah playback publish meaningful lock-screen metadata",
+    app.includes('title:chapter.name_simple+" · Full surah"') &&
+    app.includes('title:chapter.name_simple+" · Ayah "+ayahNumber')]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
