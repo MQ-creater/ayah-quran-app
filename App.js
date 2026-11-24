@@ -286,8 +286,7 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSe
     if (!base) return;
     let active = true;
     setChapterLoading(true);
-    fetch(base + "/chapters")
-      .then(response => { if (!response.ok) throw new Error("Unable to load surahs"); return response.json(); })
+    requestJson("/chapters",{baseUrl:AYAH_API_BASE})
       .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
       .catch(() => { if (active) setError("The verified Qur’an library could not load. Please try again later."); })
       .finally(() => { if (active) setChapterLoading(false); });
@@ -310,10 +309,7 @@ function BuildMemorizationSessionScreen({ onBack, onProgressUpdate, onCompleteSe
       const lastPage = Math.floor((last - 1) / 50) + 1;
       let all = [];
       for (let page = firstPage; page <= lastPage; page++) {
-        const url = base + "/chapters/" + chapterId + "/verses?page=" + page + "&per_page=50&translation_id=131&script=uthmani&language=en";
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Unable to load the selected ayahs.");
-        const data = await response.json();
+        const data = await requestJson("/chapters/" + encodeURIComponent(chapterId) + "/verses?page=" + page + "&per_page=50&translation_id=131&script=uthmani&language=en",{baseUrl:AYAH_API_BASE});
         if (Array.isArray(data.verses)) all = all.concat(data.verses);
       }
       const selected = all.filter(item => {
@@ -393,8 +389,7 @@ function SmartRevisionScreen({ records, progress, onRateReview, onSyncRating, on
     if (!base) return;
     let active = true;
     setLoading(true);
-    fetch(base + "/chapters")
-      .then(response => { if (!response.ok) throw new Error("Could not load surah names."); return response.json(); })
+    requestJson("/chapters",{baseUrl:AYAH_API_BASE})
       .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
       .catch(() => { if (active) setLoadError("Surah names are unavailable. You can still use the review list."); })
       .finally(() => { if (active) setLoading(false); });
@@ -481,8 +476,7 @@ function MemorizationPlanScreen({ plan, onSavePlan, onStartPractice, onBuildSess
     if (!base) return;
     let active = true;
     setChapterLoading(true);
-    fetch(base + "/chapters")
-      .then(response => { if (!response.ok) throw new Error("Could not load surahs"); return response.json(); })
+    requestJson("/chapters",{baseUrl:AYAH_API_BASE})
       .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
       .catch(() => { if (active) setError("Connect the verified Qur’an content server to choose a surah."); })
       .finally(() => { if (active) setChapterLoading(false); });
@@ -1195,8 +1189,7 @@ function QuranLibraryScreen({ onOpenChapter, onOpenNavigation }) {
     if (!AYAH_API_BASE) return;
     let active = true;
     setLoading(true); setError("");
-    fetch(`${(AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0, -1) : AYAH_API_BASE)}/chapters`)
-      .then(response => { if (!response.ok) throw new Error(`Server returned ${response.status}`); return response.json(); })
+    requestJson("/chapters",{baseUrl:AYAH_API_BASE})
       .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
       .catch(() => { if (active) setError("We could not load the surah list. Please check the Ayah content server connection."); })
       .finally(() => { if (active) setLoading(false); });
@@ -2373,8 +2366,7 @@ function FullMemorizationTrackingScreen({ progress, onSetStatus, onBack }) {
     if (!AYAH_API_BASE) return;
     let active = true;
     setLoading(true);
-    fetch((AYAH_API_BASE.endsWith("/") ? AYAH_API_BASE.slice(0,-1) : AYAH_API_BASE) + "/chapters")
-      .then(response => { if (!response.ok) throw new Error("Unable to load surahs"); return response.json(); })
+    requestJson("/chapters",{baseUrl:AYAH_API_BASE})
       .then(data => { if (active) setChapters(Array.isArray(data.chapters) ? data.chapters : []); })
       .catch(() => { if (active) setError("Connect the verified Ayah content server to load all 114 surahs."); })
       .finally(() => { if (active) setLoading(false); });
