@@ -231,6 +231,15 @@ checks.push(
     offlineScreen.includes('from "../services/offline-library"')]
 );
 
+checks.push(
+  ["core Expo and font/asset dependencies stay aligned to SDK 54",
+    packageJson.includes('"expo": "~54.0.38"') &&
+    packageJson.includes('"expo-asset": "~12.0.14"') &&
+    packageJson.includes('"expo-font": "~14.0.12"') &&
+    packageJson.includes('"expo-audio": "~1.1.1"') &&
+    packageJson.includes('"react-native": "0.81.5"')]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
