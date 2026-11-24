@@ -253,6 +253,16 @@ checks.push(
     app.includes("Offline surah downloads are not included.")]
 );
 
+checks.push(
+  ["daily ayah uses validated source content and a local-day cache",
+    app.includes('requestJson("/verses/random?translation_id=131&language=en&script=uthmani"') &&
+    app.includes("DAILY_AYAH_CACHE_KEY") &&
+    app.includes("normalizeDailyAyah(verse, today)") &&
+    app.includes("dailyVerse?.date === localDateKey()")],
+  ["daily ayah fallback validates cached reference and content",
+    app.includes("normalizeDailyAyah({") && app.includes("if (cachedIsValid) setDailyVerse(cached)")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
