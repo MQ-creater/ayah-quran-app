@@ -240,6 +240,19 @@ checks.push(
     packageJson.includes('"react-native": "0.81.5"')]
 );
 
+checks.push(
+  ["reader keeps Arabic visible when a downloaded Qur’an font cannot load",
+    app.includes("fontFamily: arabicFontReady ?") &&
+    app.includes("Arabic text is still shown using your device’s available font.")],
+  ["clear local data also removes offline surahs and saved vocabulary",
+    app.includes("await offlineStorage.clear()") &&
+    app.includes("setSavedWordItems([])") &&
+    app.includes("setVocabularyReviewRecords({})") &&
+    app.includes("setVocabularyDailyGoal(10)")],
+  ["backup screen clearly excludes offline surah downloads",
+    app.includes("Offline surah downloads are not included.")]
+);
+
 for (const [name, passed] of checks) {
   assert.equal(passed, true, "Failed check: " + name);
 }
