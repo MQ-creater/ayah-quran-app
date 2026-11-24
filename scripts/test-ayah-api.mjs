@@ -69,3 +69,47 @@ test("requestJson preserves caller cancellation", async () => {
     error => error.name === "AbortError"
   );
 });
+
+
+test("requestJson enforces its timeout when a caller also supplies an abort signal", async () => {
+  const controller = new AbortController();
+  await assert.rejects(
+    requestJson("/slow", {
+      baseUrl:"https://api.example.test/api",
+      signal:controller.signal,
+      timeoutMs:5,
+      fetchImpl:async(_url,options)=>new Promise((_resolve,reject)=>{
+        options.signal.addEventListener("abort",()=>{
+          const error=new Error("aborted");
+          error.name="AbortError";
+          reject(error);
+        },{once:true});
+      })
+    }),
+    error => error instanceof AyahApiError && error.code === "TIMEOUT"
+  );
+});
+
+test("requestJson preserves caller cancellation when a timeout is also active", async () => {
+  const controller = new AbortController();
+  const abortTimer = setTimeout(()=>controller.abort(),5);
+  try {
+    await assert.rejects(
+      requestJson("/slow", {
+        baseUrl:"https://api.example.test/api",
+        signal:controller.signal,
+        timeoutMs:1000,
+        fetchImpl:async(_url,options)=>new Promise((_resolve,reject)=>{
+          options.signal.addEventListener("abort",()=>{
+            const error=new Error("caller cancelled");
+            error.name="AbortError";
+            reject(error);
+          },{once:true});
+        })
+      }),
+      error => error?.name === "AbortError"
+    );
+  } finally {
+    clearTimeout(abortTimer);
+  }
+});
