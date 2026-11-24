@@ -64,7 +64,7 @@ test("requestJson preserves caller cancellation", async () => {
     requestJson("/chapters", {
       baseUrl:"https://api.example.test/api",
       signal:controller.signal,
-      fetchImpl:async(_url,options)=>{assert.equal(options.signal,controller.signal);const error=new Error("aborted");error.name="AbortError";throw error;}
+      fetchImpl:async(_url,options)=>{assert.equal(options.signal.aborted,true);const error=new Error("aborted");error.name="AbortError";throw error;}
     }),
     error => error.name === "AbortError"
   );
